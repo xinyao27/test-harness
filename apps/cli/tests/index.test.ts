@@ -147,50 +147,96 @@ describe("harness CLI", () => {
     },
   );
 
-  test("test returns non-zero when the configured runner fails", async () => {
-    const workspace = await withTempWorkspace(validPromiseYaml);
+  scenarioTest(
+    "harness.cli.test_orchestrates_vitest_and_verify",
+    "test returns non-zero when the configured runner fails without results",
+    async () => {
+      const workspace = await withTempWorkspace(validPromiseYaml);
 
-    try {
-      const result = await run(["test"], workspace.root, {
-        testRunner: async () => 1,
-      });
+      try {
+        const result = await run(["test"], workspace.root, {
+          testRunner: async () => 1,
+        });
 
-      expect(result.exitCode).toBe(1);
-      expect(result.stderr).toContain("Test command failed with exit code 1.");
-      expect(result.stdout).toContain("Seed Harness Report");
-    } finally {
-      await workspace.cleanup();
-    }
-  });
+        expect(result.exitCode).toBe(1);
+        expect(result.stderr).toContain("Test command failed with exit code 1.");
+        expect(result.stderr).not.toContain("No Harness result file found");
+        expect(result.stdout).not.toContain("Seed Harness Report");
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
 
-  test("test returns non-zero when the runner does not write results", async () => {
-    const workspace = await withTempWorkspace(validPromiseYaml);
+  scenarioTest(
+    "harness.cli.test_orchestrates_vitest_and_verify",
+    "test renders failing results when the configured runner fails with results",
+    async () => {
+      const workspace = await withTempWorkspace(validPromiseYaml);
 
-    try {
-      const result = await run(["test"], workspace.root, {
-        testRunner: async () => 0,
-      });
+      try {
+        const result = await run(["test"], workspace.root, {
+          testRunner: async ({ cwd }) => {
+            await writeTestResultsFile(
+              cwd,
+              createTestResultsFile([
+                {
+                  file: "apps/cli/tests/index.test.ts",
+                  promiseId: "harness.promise_registry.load_canonical_yaml_promises",
+                  status: "failing",
+                  testName: "failing test",
+                },
+              ]),
+            );
+            return 1;
+          },
+        });
 
-      expect(result.exitCode).toBe(1);
-      expect(result.stderr).toContain(
-        "No Harness result file found at .harness/results.yaml after the test command.",
-      );
-      expect(result.stdout).toContain("Run Status: unknown");
-    } finally {
-      await workspace.cleanup();
-    }
-  });
+        expect(result.exitCode).toBe(1);
+        expect(result.stderr).toContain("Test command failed with exit code 1.");
+        expect(result.stdout).toContain("Seed Harness Report");
+        expect(result.stdout).toContain("Run Status: failing");
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
 
-  test("test returns non-zero when result YAML is invalid", async () => {
-    const workspace = await withTempWorkspace(validPromiseYaml);
+  scenarioTest(
+    "harness.cli.test_orchestrates_vitest_and_verify",
+    "test returns non-zero when the runner does not write results",
+    async () => {
+      const workspace = await withTempWorkspace(validPromiseYaml);
 
-    try {
-      const result = await run(["test"], workspace.root, {
-        testRunner: async ({ cwd }) => {
-          await mkdir(join(cwd, ".harness"), { recursive: true });
-          await writeFile(
-            join(cwd, ".harness", "results.yaml"),
-            `
+      try {
+        const result = await run(["test"], workspace.root, {
+          testRunner: async () => 0,
+        });
+
+        expect(result.exitCode).toBe(1);
+        expect(result.stderr).toContain(
+          "No Harness result file found at .harness/results.yaml after the test command.",
+        );
+        expect(result.stdout).toContain("Run Status: unknown");
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
+
+  scenarioTest(
+    "harness.cli.test_orchestrates_vitest_and_verify",
+    "test returns non-zero when result YAML is invalid",
+    async () => {
+      const workspace = await withTempWorkspace(validPromiseYaml);
+
+      try {
+        const result = await run(["test"], workspace.root, {
+          testRunner: async ({ cwd }) => {
+            await mkdir(join(cwd, ".harness"), { recursive: true });
+            await writeFile(
+              join(cwd, ".harness", "results.yaml"),
+              `
 generatedAt: "2026-05-24T00:00:00.000Z"
 results:
   - file: apps/cli/tests/index.test.ts
@@ -198,17 +244,18 @@ results:
     status: done
     testName: invalid result
 `,
-          );
-          return 0;
-        },
-      });
+            );
+            return 0;
+          },
+        });
 
-      expect(result.exitCode).toBe(1);
-      expect(result.stderr).toContain("TestResultsSchemaDecodeError");
-    } finally {
-      await workspace.cleanup();
-    }
-  });
+        expect(result.exitCode).toBe(1);
+        expect(result.stderr).toContain("TestResultsSchemaDecodeError");
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
 
   test("verify renders the requested report language", async () => {
     const workspace = await withTempWorkspace(validPromiseYaml);

@@ -12,6 +12,7 @@ import {
   createScenarioRegistry,
   generateSeedReport,
   getPromiseRunStatus,
+  harnessRootEnvVar,
   loadTestResults,
   loadPromiseRecords,
   renderSeedReportMarkdown,
@@ -22,7 +23,7 @@ import {
   writeTestResultsFile,
 } from "../src/index.ts";
 import { findPromiseFiles } from "../src/promise-registry.ts";
-import { collectTestResultsFromModules } from "../src/vitest-reporter.ts";
+import HarnessReporter, { collectTestResultsFromModules } from "../src/vitest-reporter.ts";
 import { scenarioTest } from "../src/vitest.ts";
 
 const withTempWorkspace = async (files: Record<string, string>) => {
@@ -553,4 +554,46 @@ results:
       ]);
     },
   );
+
+  test("reporter writes results under the explicit Harness root env var", async () => {
+    const workspace = await withTempRoot();
+    const previousRoot = process.env[harnessRootEnvVar];
+    process.env[harnessRootEnvVar] = workspace.root;
+
+    try {
+      const reporter = new HarnessReporter();
+      const testCase = {
+        fullName: "result collector > writes to root",
+        meta: () => ({ promiseId: "harness.result_collector.maps_vitest_results_to_promises" }),
+        module: { moduleId: "/workspace/packages/core/tests/index.test.ts" },
+        name: "writes to root",
+        result: () => ({ state: "passed" }),
+      };
+
+      await reporter.onTestRunEnd([
+        {
+          children: {
+            allTests: () => [testCase],
+          },
+          moduleId: "/workspace/packages/core/tests/index.test.ts",
+        },
+      ] as unknown as Parameters<HarnessReporter["onTestRunEnd"]>[0]);
+
+      await expect(Effect.runPromise(loadTestResults(workspace.root))).resolves.toEqual([
+        {
+          file: "/workspace/packages/core/tests/index.test.ts",
+          promiseId: "harness.result_collector.maps_vitest_results_to_promises",
+          status: "passing",
+          testName: "result collector > writes to root",
+        },
+      ]);
+    } finally {
+      if (previousRoot === undefined) {
+        delete process.env[harnessRootEnvVar];
+      } else {
+        process.env[harnessRootEnvVar] = previousRoot;
+      }
+      await workspace.cleanup();
+    }
+  });
 });

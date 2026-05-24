@@ -11,6 +11,7 @@ import {
   harnessResultsPath,
   loadTestResultsFile,
   renderSeedReportMarkdown,
+  type TestResult,
   type TestResultsFile,
   type ValidationIssue,
 } from "@test-harness/core";
@@ -39,23 +40,45 @@ const defaultStreams: CliStreams = {
   stdout: (message) => console.log(message),
 };
 
-const forwardChunk = (write: (message: string) => void, chunk: Buffer): void => {
-  const message = chunk.toString();
-  if (message.trim().length > 0) write(message.trimEnd());
+const harnessRootEnvVar = "HARNESS_ROOT_DIR";
+
+const createLineForwarder = (write: (message: string) => void) => {
+  let pending = "";
+  return {
+    flush() {
+      if (pending.length === 0) return;
+      write(pending);
+      pending = "";
+    },
+    write(chunk: Buffer) {
+      pending += chunk.toString();
+      let newlineIndex = pending.indexOf("\n");
+      while (newlineIndex >= 0) {
+        const line = pending.slice(0, newlineIndex).replace(/\r$/, "");
+        write(line);
+        pending = pending.slice(newlineIndex + 1);
+        newlineIndex = pending.indexOf("\n");
+      }
+    },
+  };
 };
 
 const runDefaultTestRunner: TestRunner = ({ cwd, streams }) =>
   new Promise((resolve, reject) => {
-    const child = spawn("vp", ["run", "-r", "test"], {
+    const stdout = createLineForwarder(streams.stdout);
+    const stderr = createLineForwarder(streams.stderr);
+    const child = spawn("vp", ["test"], {
       cwd,
-      env: process.env,
+      env: { ...process.env, [harnessRootEnvVar]: cwd },
       stdio: ["ignore", "pipe", "pipe"],
     });
 
-    child.stdout.on("data", (chunk: Buffer) => forwardChunk(streams.stdout, chunk));
-    child.stderr.on("data", (chunk: Buffer) => forwardChunk(streams.stderr, chunk));
+    child.stdout.on("data", (chunk: Buffer) => stdout.write(chunk));
+    child.stderr.on("data", (chunk: Buffer) => stderr.write(chunk));
     child.on("error", reject);
     child.on("close", (exitCode) => {
+      stdout.flush();
+      stderr.flush();
       resolve(exitCode ?? 1);
     });
   });
@@ -184,13 +207,13 @@ const runCheck = (options: CliOptions): Effect.Effect<number> =>
 
 type ReportOptions = {
   readonly language?: string;
-  readonly resultsFile?: TestResultsFile;
+  readonly results?: readonly TestResult[];
 };
 
 const runReport = (options: CliOptions, reportOptions: ReportOptions = {}): Effect.Effect<number> =>
   buildSeedReport(options.cwd, {
     language: reportOptions.language,
-    results: reportOptions.resultsFile?.results,
+    results: reportOptions.results,
   }).pipe(
     Effect.matchEffect({
       onFailure: (error) =>
@@ -217,7 +240,10 @@ type ResultsFileCheck =
   | { readonly type: "invalid" }
   | { readonly type: "missing" };
 
-const requireResultsFile = (options: CliOptions): Effect.Effect<ResultsFileCheck> =>
+const requireResultsFile = (
+  options: CliOptions,
+  logMissing: boolean,
+): Effect.Effect<ResultsFileCheck> =>
   loadTestResultsFile(options.cwd).pipe(
     Effect.match({
       onFailure: (error) => {
@@ -226,9 +252,11 @@ const requireResultsFile = (options: CliOptions): Effect.Effect<ResultsFileCheck
       },
       onSuccess: (file) => {
         if (!file) {
-          options.streams.stderr(
-            `No Harness result file found at ${harnessResultsPath} after the test command.`,
-          );
+          if (logMissing) {
+            options.streams.stderr(
+              `No Harness result file found at ${harnessResultsPath} after the test command.`,
+            );
+          }
           return { type: "missing" };
         }
         return { file, type: "found" };
@@ -266,13 +294,15 @@ const runTest = (options: CliOptions, language?: string): Effect.Effect<number> 
       options.streams.stderr(`Test command failed with exit code ${testExitCode}.`);
     }
 
-    const resultsFileCheck = yield* requireResultsFile(options);
+    const resultsFileCheck = yield* requireResultsFile(options, testExitCode === 0);
+    if (resultsFileCheck.type === "missing" && testExitCode !== 0) return 1;
+
     const reportExitCode =
       resultsFileCheck.type === "invalid"
         ? 1
         : yield* runReport(options, {
             language,
-            resultsFile: resultsFileCheck.type === "found" ? resultsFileCheck.file : undefined,
+            results: resultsFileCheck.type === "found" ? resultsFileCheck.file.results : [],
           });
     return testExitCode !== 0 || resultsFileCheck.type !== "found" || reportExitCode !== 0 ? 1 : 0;
   });

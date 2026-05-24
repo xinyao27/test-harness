@@ -8,7 +8,7 @@ The next slice should turn the current two-command loop into one command:
 harness test
 ```
 
-The command should run Vite+/Vitest from the workspace root, let the Harness reporter write `.harness/results.yaml`, then render the same verification report that `harness verify` already produces.
+The command should run Vite+/Vitest from the workspace root, pass that root to the Harness reporter through `HARNESS_ROOT_DIR`, let the reporter write `.harness/results.yaml`, then render the same verification report that `harness verify` already produces.
 
 This is still not AI-generated implementation. It is the smallest practical self-bootstrapping loop:
 
@@ -55,11 +55,12 @@ Out of scope:
 1. Resolve the workspace root.
 2. Remove or overwrite stale `.harness/results.yaml`.
 3. Run the configured Vite+/Vitest command.
-4. Fail if the test command exits non-zero.
-5. Fail if `.harness/results.yaml` is missing after a successful test command.
-6. Read `.harness/results.yaml` through the existing Effect Schema decoder.
-7. Render the same report as `harness verify`.
-8. Return non-zero if tests fail, result YAML is missing or invalid, or verification contains errors.
+4. If the test command exits non-zero, fail; if it still wrote results, render them so the failing promises remain visible.
+5. If the test command exits non-zero without results, report only the test command failure instead of also reporting a missing result file.
+6. Fail if `.harness/results.yaml` is missing after a successful test command.
+7. Read `.harness/results.yaml` through the existing Effect Schema decoder.
+8. Render the same report as `harness verify`.
+9. Return non-zero if tests fail, result YAML is missing or invalid, or verification contains errors.
 
 The command should keep `harness check`, `harness report`, and `harness verify` behavior unchanged.
 
@@ -69,16 +70,17 @@ The orchestrator should make root handling explicit:
 
 - Default root is the CLI `cwd`.
 - The test command should run with that root as `cwd`.
-- The reporter should continue writing `.harness/results.yaml` relative to the test process cwd.
+- The CLI should pass that root to the reporter through `HARNESS_ROOT_DIR`.
+- The reporter should write `.harness/results.yaml` relative to `HARNESS_ROOT_DIR`, falling back to the test process cwd only when the env var is absent.
 
-This keeps the first implementation simple and predictable. A future slice can add explicit workspace discovery if users need to run the CLI from nested directories.
+This keeps the first implementation simple and predictable while avoiding accidental writes to package subdirectories. A future slice can add explicit workspace discovery if users need to run the CLI from nested directories.
 
 ## Test Command
 
 For the first implementation, use the repo's existing command:
 
 ```bash
-vp run -r test
+vp test
 ```
 
 The command should be centralized in one small helper so it can later become configurable without changing report logic.
@@ -102,6 +104,7 @@ should:
 
 - CLI unit test: `harness test` invokes the configured test runner and then renders a report.
 - CLI unit test: non-zero test runner exit returns non-zero and prints the failure.
+- CLI unit test: missing `.harness/results.yaml` returns non-zero with a clear missing-result message only when the test command succeeded.
 - CLI unit test: invalid `.harness/results.yaml` returns non-zero with a typed error.
 - Integration/manual check:
 

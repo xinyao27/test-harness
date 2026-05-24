@@ -2,6 +2,7 @@ import type { Reporter } from "vite-plus/test/reporters";
 
 import {
   createTestResultsFile,
+  harnessRootEnvVar,
   type TestResult,
   type TestResultStatus,
   writeTestResultsFile,
@@ -94,7 +95,7 @@ export default class HarnessReporter implements Reporter {
     testModules: Parameters<NonNullable<Reporter["onTestRunEnd"]>>[0],
   ): Promise<void> {
     await writeTestResultsFile(
-      process.cwd(),
+      process.env[harnessRootEnvVar] ?? process.cwd(),
       createTestResultsFile(collectTestResultsFromModules(testModules)),
     );
   }

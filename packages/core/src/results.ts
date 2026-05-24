@@ -13,6 +13,7 @@ import {
 import type { PromiseRunStatus } from "./schema.ts";
 
 export const harnessResultsPath = ".harness/results.yaml";
+export const harnessRootEnvVar = "HARNESS_ROOT_DIR";
 
 export const TestResultStatusSchema = Schema.Literals(["passing", "failing", "skipped"]);
 

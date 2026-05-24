@@ -18,6 +18,7 @@ export { generateSeedReport, renderSeedReportMarkdown, type SeedReportOptions } 
 export {
   createTestResultsFile,
   getPromiseRunStatus,
+  harnessRootEnvVar,
   harnessResultsPath,
   loadTestResults,
   loadTestResultsFile,
