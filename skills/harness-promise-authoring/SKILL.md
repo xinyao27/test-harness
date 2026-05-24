@@ -7,10 +7,11 @@ description: Author or change behavior in a project that uses this Test Harness.
 
 This skill teaches Agents how to draft Harness-friendly **promises** and **tests** so a human reviewer can understand what the system guarantees without reading every line of test code.
 
-You do not need to know how the Harness is implemented internally. You only need to produce two kinds of artifact correctly:
+You do not need to know how the Harness is implemented internally. You only need to produce protocol artifacts and adapter evidence correctly:
 
 - `.promise.yaml` files — the canonical record of one reviewable behavior commitment.
-- Vitest tests bound with `scenarioTest(promiseId, ...)` — the executable proof of those commitments.
+- Adapter tests bound to promise ids — the executable proof of those commitments.
+- For the current TypeScript reference implementation, Vitest tests bind with `scenarioTest(promiseId, ...)`.
 
 ## The Mental Model
 
@@ -18,7 +19,7 @@ You do not need to know how the Harness is implemented internally. You only need
 Feature        ← navigation entry point (what part of the system)
   Promise      ← review unit (what the system guarantees) — canonical file
     Evidence   ← what proves the promise is still satisfied
-      Vitest test ← the executable encoding
+      Adapter test ← the executable encoding
 ```
 
 Humans review **promises**. Agents write **tests and code** that prove them. The promise file is the canonical source of meaning — the test is just executable evidence for it.
@@ -36,9 +37,10 @@ A passing Vitest test alone does not mean the promise is satisfied — it is onl
 
 ## Promise File Rules
 
-Promises live in `promises/<module-area>/<slug>.promise.yaml`. Module areas use kebab-case and should match a code or product area, such as `cli`, `checkout`, or `result-collector`. Use the existing files as templates; the minimal shape is:
+Promises live in `promises/<module-area>/<slug>.promise.yaml`. Module areas use kebab-case and should match a code or product area, such as `cli`, `checkout`, or `validation`. Adapter-specific promises live under `promises/adapters/<adapter-name>/`. Use the existing files as templates; the minimal shape is:
 
 ```yaml
+apiVersion: 1
 id: checkout.payment.success_marks_order_paid
 feature: Checkout / Payment
 title: Successful payment marks the order as paid
@@ -70,6 +72,7 @@ review:
 Required rules:
 
 - **`id` is permanent.** Once an id has been reviewed, never rename it. To replace it, create a new id and set `deprecatedBy` / `supersedes` on the relevant files. History stays readable.
+- **`apiVersion` is the Harness protocol version.** Use `apiVersion: 1` for current promise files.
 - **Slugs in `id` use lowercase dot notation:** `area.subarea.specific_behavior`. They are not human prose; do not translate them.
 - **Machine fields stay untranslated:** `id`, `feature`, `priority`, `boundary`, `lifecycle`, `review`, `observes`.
 - **Natural-language fields can be plain strings or bilingual maps.** Plain string = default English. To localize, use `{ en: "...", zh-CN: "..." }`. Bilingual is preferred for promises that will be reviewed by a Chinese-speaking team, but is not required.
@@ -86,10 +89,10 @@ Common mistakes:
 
 ## Binding Tests With `scenarioTest`
 
-The test side of the loop. The Vitest-specific helper lives under `@test-harness/core/vitest`:
+The current reference adapter is Vitest. Its helper lives under `@test-harness/adapter-vitest`:
 
 ```ts
-import { scenarioTest } from "@test-harness/core/vitest";
+import { scenarioTest } from "@test-harness/adapter-vitest";
 
 scenarioTest(
   "checkout.payment.success_marks_order_paid",

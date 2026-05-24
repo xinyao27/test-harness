@@ -1,30 +1,32 @@
 # Canonical behavior promise for the CLI test orchestration loop.
-id: harness.cli.test_orchestrates_vitest_and_verify
+apiVersion: 1
+id: harness.cli.test_orchestrates_adapter_and_verify
 feature: Seed Harness / CLI
 title:
-  en: The test command runs Vitest and renders promise status
-  zh-CN: test 命令会运行 Vitest 并渲染 promise 状态
+  en: The test command runs an adapter and renders promise status
+  zh-CN: test 命令会运行 adapter 并渲染 promise 状态
 purpose:
-  en: Protect the minimal self-bootstrapping loop behind a single human-facing command.
-  zh-CN: 保护最小自举闭环可以通过一个面向人的命令运行。
+  en: Protect the minimal self-bootstrapping loop behind a single human-facing command without making the protocol depend on a specific test framework.
+  zh-CN: 保护最小自举闭环可以通过一个面向人的命令运行，同时不让 protocol 依赖某个特定测试框架。
 priority: P0
 boundary: integration
 lifecycle: accepted
 
 given:
-  - en: Canonical promises exist and Vitest tests bind to promise ids
-    zh-CN: canonical promises 存在，并且 Vitest 测试绑定到 promise ids
+  - en: Canonical promises exist and a configured adapter can produce Harness result YAML
+    zh-CN: canonical promises 存在，并且配置好的 adapter 可以产出 Harness result YAML
 when:
   - en: A user runs harness test
     zh-CN: 用户运行 harness test
 then:
-  - en: The CLI runs the configured Vitest command
-    zh-CN: CLI 会运行配置好的 Vitest 命令
+  - en: The CLI runs the configured adapter command
+    zh-CN: CLI 会运行配置好的 adapter 命令
   - en: The verification report is rendered from .harness/results.yaml
     zh-CN: verification report 会基于 .harness/results.yaml 渲染
 observes:
   - harness test
   - .harness/results.yaml
+  - protocol/v1/results.schema.yaml
 
 failureMeaning:
   en: The Harness cannot provide a single command for the reviewed promise-to-test loop.

@@ -128,7 +128,7 @@ packages/core/src/results.ts
 Suggested module:
 
 ```text
-packages/core/src/vitest.ts
+packages/adapter-vitest/src/index.ts
 ```
 
 It should provide the smallest helper that can attach `promiseId` to the current Vitest task metadata.
@@ -138,7 +138,7 @@ It should provide the smallest helper that can attach `promiseId` to the current
 Suggested module:
 
 ```text
-packages/core/src/vitest-reporter.ts
+packages/adapter-vitest/src/reporter.ts
 ```
 
 The reporter should collect `promiseId`, file, test name, status, and failure message, then write `.harness/results.yaml`.

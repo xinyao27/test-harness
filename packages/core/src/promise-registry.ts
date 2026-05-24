@@ -70,7 +70,7 @@ const decodePromiseRecord = (
   path: string,
   input: unknown,
 ): Effect.Effect<PromiseRecord, PromiseSchemaDecodeError> =>
-  Schema.decodeUnknownEffect(PromiseRecordSchema)(input).pipe(
+  Schema.decodeUnknownEffect(PromiseRecordSchema, { onExcessProperty: "error" })(input).pipe(
     Effect.mapError((cause) => new PromiseSchemaDecodeError({ cause, path })),
   );
 

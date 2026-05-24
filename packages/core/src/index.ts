@@ -33,6 +33,8 @@ export {
 export {
   type FeatureReport,
   FeatureReportSchema,
+  HarnessProtocolVersionSchema,
+  harnessProtocolVersion,
   type LocalizedText,
   LocalizedTextSchema,
   PromiseBoundarySchema,

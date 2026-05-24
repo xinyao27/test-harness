@@ -1,4 +1,5 @@
 export const validPromiseYaml = `
+apiVersion: 1
 id: harness.promise_registry.load_canonical_yaml_promises
 feature: Seed Harness / Promise Registry
 title:

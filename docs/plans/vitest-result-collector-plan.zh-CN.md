@@ -128,7 +128,7 @@ packages/core/src/results.ts
 建议模块：
 
 ```text
-packages/core/src/vitest.ts
+packages/adapter-vitest/src/index.ts
 ```
 
 它只负责用最小方式把 `promiseId` 挂到当前 Vitest task metadata。
@@ -138,7 +138,7 @@ packages/core/src/vitest.ts
 建议模块：
 
 ```text
-packages/core/src/vitest-reporter.ts
+packages/adapter-vitest/src/reporter.ts
 ```
 
 Reporter 收集 `promiseId`、file、test name、status 和 failure message，然后写入 `.harness/results.yaml`。

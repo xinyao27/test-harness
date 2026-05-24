@@ -1,5 +1,8 @@
 import { Schema } from "effect";
 
+export const harnessProtocolVersion = 1 as const;
+export const HarnessProtocolVersionSchema = Schema.Literals([harnessProtocolVersion]);
+
 export const PromiseLifecycleSchema = Schema.Literals([
   "proposed",
   "accepted",
@@ -28,11 +31,15 @@ export const PromiseBoundarySchema = Schema.Literals([
 ]);
 
 const StringArraySchema = Schema.Array(Schema.String);
+const NonEmptyStringArraySchema = StringArraySchema.check(Schema.isNonEmpty());
+const PromiseIdSchema = Schema.String.check(
+  Schema.isPattern(/^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/),
+);
 export const LocalizedTextSchema = Schema.Union([
   Schema.String,
   Schema.Record(Schema.String, Schema.String),
 ]);
-const LocalizedTextArraySchema = Schema.Array(LocalizedTextSchema);
+const LocalizedTextArraySchema = Schema.Array(LocalizedTextSchema).check(Schema.isNonEmpty());
 
 export const PromiseReviewSchema = Schema.Struct({
   approvedAt: Schema.optionalKey(Schema.String),
@@ -42,14 +49,15 @@ export const PromiseReviewSchema = Schema.Struct({
 });
 
 export const PromiseRecordSchema = Schema.Struct({
+  apiVersion: HarnessProtocolVersionSchema,
   boundary: PromiseBoundarySchema,
   deprecatedBy: Schema.optionalKey(Schema.String),
   failureMeaning: LocalizedTextSchema,
   feature: Schema.String,
   given: LocalizedTextArraySchema,
-  id: Schema.String,
+  id: PromiseIdSchema,
   lifecycle: PromiseLifecycleSchema,
-  observes: StringArraySchema,
+  observes: NonEmptyStringArraySchema,
   priority: PromisePrioritySchema,
   purpose: LocalizedTextSchema,
   review: PromiseReviewSchema,
@@ -97,6 +105,7 @@ export const FeatureReportSchema = Schema.Struct({
 });
 
 export const SeedReportSchema = Schema.Struct({
+  apiVersion: HarnessProtocolVersionSchema,
   features: Schema.Array(FeatureReportSchema),
   issues: Schema.Array(ValidationIssueSchema),
   summary: Schema.Struct({

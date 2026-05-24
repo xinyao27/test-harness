@@ -7,14 +7,16 @@
 
 The full Test Harness is still only a design. The first implementation should not try to build the complete Promise Review Console.
 
-The MVP should be a **seed Harness**: a minimal, file-based, Vitest-first system that can describe, run, and report promises about this Harness project itself.
+The MVP should be a **seed Harness**: a minimal, file-based, protocol-first system that can describe, run, and report promises about this Harness project itself.
+
+The stable layer is language-agnostic YAML. The current TypeScript package and Vitest integration are a reference implementation and adapter, not the definition of the Harness itself.
 
 The seed Harness exists to create the first self-bootstrapping loop:
 
 ```text
 write promises for the Harness itself
-  -> attach scenario bindings to Vitest tests
-  -> run Vitest
+  -> attach scenario bindings to adapter tests
+  -> run the configured adapter
   -> collect results by promise id
   -> check readability and evidence rules
   -> produce a readable promise report
@@ -30,8 +32,8 @@ In scope:
 1. **Promise files**
    Store this Harness project's own promises in versioned files. These files are the canonical source for reviewed promise meaning.
 
-2. **Vitest scenario helper**
-   Provide `scenario(...)` bindings that connect Vitest tests to canonical promise ids.
+2. **Adapter binding helper**
+   Provide bindings that connect executable adapter tests to canonical promise ids. The seed implementation currently provides a Vitest helper.
 
 3. **Basic quality checker**
    Check that canonical promise metadata and scenario bindings are present, readable, and complete enough.
@@ -39,8 +41,8 @@ In scope:
 4. **Basic evidence mapper**
    Track which tests and assertions claim to prove which promise. Capture assertion fingerprints for Evidence Drift v1.
 
-5. **Vitest result collector**
-   Run or read Vitest results and normalize them by promise id.
+5. **Result collector**
+   Run or read adapter results and normalize them by promise id into `.harness/results.yaml`.
 
 6. **Seed report**
    Output a human-readable report grouped by feature and promise.
@@ -49,7 +51,7 @@ Out of scope for the seed:
 
 - full visual Promise Review Console
 - complex browser UX
-- multi-language adapters
+- advanced adapters beyond the current Vitest adapter
 - full drift AI classification
 - advanced risk maps
 - organization-level permissions
@@ -64,7 +66,7 @@ The seed can start with files.
 Canonical source decision:
 
 ```text
-.promise.yaml files
+apiVersion: 1 .promise.yaml files
   -> canonical reviewed promise meaning
 
 scenario({ id })
@@ -94,14 +96,23 @@ Suggested structure:
 
 ```text
 promises/
+  protocol/
+    promise-files-are-versioned.promise.yaml
+  adapters/
+    vitest/
+      scenario-helper-binds-tests.promise.yaml
+      result-collector-maps-results.promise.yaml
   promise-registry/
     load-canonical-yaml-promises.promise.yaml
-  scenario-helper/
-    binds-tests.promise.yaml
-  result-collector/
-    maps-results.promise.yaml
   validation/
     readability.promise.yaml
+
+protocol/
+  v1/
+    promise.schema.yaml
+    results.schema.yaml
+    report.schema.yaml
+    cli.yaml
 
 src/
   scenario.ts
@@ -116,9 +127,10 @@ reports/
 
 Promise file shape:
 
-The canonical file is YAML. The implementation defines this shape with Effect Schema and derives the TypeScript type from the schema. Natural-language fields use `LocalizedText`: a plain string is allowed and treated as default English, or the field can expand into a language map such as `en` / `zh-CN`.
+The canonical file is YAML and declares `apiVersion: 1`. The protocol shape is documented under `protocol/v1/`. The TypeScript implementation defines matching Effect Schemas and derives types from those schemas. Natural-language fields use `LocalizedText`: a plain string is allowed and treated as default English, or the field can expand into a language map such as `en` / `zh-CN`.
 
 ```yaml
+apiVersion: 1
 id: harness.promise_registry.load_canonical_yaml_promises
 feature: Seed Harness / Promise Registry
 title:
@@ -210,7 +222,7 @@ Evidence:
 
 ```text
 Promise:
-Vitest tests can bind to a canonical promise with a stable promise id.
+Adapter tests can bind to a canonical promise with a stable promise id.
 
 Evidence:
 - scenario binding is registered during a test file load
@@ -236,7 +248,7 @@ Evidence:
 
 ```text
 Promise:
-Vitest results are normalized by promise id.
+Adapter results are normalized by promise id.
 
 Evidence:
 - passing tests produce passing promise results
@@ -280,7 +292,7 @@ harness check
   Validate promise files, scenario bindings, review metadata, and quality rules.
 
 harness test
-  Run Vitest, collect results by promise id, and capture assertion fingerprints.
+  Run the configured adapter, collect results by promise id, and capture assertion fingerprints.
 
 harness report
   Generate reports/harness-report.json and reports/harness-report.md.
@@ -327,13 +339,13 @@ P0  Unreadable canonical metadata or scenario bindings are rejected
    Add promise files, make them canonical, choose PR-based review metadata, and decide where reports are written.
 
 2. **M1: Scenario helper**
-   Implement `scenario({ id })` bindings and store binding metadata during Vitest execution.
+   Implement `scenario({ id })` bindings and store binding metadata during adapter execution. The seed adapter is Vitest.
 
 3. **M2: Quality checker**
    Validate required metadata and basic readability rules. Before this milestone is accepted, checker failures may be warnings; after acceptance, required metadata failures are blocking.
 
 4. **M3: Result collector**
-   Normalize Vitest results by promise id.
+   Normalize adapter results by promise id.
 
 5. **M4: Evidence mapper**
    Track promise-to-test and promise-to-evidence mappings, and capture assertion fingerprints.
@@ -342,16 +354,16 @@ P0  Unreadable canonical metadata or scenario bindings are rejected
    Generate readable JSON and Markdown reports, including lifecycle, run status, and evidence deltas.
 
 7. **M6: Self-hosted iteration**
-   Use the seed report to drive one concrete next Harness feature end to end, from promise review to Vitest result to report.
+   Use the seed report to drive one concrete next Harness feature end to end, from promise review to adapter result to report.
 
 ## 8. Success Criteria
 
 The MVP succeeds when:
 
 1. The Harness has its own promise files.
-2. Vitest tests can declare scenario bindings.
+2. Adapter tests can declare scenario bindings.
 3. The seed checker can reject incomplete or unreadable metadata.
-4. Vitest results can be grouped by promise id.
+4. Adapter results can be grouped by promise id.
 5. Assertion fingerprints are captured and evidence deltas can be reported.
 6. A human can read the seed report and understand each Harness promise's lifecycle, run status, and evidence status.
 7. The next Harness feature can be planned as promises and validated by the seed Harness.

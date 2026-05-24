@@ -1,0 +1,25 @@
+apiVersion: 1
+summary:
+  promises: 1
+  errors: 0
+  warnings: 0
+features:
+  - feature: Harness Fixtures / Report
+    promises:
+      - promiseId: harness.fixture.valid_basic_promise
+        title: Valid fixture promises decode through protocol v1
+        purpose: Provide a portable valid promise sample for conformance tests.
+        priority: P1
+        lifecycle: accepted
+        runStatus: passing
+        given:
+          - A valid promise fixture exists
+        when:
+          - A Harness implementation decodes the fixture
+        then:
+          - The fixture is accepted by protocol v1
+        evidence:
+          - protocol/fixtures/promises/valid/basic.promise.yaml
+        failureMeaning: Implementations may not agree on the valid promise shape.
+        warnings: []
+issues: []

@@ -36,6 +36,6 @@ export default defineConfig({
     cache: true,
   },
   test: {
-    reporters: ["default", "./packages/core/src/vitest-reporter.ts"],
+    reporters: ["default", "./packages/adapter-vitest/src/reporter.ts"],
   },
 });

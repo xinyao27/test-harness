@@ -1,0 +1,32 @@
+apiVersion: 1
+kind: harness-cli-contract
+commands:
+  check:
+    purpose: Validate canonical promise YAML files and in-process scenario bindings.
+    reads:
+      - promises/**/*.promise.yaml
+    writes: []
+  report:
+    purpose: Render a human-readable report from canonical promises and optional result YAML.
+    reads:
+      - promises/**/*.promise.yaml
+      - .harness/results.yaml
+    writes: []
+  verify:
+    purpose: Alias the report path for human verification.
+    reads:
+      - promises/**/*.promise.yaml
+      - .harness/results.yaml
+    writes: []
+  test:
+    purpose: Run a configured adapter command, require Harness result YAML when the adapter succeeds, and render the report.
+    reads:
+      - promises/**/*.promise.yaml
+      - .harness/results.yaml
+    writes:
+      - .harness/results.yaml
+environment:
+  HARNESS_ROOT_DIR: The workspace root adapters should use when writing .harness/results.yaml.
+exitCodes:
+  success: 0
+  failure: 1

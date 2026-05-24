@@ -7,14 +7,16 @@
 
 完整 Test Harness 目前仍然只是设计。第一版实现不应该试图一次性构建完整的 Promise Review Console。
 
-MVP 应该是一个 **seed Harness**：一个最小的、基于文件的、Vitest-first 系统，用来描述、运行和报告这套 Harness 项目自身的 promises。
+MVP 应该是一个 **seed Harness**：一个最小的、基于文件的、protocol-first 系统，用来描述、运行和报告这套 Harness 项目自身的 promises。
+
+稳定层是语言无关的 YAML。当前 TypeScript package 和 Vitest integration 是参考实现和 adapter，不是 Harness 本身的定义。
 
 Seed Harness 的目的，是建立第一个自举循环：
 
 ```text
 为 Harness 自身写 promises
-  -> 给 Vitest tests 附加 scenario bindings
-  -> 运行 Vitest
+  -> 给 adapter tests 附加 scenario bindings
+  -> 运行配置好的 adapter
   -> 按 promise id 收集结果
   -> 检查可读性和 evidence 规则
   -> 生成可读的 promise report
@@ -30,8 +32,8 @@ Seed Harness 的目的，是建立第一个自举循环：
 1. **Promise files**
    用版本化文件存储这套 Harness 项目自己的 promises。这些文件是已 review promise meaning 的 canonical source。
 
-2. **Vitest scenario helper**
-   提供 `scenario(...)` bindings，把 Vitest tests 连接到 canonical promise ids。
+2. **Adapter binding helper**
+   提供 bindings，把可执行 adapter tests 连接到 canonical promise ids。Seed implementation 当前提供 Vitest helper。
 
 3. **Basic quality checker**
    检查 canonical promise metadata 和 scenario bindings 是否存在、可读，并且足够完整。
@@ -39,8 +41,8 @@ Seed Harness 的目的，是建立第一个自举循环：
 4. **Basic evidence mapper**
    跟踪哪些 tests 和 assertions 声称证明了哪个 promise。为 Evidence Drift v1 捕获 assertion fingerprints。
 
-5. **Vitest result collector**
-   运行或读取 Vitest 结果，并按 promise id 归一化。
+5. **Result collector**
+   运行或读取 adapter results，并按 promise id 归一化成 `.harness/results.yaml`。
 
 6. **Seed report**
    按 feature 和 promise 输出人类可读报告。
@@ -49,7 +51,7 @@ Seed 阶段不做：
 
 - 完整可视化 Promise Review Console
 - 复杂 browser UX
-- 多语言 adapters
+- 当前 Vitest adapter 之外的高级 adapters
 - 完整 drift AI 分类
 - 高级 risk maps
 - 组织级权限
@@ -64,7 +66,7 @@ Seed 可以先从文件开始。
 Canonical source 决策：
 
 ```text
-.promise.yaml files
+apiVersion: 1 .promise.yaml files
   -> canonical reviewed promise meaning
 
 scenario({ id })
@@ -94,14 +96,23 @@ M2 被接受之后，required metadata failures 变成 blocking。
 
 ```text
 promises/
+  protocol/
+    promise-files-are-versioned.promise.yaml
+  adapters/
+    vitest/
+      scenario-helper-binds-tests.promise.yaml
+      result-collector-maps-results.promise.yaml
   promise-registry/
     load-canonical-yaml-promises.promise.yaml
-  scenario-helper/
-    binds-tests.promise.yaml
-  result-collector/
-    maps-results.promise.yaml
   validation/
     readability.promise.yaml
+
+protocol/
+  v1/
+    promise.schema.yaml
+    results.schema.yaml
+    report.schema.yaml
+    cli.yaml
 
 src/
   scenario.ts
@@ -116,9 +127,10 @@ reports/
 
 Promise file 形态：
 
-canonical file 使用 YAML。实现里用 Effect Schema 定义这个 shape，并从 schema 推导 TypeScript 类型。自然语言字段使用 `LocalizedText`：普通字符串是合法的，并被视为默认英文；也可以展开成 `en` / `zh-CN` 这样的语言 map。
+canonical file 使用 YAML，并声明 `apiVersion: 1`。Protocol shape 记录在 `protocol/v1/` 下。TypeScript 实现定义与之匹配的 Effect Schemas，并从这些 schemas 推导类型。自然语言字段使用 `LocalizedText`：普通字符串是合法的，并被视为默认英文；也可以展开成 `en` / `zh-CN` 这样的语言 map。
 
 ```yaml
+apiVersion: 1
 id: harness.promise_registry.load_canonical_yaml_promises
 feature: Seed Harness / Promise Registry
 title:
@@ -210,7 +222,7 @@ Evidence:
 
 ```text
 Promise:
-Vitest tests 可以通过稳定 promise id 绑定到 canonical promise。
+Adapter tests 可以通过稳定 promise id 绑定到 canonical promise。
 
 Evidence:
 - test file load 期间 scenario binding 会被注册
@@ -236,7 +248,7 @@ Evidence:
 
 ```text
 Promise:
-Vitest results 会按 promise id 归一化。
+Adapter results 会按 promise id 归一化。
 
 Evidence:
 - passing tests 产生 passing promise results
@@ -280,7 +292,7 @@ harness check
   验证 promise files、scenario bindings、review metadata 和 quality rules。
 
 harness test
-  运行 Vitest，按 promise id 收集结果，并捕获 assertion fingerprints。
+  运行配置好的 adapter，按 promise id 收集结果，并捕获 assertion fingerprints。
 
 harness report
   生成 reports/harness-report.json 和 reports/harness-report.md。
@@ -327,13 +339,13 @@ P0  Unreadable canonical metadata or scenario bindings are rejected
    添加 promise files，把它们设为 canonical，选择 PR-based review metadata，并决定 reports 写到哪里。
 
 2. **M1: Scenario helper**
-   实现 `scenario({ id })` bindings，并在 Vitest 执行期间保存 binding metadata。
+   实现 `scenario({ id })` bindings，并在 adapter 执行期间保存 binding metadata。Seed adapter 是 Vitest。
 
 3. **M2: Quality checker**
    验证 required metadata 和基础可读性规则。在这个 milestone 被接受之前，checker failures 可以是 warnings；接受之后 required metadata failures 变成 blocking。
 
 4. **M3: Result collector**
-   按 promise id 归一化 Vitest results。
+   按 promise id 归一化 adapter results。
 
 5. **M4: Evidence mapper**
    跟踪 promise-to-test 和 promise-to-evidence mappings，并捕获 assertion fingerprints。
@@ -342,16 +354,16 @@ P0  Unreadable canonical metadata or scenario bindings are rejected
    生成可读的 JSON 和 Markdown reports，包括 lifecycle、run status 和 evidence deltas。
 
 7. **M6: Self-hosted iteration**
-   使用 seed report 端到端推动一个具体的下一轮 Harness feature：从 promise review 到 Vitest result 再到 report。
+   使用 seed report 端到端推动一个具体的下一轮 Harness feature：从 promise review 到 adapter result 再到 report。
 
 ## 八、成功标准
 
 MVP 成功的标志是：
 
 1. Harness 有自己的 promise files。
-2. Vitest tests 可以声明 scenario binding。
+2. Adapter tests 可以声明 scenario binding。
 3. Seed checker 可以拒绝不完整或不可读的 metadata。
-4. Vitest results 可以按 promise id 分组。
+4. Adapter results 可以按 promise id 分组。
 5. Assertion fingerprints 会被捕获，并且可以报告 evidence deltas。
 6. 人类可以阅读 seed report，并理解每个 Harness promise 的 lifecycle、run status 和 evidence status。
 7. 下一个 Harness feature 可以作为 promises 被规划，并被 seed Harness 验证。

@@ -2,6 +2,7 @@ import { defaultLanguage, resolveLocalizedText } from "./localized-text.ts";
 import { getPromiseRunStatus, type TestResult } from "./results.ts";
 import {
   type FeatureReport,
+  harnessProtocolVersion,
   type PromiseRecord,
   type SeedReport,
   type ValidationIssue,
@@ -58,6 +59,7 @@ export const generateSeedReport = (
     }));
 
   return {
+    apiVersion: harnessProtocolVersion,
     features,
     issues: [...issues],
     summary: {
@@ -72,6 +74,7 @@ export const renderSeedReportMarkdown = (report: SeedReport): string => {
   const lines: string[] = [
     "Seed Harness Report",
     "",
+    `Protocol: ${report.apiVersion}`,
     `Promises: ${report.summary.promises}`,
     `Errors: ${report.summary.errors}`,
     `Warnings: ${report.summary.warnings}`,

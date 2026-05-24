@@ -1,0 +1,20 @@
+apiVersion: 1
+id: harness.fixture.extra_property
+feature: Harness Fixtures / Promise
+title: Extra properties are invalid
+purpose: Exercise the protocol additionalProperties rule.
+priority: P1
+boundary: unit
+lifecycle: accepted
+given:
+  - A promise includes an unknown top-level field
+when:
+  - A Harness implementation decodes the fixture
+then:
+  - The fixture is rejected
+observes:
+  - protocol/fixtures/promises/invalid/extra-property.promise.yaml
+failureMeaning: Unknown promise fields should not be accepted silently.
+review:
+  approvedBy: xinyao
+unknownField: should fail

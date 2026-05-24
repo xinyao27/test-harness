@@ -1,14 +1,16 @@
 # Test Harness
 
-A promise-driven Test Harness built on Vite+ and Vitest.
+A promise-driven Test Harness with a language-agnostic YAML protocol.
 
-The seed Harness stores reviewed behavior commitments as canonical `.promise.yaml` files, binds Vitest tests to promise ids with `scenarioTest(...)`, collects test results into `.harness/results.yaml`, and renders a human-readable promise status report.
+The seed Harness stores reviewed behavior commitments as canonical `.promise.yaml` files, lets adapters bind executable tests to promise ids, collects adapter results into `.harness/results.yaml`, and renders a human-readable promise status report.
+
+The current repository provides a TypeScript reference implementation and a Vitest adapter. The stable layer is the `apiVersion: 1` protocol under `protocol/v1/`.
 
 ## Current Loop
 
 ```text
 promises/**/*.promise.yaml
-  -> scenarioTest(...)
+  -> adapter tests
   -> harness test
   -> .harness/results.yaml
   -> readable verification report

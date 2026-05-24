@@ -10,7 +10,11 @@ import {
   TestResultsSchemaDecodeError,
   TestResultsYamlParseError,
 } from "./errors.ts";
-import type { PromiseRunStatus } from "./schema.ts";
+import {
+  HarnessProtocolVersionSchema,
+  harnessProtocolVersion,
+  type PromiseRunStatus,
+} from "./schema.ts";
 
 export const harnessResultsPath = ".harness/results.yaml";
 export const harnessRootEnvVar = "HARNESS_ROOT_DIR";
@@ -26,6 +30,7 @@ export const TestResultSchema = Schema.Struct({
 });
 
 export const TestResultsFileSchema = Schema.Struct({
+  apiVersion: HarnessProtocolVersionSchema,
   generatedAt: Schema.String,
   results: Schema.Array(TestResultSchema),
 });
@@ -55,7 +60,7 @@ const decodeResultsFile = (
   path: string,
   input: unknown,
 ): Effect.Effect<TestResultsFile, TestResultsSchemaDecodeError> =>
-  Schema.decodeUnknownEffect(TestResultsFileSchema)(input).pipe(
+  Schema.decodeUnknownEffect(TestResultsFileSchema, { onExcessProperty: "error" })(input).pipe(
     Effect.mapError((cause) => new TestResultsSchemaDecodeError({ cause, path })),
   );
 
@@ -100,6 +105,7 @@ export const createTestResultsFile = (
   results: readonly TestResult[],
   generatedAt = new Date().toISOString(),
 ): TestResultsFile => ({
+  apiVersion: harnessProtocolVersion,
   generatedAt,
   results: [...results].sort((left, right) => {
     const byPromise = left.promiseId.localeCompare(right.promiseId);

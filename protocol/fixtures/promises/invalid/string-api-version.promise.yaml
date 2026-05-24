@@ -1,0 +1,19 @@
+apiVersion: "1"
+id: harness.fixture.string_api_version
+feature: Harness Fixtures / Promise
+title: String apiVersion is invalid
+purpose: Exercise numeric protocol version metadata.
+priority: P1
+boundary: unit
+lifecycle: accepted
+given:
+  - A promise declares apiVersion as a string
+when:
+  - A Harness implementation decodes the fixture
+then:
+  - The fixture is rejected
+observes:
+  - protocol/fixtures/promises/invalid/string-api-version.promise.yaml
+failureMeaning: String protocol versions should not be accepted.
+review:
+  approvedBy: xinyao

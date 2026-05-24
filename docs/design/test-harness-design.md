@@ -1,7 +1,7 @@
 # Test Harness Design
 
 > Status: Design draft v2
-> Goal: Build a Vitest-first, promise-driven Test Harness where humans review behavior promises and Agents implement code that satisfies those promises.
+> Goal: Build a language-agnostic, promise-driven Test Harness where humans review behavior promises and Agents implement code that satisfies those promises.
 
 ## Documentation Convention
 
@@ -16,11 +16,11 @@ test-harness-design.zh-CN.md
 
 ## 1. What This Is
 
-This project is a **promise-driven Test Harness** built on top of Vitest.
+This project is a **promise-driven Test Harness** built around a versioned YAML protocol.
 
-It is not trying to replace Vitest. Vitest already does the hard work of discovering tests, running tests, showing failures, providing reporters, supporting projects, Browser Mode, coverage, and the Node API.
+It is not tied to a single language or test framework. The current implementation uses TypeScript and Vitest as the reference implementation and first adapter because they already provide test discovery, execution, assertions, reporters, projects, Browser Mode, coverage, and Node API support.
 
-This Harness adds the layer Vitest does not provide:
+This Harness adds the layer normal test frameworks do not provide:
 
 - human-readable behavior promises
 - promise review and approval
@@ -35,7 +35,7 @@ The core idea:
 ```text
 Humans review promises.
 Agents write tests and implementation.
-Vitest runs the executable checks.
+Adapters run the executable checks.
 The Harness maps results back to approved promises.
 ```
 
@@ -53,11 +53,11 @@ Promise Workspace
 Promise Registry
   -> store promises, review state, history, drift records
 
-Vitest Tests
+Adapter Tests
   -> encode promises as executable evidence
   -> use scenario bindings
 
-Vitest Runner / UI / Reporters
+Adapter Runner / UI / Reporters
   -> run tests, browser checks, coverage, reports
 
 Result + Evidence Collector
@@ -70,7 +70,7 @@ Promise Review Console
   -> show promises, review queues, drift, evidence, failures, run history
 ```
 
-Vitest owns execution. The Harness owns promise meaning.
+Adapters own execution. The Harness protocol owns promise meaning.
 
 ## 3. Development Workflow
 
@@ -78,8 +78,8 @@ Vitest owns execution. The Harness owns promise meaning.
 2. Agent drafts the feature's behavior promises.
 3. Human reviews the promises, not implementation code.
 4. Approved promises become stable behavior commitments.
-5. Agent writes Vitest tests and implementation logic.
-6. Vitest runs the checks.
+5. Agent writes adapter tests and implementation logic.
+6. The configured adapter runs the checks.
 7. Harness maps test results and evidence back to promise ids.
 8. Future changes update, split, merge, or deprecate promises through review.
 9. Promise drift and evidence drift require explicit human attention.
@@ -95,8 +95,8 @@ The first implementation should be a small **seed Harness**, not the full final 
 ```text
 Seed Harness
   -> store promises for this Harness project
-  -> attach scenario bindings to Vitest tests
-  -> run Vitest
+  -> attach scenario bindings to adapter tests
+  -> run the configured adapter
   -> collect results by promise id
   -> check basic readability and evidence rules
   -> report which Harness promises pass, fail, or need review
@@ -127,10 +127,10 @@ The human-readable management hierarchy is:
 Feature
   -> Promise
     -> Evidence
-      -> Vitest Tests
+      -> Adapter Tests
 ```
 
-Features are the navigation entry point. Promises are the review unit. Evidence explains why a promise is still trusted. Vitest tests are the executable encoding underneath.
+Features are the navigation entry point. Promises are the review unit. Evidence explains why a promise is still trusted. Adapter tests are the executable encoding underneath.
 
 Default UX should summarize stable green promises and highlight only what needs attention:
 
@@ -213,15 +213,15 @@ type PromiseRunStatus =
   | "evidence_drifted";
 ```
 
-`lifecycle` is persisted in promise files. `runStatus` is computed by the collector from the latest Vitest run and evidence checks.
+`lifecycle` is persisted in promise files. `runStatus` is computed by the collector from the latest adapter run and evidence checks.
 
 ### Scenario
 
 A **scenario** is the test-side metadata that connects executable tests back to promises.
 
-`scenario(...)` is not the canonical promise definition. It should bind a Vitest test to an existing `promiseId`. If local metadata conflicts with the canonical promise file, the Harness should report drift or invalid metadata.
+`scenario(...)` is not the canonical promise definition. It should bind an adapter test to an existing `promiseId`. If local metadata conflicts with the canonical promise file, the Harness should report drift or invalid metadata.
 
-Minimal Vitest-side shape:
+Minimal adapter-side shape:
 
 ```ts
 scenario({
@@ -250,7 +250,7 @@ Examples:
 
 The Harness should prefer observable evidence over mock-call-only assertions.
 
-`observes` in a promise file is the expected evidence claim. Vitest assertions are the actual executable evidence. The Harness should map each important `observes` item to at least one assertion, explicit evidence tag, or captured assertion fingerprint.
+`observes` in a promise file is the expected evidence claim. Adapter assertions are the actual executable evidence. The Harness should map each important `observes` item to at least one assertion, explicit evidence tag, or captured assertion fingerprint.
 
 ### Promise Drift
 
@@ -377,21 +377,25 @@ Evidence drift:
   The target stayed the same, but the proof got weaker.
 ```
 
-## 6. Vitest-First Design
+## 6. Protocol-First Design
 
-Use Vitest for:
+Use the stable Harness protocol for:
 
-- test discovery
-- test execution
-- watch and run mode
+- canonical promise YAML
+- adapter result YAML
+- report shape
+- CLI command semantics
+- cross-language compatibility
+
+Use adapters for:
+
+- test discovery and execution
 - assertions and matchers
 - mocks and fixtures
-- test projects
-- Browser Mode
-- reporters
-- coverage
-- UI
-- Node API
+- browser checks and coverage
+- framework-specific reporters or APIs
+
+The current adapter is Vitest. Vitest remains useful for this repository, but it is not the protocol boundary.
 
 Use the Harness for:
 
@@ -418,7 +422,7 @@ Rules:
 4. Test code is available as drill-down detail, not the first screen.
 5. Stable passing promises are summarized; review attention goes to changed, failing, drifted, weak, or missing-evidence promises.
 6. Every promise must map to observable evidence.
-7. Every important evidence item should map to one or more Vitest assertions.
+7. Every important evidence item should map to one or more adapter assertions.
 8. The checker must reject unreadable or unmanageable tests, including vague names, missing purpose, missing Given / When / Then, missing observes, and mock-call-only assertions outside adapter boundaries.
 9. Promise files are canonical; scenario bindings in tests must not silently redefine reviewed promise meaning.
 10. Change views should show new promises, removed promises, renamed promises, weakened promises, evidence removed, and failing accepted promises since the last review.
@@ -428,13 +432,13 @@ This keeps the system manageable even when the number of tests grows.
 
 ## 8. Harness Pass
 
-A test passing Vitest is only a **Runtime Pass**.
+A test passing the configured adapter is only a **Runtime Pass**.
 
 A promise passing the Harness requires:
 
 ```text
 Runtime Pass
-  Vitest checks pass.
+  Adapter checks pass.
 
 Quality Pass
   The test is readable, structured, and meaningful.
@@ -467,7 +471,7 @@ Center
   History
 
 Right
-  Vitest UI / report
+  Adapter UI / report
   Run results
   Logs
   Screenshots
@@ -484,14 +488,14 @@ Important UX questions:
 - Which assertion fingerprints changed since the last accepted review?
 - Which approved promises are failing?
 - Which feature changes affected which promises?
-- Can I run the relevant Vitest checks now?
+- Can I run the relevant adapter checks now?
 
 ## 10. MVP
 
 Build the smallest version that preserves the core model. The detailed seed plan is in [mvp-seed-harness-design.md](mvp-seed-harness-design.md).
 
 1. **Seed Harness**
-   Create the smallest self-hosting loop: promise storage, Vitest scenario bindings, result collection by promise id, and a readable report for this Harness project itself.
+   Create the smallest self-hosting loop: promise storage, adapter result collection by promise id, and a readable report for this Harness project itself.
 
 2. **Agent authoring skill**
    Teach Agents how to draft Harness-friendly promises and tests. The current skill lives in [../../skills/harness-promise-authoring/SKILL.md](../../skills/harness-promise-authoring/SKILL.md) and stays outside the Harness runtime data model.
@@ -499,8 +503,8 @@ Build the smallest version that preserves the core model. The detailed seed plan
 3. **Promise registry**
    Store promises, lifecycle state, review state, history, and drift records.
 
-4. **Vitest scenario helper**
-   Provide `scenario(...)` metadata for Vitest tests.
+4. **Vitest adapter**
+   Provide `scenarioTest(...)` metadata and a reporter that writes Harness result YAML.
 
 5. **Quality and drift checker**
    Check canonical metadata, scenario bindings, readable structure, Chinese test purpose, boundaries, observable assertions, promise drift, evidence drift, and assertion fingerprint changes.
@@ -508,8 +512,8 @@ Build the smallest version that preserves the core model. The detailed seed plan
 6. **Evidence mapper**
    Track N:M mappings between promises, tests, and evidence.
 
-7. **Vitest result collector**
-   Read Vitest reporter output or Node API results and normalize results by promise id.
+7. **Result collector**
+   Read adapter results and normalize results by promise id.
 
 8. **Minimal Promise Review Console**
    Show promise review state, run results, drift records, and evidence coverage.
@@ -521,8 +525,8 @@ This Harness is successful when:
 1. Humans can understand the system through promises.
 2. Humans mainly review promises, not implementation code.
 3. Agents write tests that are readable and reviewable.
-4. Vitest results map clearly back to approved promises.
+4. Adapter results map clearly back to approved promises.
 5. Promise drift cannot happen silently.
 6. Evidence drift cannot hide behind green tests.
-7. The Harness can use its own promises and Vitest checks to validate its core behavior.
+7. The Harness can use its own promises and adapter checks to validate its core behavior.
 8. Feature and risk maps can be generated from promises, tests, and evidence.

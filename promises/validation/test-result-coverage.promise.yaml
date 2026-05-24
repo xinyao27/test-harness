@@ -1,4 +1,5 @@
 # Canonical behavior promise for detecting implemented promises without collected test results.
+apiVersion: 1
 id: harness.validation.flags_promises_without_test_results
 feature: Seed Harness / Validation
 title:

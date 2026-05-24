@@ -1,0 +1,38 @@
+# Canonical behavior promise for the CLI protocol contract.
+apiVersion: 1
+id: harness.protocol.cli_contract_is_versioned_and_enforced
+feature: Harness Protocol / CLI
+title:
+  en: The CLI protocol contract is versioned and explicit
+  zh-CN: CLI protocol contract 会明确声明版本和行为
+purpose:
+  en: Protect cross-language command compatibility by pinning command names, reads, writes, environment, and exit codes in protocol YAML.
+  zh-CN: 通过在 protocol YAML 中固定 command names、reads、writes、environment 和 exit codes，保护跨语言命令兼容性。
+priority: P0
+boundary: unit
+lifecycle: accepted
+
+given:
+  - en: The protocol CLI contract exists under protocol/v1
+    zh-CN: protocol CLI contract 位于 protocol/v1 下
+when:
+  - en: A Harness implementation reads the CLI contract
+    zh-CN: Harness 实现读取 CLI contract
+then:
+  - en: The contract declares numeric apiVersion 1
+    zh-CN: contract 会声明数字 apiVersion 1
+  - en: The check, report, verify, and test commands declare their reads and writes
+    zh-CN: check、report、verify 和 test commands 会声明各自的 reads 和 writes
+  - en: Success and failure exit codes are fixed as 0 and 1
+    zh-CN: success 和 failure exit codes 固定为 0 和 1
+observes:
+  - protocol/v1/cli.yaml
+  - apps/cli/src/index.ts
+
+failureMeaning:
+  en: Rewrites and adapters may expose incompatible command behavior while still appearing to support the Harness.
+  zh-CN: 重写版本和 adapters 可能暴露不兼容的 command behavior，却仍看起来支持 Harness。
+
+review:
+  approvedBy: xinyao
+  approvedAt: "2026-05-24"

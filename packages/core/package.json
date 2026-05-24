@@ -23,7 +23,6 @@
   "type": "module",
   "exports": {
     ".": "./dist/index.mjs",
-    "./vitest": "./dist/vitest.mjs",
     "./package.json": "./package.json"
   },
   "publishConfig": {
@@ -38,15 +37,8 @@
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "ajv": "catalog:",
     "typescript": "catalog:",
     "vite-plus": "catalog:"
-  },
-  "peerDependencies": {
-    "vite-plus": "catalog:"
-  },
-  "peerDependenciesMeta": {
-    "vite-plus": {
-      "optional": true
-    }
   }
 }

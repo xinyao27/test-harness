@@ -1,7 +1,7 @@
 # Test Harness 设计
 
 > 状态：设计草案 v2
-> 目标：构建一套 Vitest-first、promise-driven 的 Test Harness，让人类 review 行为承诺，让 Agent 实现满足这些承诺的代码。
+> 目标：构建一套语言无关、promise-driven 的 Test Harness，让人类 review 行为承诺，让 Agent 实现满足这些承诺的代码。
 
 ## 文档约定
 
@@ -16,11 +16,11 @@ test-harness-design.zh-CN.md
 
 ## 一、这是什么
 
-这个项目是一个构建在 Vitest 之上的 **承诺驱动 Test Harness**。
+这个项目是一套围绕 versioned YAML protocol 构建的 **承诺驱动 Test Harness**。
 
-它不是要替代 Vitest。Vitest 已经很好地解决了 test discovery、test running、failure display、reporters、projects、Browser Mode、coverage 和 Node API。
+它不绑定某一种语言或测试框架。当前实现使用 TypeScript 和 Vitest 作为参考实现与第一个 adapter，因为它们已经很好地解决了 test discovery、test running、failure display、reporters、projects、Browser Mode、coverage 和 Node API。
 
-这套 Harness 增加的是 Vitest 没有提供的那一层：
+这套 Harness 增加的是普通测试框架没有提供的那一层：
 
 - 人类可读的行为承诺
 - 承诺 review 和批准
@@ -35,7 +35,7 @@ test-harness-design.zh-CN.md
 ```text
 人类 review promises。
 Agent 编写测试和实现。
-Vitest 运行可执行检查。
+Adapters 运行可执行检查。
 Harness 把结果映射回已批准的 promises。
 ```
 
@@ -53,11 +53,11 @@ Promise Workspace
 Promise Registry
   -> 存储 promises、review 状态、历史、drift records
 
-Vitest Tests
+Adapter Tests
   -> 把 promises 编码成可执行证据
   -> 使用 scenario bindings
 
-Vitest Runner / UI / Reporters
+Adapter Runner / UI / Reporters
   -> 运行测试、browser checks、coverage、reports
 
 Result + Evidence Collector
@@ -70,7 +70,7 @@ Promise Review Console
   -> 展示 promises、review queues、drift、evidence、failures、run history
 ```
 
-Vitest 负责执行。Harness 负责承诺语义。
+Adapters 负责执行。Harness protocol 负责承诺语义。
 
 ## 三、开发流程
 
@@ -78,8 +78,8 @@ Vitest 负责执行。Harness 负责承诺语义。
 2. Agent 草拟这个 feature 的行为承诺。
 3. 人类 review promises，而不是实现代码。
 4. 被批准的 promises 变成稳定的行为约定。
-5. Agent 编写 Vitest tests 和实现逻辑。
-6. Vitest 运行检查。
+5. Agent 编写 adapter tests 和实现逻辑。
+6. 配置好的 adapter 运行检查。
 7. Harness 把测试结果和证据映射回 promise ids。
 8. 未来修改通过 review 来更新、拆分、合并或废弃 promises。
 9. Promise drift 和 evidence drift 都必须显式提醒人类。
@@ -95,8 +95,8 @@ Vitest 负责执行。Harness 负责承诺语义。
 ```text
 Seed Harness
   -> 存储这套 Harness 项目自己的 promises
-  -> 给 Vitest tests 附加 scenario bindings
-  -> 运行 Vitest
+  -> 给 adapter tests 附加 scenario bindings
+  -> 运行配置好的 adapter
   -> 按 promise id 收集结果
   -> 检查基础可读性和 evidence 规则
   -> 报告哪些 Harness promises 通过、失败或需要 review
@@ -127,10 +127,10 @@ Seed Harness
 Feature
   -> Promise
     -> Evidence
-      -> Vitest Tests
+      -> Adapter Tests
 ```
 
-Feature 是导航入口。Promise 是 review 单位。Evidence 解释为什么这个 promise 仍然可信。Vitest tests 是底层可执行编码。
+Feature 是导航入口。Promise 是 review 单位。Evidence 解释为什么这个 promise 仍然可信。Adapter tests 是底层可执行编码。
 
 默认 UX 应该汇总稳定绿色的 promises，只突出真正需要注意的东西：
 
@@ -213,15 +213,15 @@ type PromiseRunStatus =
   | "evidence_drifted";
 ```
 
-`lifecycle` 持久化在 promise files 中。`runStatus` 由 collector 根据最新 Vitest run 和 evidence checks 计算。
+`lifecycle` 持久化在 promise files 中。`runStatus` 由 collector 根据最新 adapter run 和 evidence checks 计算。
 
 ### Scenario
 
 **Scenario** 是测试侧 metadata，用来把可执行测试连接回 promises。
 
-`scenario(...)` 不是 canonical promise definition。它应该把 Vitest test 绑定到已有 `promiseId`。如果本地 metadata 和 canonical promise file 冲突，Harness 应该报告 drift 或 invalid metadata。
+`scenario(...)` 不是 canonical promise definition。它应该把 adapter test 绑定到已有 `promiseId`。如果本地 metadata 和 canonical promise file 冲突，Harness 应该报告 drift 或 invalid metadata。
 
-最小 Vitest-side 形态：
+最小 adapter-side 形态：
 
 ```ts
 scenario({
@@ -250,7 +250,7 @@ scenario({
 
 Harness 应该优先使用可观察证据，而不是只断言 mock 被调用。
 
-Promise file 里的 `observes` 是 expected evidence claim。Vitest assertions 是实际可执行证据。Harness 应该把每个重要 `observes` item 映射到至少一个 assertion、显式 evidence tag 或捕获到的 assertion fingerprint。
+Promise file 里的 `observes` 是 expected evidence claim。Adapter assertions 是实际可执行证据。Harness 应该把每个重要 `observes` item 映射到至少一个 assertion、显式 evidence tag 或捕获到的 assertion fingerprint。
 
 ### Promise Drift
 
@@ -377,21 +377,25 @@ Evidence drift:
   目标没变，但证明变弱了。
 ```
 
-## 六、Vitest-First 设计
+## 六、Protocol-First 设计
 
-使用 Vitest 负责：
+使用稳定的 Harness protocol 负责：
 
-- test discovery
-- test execution
-- watch and run mode
+- canonical promise YAML
+- adapter result YAML
+- report shape
+- CLI command semantics
+- cross-language compatibility
+
+使用 adapters 负责：
+
+- test discovery and execution
 - assertions and matchers
 - mocks and fixtures
-- test projects
-- Browser Mode
-- reporters
-- coverage
-- UI
-- Node API
+- browser checks and coverage
+- framework-specific reporters or APIs
+
+当前 adapter 是 Vitest。Vitest 对这个仓库仍然有用，但它不是 protocol boundary。
 
 使用 Harness 负责：
 
@@ -418,7 +422,7 @@ Harness 必须通过改变管理单位来让测试可读：人管理 promises，
 4. 测试代码作为 drill-down 细节存在，不作为第一屏。
 5. 稳定通过的 promises 只做汇总；review 注意力集中在 changed、failing、drifted、weak 或 missing-evidence promises。
 6. 每个 promise 都必须映射到 observable evidence。
-7. 每个重要 evidence item 都应该映射到一个或多个 Vitest assertions。
+7. 每个重要 evidence item 都应该映射到一个或多个 adapter assertions。
 8. Checker 必须拒绝不可读或不可管理的测试，包括模糊名称、缺少 purpose、缺少 Given / When / Then、缺少 observes，以及 adapter boundary 之外的 mock-call-only assertions。
 9. Promise files 是 canonical；测试里的 scenario bindings 不能静默重新定义已 review 的 promise meaning。
 10. Change view 应展示从上一次 review 以来新增的 promises、删除的 promises、rename 的 promises、弱化的 promises、被删除的 evidence，以及失败的已接受 promises。
@@ -428,13 +432,13 @@ Harness 必须通过改变管理单位来让测试可读：人管理 promises，
 
 ## 八、Harness Pass
 
-Vitest 测试通过只是 **Runtime Pass**。
+配置好的 adapter 测试通过只是 **Runtime Pass**。
 
 一个 promise 通过 Harness 需要：
 
 ```text
 Runtime Pass
-  Vitest checks pass。
+  Adapter checks pass。
 
 Quality Pass
   测试可读、结构清楚、断言有意义。
@@ -467,7 +471,7 @@ Center
   History
 
 Right
-  Vitest UI / report
+  Adapter UI / report
   Run results
   Logs
   Screenshots
@@ -484,14 +488,14 @@ Right
 - 哪些 assertion fingerprints 从上一次 accepted review 后发生了变化？
 - 哪些已批准 promises 正在失败？
 - 哪些 feature 变更影响了哪些 promises？
-- 我现在能运行相关 Vitest checks 吗？
+- 我现在能运行相关 adapter checks 吗？
 
 ## 十、MVP
 
 先构建能保留核心模型的最小版本。详细 seed 方案见 [mvp-seed-harness-design.zh-CN.md](mvp-seed-harness-design.zh-CN.md)。
 
 1. **Seed Harness**
-   创建最小自托管循环：promise storage、Vitest scenario bindings、按 promise id 收集结果，以及针对这套 Harness 项目自身的可读报告。
+   创建最小自托管循环：promise storage、按 promise id 收集 adapter results，以及针对这套 Harness 项目自身的可读报告。
 
 2. **Agent authoring skill**
    教 Agent 如何草拟 Harness-friendly promises 和 tests。当前 skill 位于 [../../skills/harness-promise-authoring/SKILL.md](../../skills/harness-promise-authoring/SKILL.md)，并且保持在 Harness runtime data model 之外。
@@ -499,8 +503,8 @@ Right
 3. **Promise registry**
    存储 promises、生命周期状态、review 状态、历史和 drift records。
 
-4. **Vitest scenario helper**
-   为 Vitest tests 提供 `scenario(...)` metadata。
+4. **Vitest adapter**
+   提供 `scenarioTest(...)` metadata 和写出 Harness result YAML 的 reporter。
 
 5. **Quality and drift checker**
    检查 canonical metadata、scenario bindings、可读结构、中文测试目的、boundary、可观察断言、promise drift、evidence drift 和 assertion fingerprint changes。
@@ -508,8 +512,8 @@ Right
 6. **Evidence mapper**
    跟踪 promises、tests 和 evidence 之间的 N:M 映射。
 
-7. **Vitest result collector**
-   读取 Vitest reporter 输出或 Node API 结果，并按 promise id 归一化。
+7. **Result collector**
+   读取 adapter results，并按 promise id 归一化。
 
 8. **Minimal Promise Review Console**
    展示 promise review 状态、运行结果、drift records 和 evidence coverage。
@@ -521,8 +525,8 @@ Right
 1. 人类可以通过 promises 理解系统。
 2. 人类主要 review promises，而不是实现代码。
 3. Agent 写出的测试可读、可 review。
-4. Vitest 结果能清楚映射回已批准 promises。
+4. Adapter results 能清楚映射回已批准 promises。
 5. Promise drift 不能静默发生。
 6. Evidence drift 不能藏在绿色测试后面。
-7. Harness 可以使用自己的 promises 和 Vitest checks 来验证自己的核心行为。
+7. Harness 可以使用自己的 promises 和 adapter checks 来验证自己的核心行为。
 8. 可以从 promises、tests 和 evidence 生成 feature map 与 risk map。

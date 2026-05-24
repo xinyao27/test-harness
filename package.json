@@ -29,6 +29,7 @@
     "prepare": "vp config"
   },
   "devDependencies": {
+    "@test-harness/adapter-vitest": "workspace:*",
     "@test-harness/cli": "workspace:*",
     "taze": "latest",
     "vite-plus": "catalog:"

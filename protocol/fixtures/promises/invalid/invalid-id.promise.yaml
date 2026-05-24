@@ -1,0 +1,19 @@
+apiVersion: 1
+id: "Harness Fixture Invalid ID"
+feature: Harness Fixtures / Promise
+title: Invalid ids are rejected
+purpose: Exercise the protocol id pattern.
+priority: P1
+boundary: unit
+lifecycle: accepted
+given:
+  - A promise id contains spaces and uppercase letters
+when:
+  - A Harness implementation decodes the fixture
+then:
+  - The fixture is rejected
+observes:
+  - protocol/fixtures/promises/invalid/invalid-id.promise.yaml
+failureMeaning: Invalid ids should not be accepted.
+review:
+  approvedBy: xinyao

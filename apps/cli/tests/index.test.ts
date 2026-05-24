@@ -5,8 +5,8 @@ import { join } from "node:path";
 import { Effect } from "effect";
 import { describe, expect, test } from "vite-plus/test";
 
+import { scenarioTest } from "../../../packages/adapter-vitest/src/index.ts";
 import { createTestResultsFile, writeTestResultsFile } from "../../../packages/core/src/index.ts";
-import { scenarioTest } from "../../../packages/core/src/vitest.ts";
 import { validPromiseYaml } from "../../../tests/fixtures/promise-fixtures.ts";
 import { runCli } from "../src/index.ts";
 
@@ -14,8 +14,11 @@ type RunCliOptions = NonNullable<Parameters<typeof runCli>[1]>;
 
 const withTempWorkspace = async (content: string) => {
   const root = await mkdtemp(join(tmpdir(), "seed-harness-cli-"));
-  await mkdir(join(root, "promises", "test-harness"), { recursive: true });
-  await writeFile(join(root, "promises", "test-harness", "promise-registry.promise.yaml"), content);
+  await mkdir(join(root, "promises", "promise-registry"), { recursive: true });
+  await writeFile(
+    join(root, "promises", "promise-registry", "promise-registry.promise.yaml"),
+    content,
+  );
   return {
     async cleanup() {
       await rm(root, { force: true, recursive: true });
@@ -147,7 +150,7 @@ describe("harness CLI", () => {
   );
 
   scenarioTest(
-    "harness.cli.test_orchestrates_vitest_and_verify",
+    "harness.cli.test_orchestrates_adapter_and_verify",
     "test runs the configured runner and renders the verification report",
     async () => {
       const workspace = await withTempWorkspace(validPromiseYaml);
@@ -183,7 +186,7 @@ describe("harness CLI", () => {
   );
 
   scenarioTest(
-    "harness.cli.test_orchestrates_vitest_and_verify",
+    "harness.cli.test_orchestrates_adapter_and_verify",
     "test returns non-zero when the configured runner fails without results",
     async () => {
       const workspace = await withTempWorkspace(validPromiseYaml);
@@ -204,7 +207,7 @@ describe("harness CLI", () => {
   );
 
   scenarioTest(
-    "harness.cli.test_orchestrates_vitest_and_verify",
+    "harness.cli.test_orchestrates_adapter_and_verify",
     "test renders failing results when the configured runner fails with results",
     async () => {
       const workspace = await withTempWorkspace(validPromiseYaml);
@@ -238,7 +241,7 @@ describe("harness CLI", () => {
   );
 
   scenarioTest(
-    "harness.cli.test_orchestrates_vitest_and_verify",
+    "harness.cli.test_orchestrates_adapter_and_verify",
     "test returns non-zero when the runner does not write results",
     async () => {
       const workspace = await withTempWorkspace(validPromiseYaml);
@@ -260,7 +263,7 @@ describe("harness CLI", () => {
   );
 
   scenarioTest(
-    "harness.cli.test_orchestrates_vitest_and_verify",
+    "harness.cli.test_orchestrates_adapter_and_verify",
     "test returns non-zero when result YAML is invalid",
     async () => {
       const workspace = await withTempWorkspace(validPromiseYaml);
@@ -272,6 +275,7 @@ describe("harness CLI", () => {
             await writeFile(
               join(cwd, ".harness", "results.yaml"),
               `
+apiVersion: 1
 generatedAt: "2026-05-24T00:00:00.000Z"
 results:
   - file: apps/cli/tests/index.test.ts

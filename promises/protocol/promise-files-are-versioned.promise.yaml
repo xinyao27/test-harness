@@ -1,0 +1,36 @@
+# Canonical behavior promise for versioned promise protocol files.
+apiVersion: 1
+id: harness.protocol.promise_files_are_versioned
+feature: Harness Protocol / Promise Files
+title:
+  en: Promise files declare the Harness protocol version
+  zh-CN: Promise files 会声明 Harness protocol version
+purpose:
+  en: Protect cross-language implementations by making canonical promise files explicitly versioned.
+  zh-CN: 通过让 canonical promise files 明确带版本，保护跨语言实现。
+priority: P0
+boundary: unit
+lifecycle: accepted
+
+given:
+  - en: A canonical promise YAML file is loaded
+    zh-CN: 一个 canonical promise YAML 文件被加载
+when:
+  - en: The Harness decodes the promise record
+    zh-CN: Harness 解码 promise record
+then:
+  - en: The promise must declare apiVersion 1
+    zh-CN: promise 必须声明 apiVersion 1
+  - en: Missing or unsupported protocol versions are rejected by schema decoding
+    zh-CN: 缺失或不支持的 protocol version 会被 schema decoding 拒绝
+observes:
+  - promises/**/*.promise.yaml
+  - protocol/v1/promise.schema.yaml
+
+failureMeaning:
+  en: Different implementations may silently interpret the same promise file with different rules.
+  zh-CN: 不同实现可能会用不同规则悄悄解释同一个 promise file。
+
+review:
+  approvedBy: xinyao
+  approvedAt: "2026-05-24"

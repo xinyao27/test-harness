@@ -1,12 +1,11 @@
-import type { Reporter } from "vite-plus/test/reporters";
-
 import {
   createTestResultsFile,
   harnessRootEnvVar,
   type TestResult,
   type TestResultStatus,
   writeTestResultsFile,
-} from "./results.ts";
+} from "@test-harness/core";
+import type { Reporter } from "vite-plus/test/reporters";
 
 type ReporterTestModuleLike = {
   readonly children?: {

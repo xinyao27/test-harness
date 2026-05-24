@@ -1,0 +1,18 @@
+id: harness.fixture.missing_api_version
+feature: Harness Fixtures / Promise
+title: Missing apiVersion is invalid
+purpose: Exercise required protocol version metadata.
+priority: P1
+boundary: unit
+lifecycle: accepted
+given:
+  - A promise omits apiVersion
+when:
+  - A Harness implementation decodes the fixture
+then:
+  - The fixture is rejected
+observes:
+  - protocol/fixtures/promises/invalid/missing-api-version.promise.yaml
+failureMeaning: Versionless promise files should not be accepted.
+review:
+  approvedBy: xinyao

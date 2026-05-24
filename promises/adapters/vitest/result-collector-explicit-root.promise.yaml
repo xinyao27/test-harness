@@ -1,12 +1,13 @@
 # Canonical behavior promise for writing collected results to the explicit Harness root.
-id: harness.result_collector.writes_results_to_explicit_harness_root
-feature: Seed Harness / Result Collector
+apiVersion: 1
+id: harness.adapters.vitest.result_collector.writes_results_to_explicit_harness_root
+feature: Adapters / Vitest / Result Collector
 title:
   en: The result collector writes results under the explicit Harness root
   zh-CN: result collector 会把结果写到明确的 Harness root 下
 purpose:
-  en: Protect workspace-level reports from result files being written into package subdirectories.
-  zh-CN: 保护 workspace-level reports，避免 result files 被写进 package 子目录。
+  en: Protect workspace-level protocol results from being written into package subdirectories.
+  zh-CN: 保护 workspace-level protocol results，避免 result files 被写进 package 子目录。
 priority: P0
 boundary: integration
 lifecycle: accepted
@@ -25,7 +26,7 @@ then:
 observes:
   - .harness/results.yaml
   - HARNESS_ROOT_DIR
-  - packages/core/src/vitest-reporter.ts
+  - packages/adapter-vitest/src/reporter.ts
 
 failureMeaning:
   en: The CLI may read one result file while Vitest writes another, making the self-report untrustworthy.

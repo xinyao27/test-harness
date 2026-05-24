@@ -1,12 +1,13 @@
-# Canonical behavior promise for the Effect Schema-backed promise shape.
+# Canonical behavior promise for the protocol-backed promise shape.
+apiVersion: 1
 id: harness.promise.schema_defines_required_fields
 feature: Seed Harness / Promise Schema
 title:
-  en: Promise records are decoded through a canonical schema
-  zh-CN: Promise records 会通过 canonical schema 解码
+  en: Promise records are decoded through the versioned protocol schema
+  zh-CN: Promise records 会通过 versioned protocol schema 解码
 purpose:
-  en: Protect the Harness from accepting promise files whose shape is not explicitly defined.
-  zh-CN: 保护 Harness 不会接受 shape 没有被明确定义的 promise 文件。
+  en: Protect the Harness from accepting promise files whose protocol shape is not explicitly defined.
+  zh-CN: 保护 Harness 不会接受 protocol shape 没有被明确定义的 promise 文件。
 priority: P0
 boundary: unit
 lifecycle: accepted
@@ -18,6 +19,8 @@ when:
   - en: The seed Harness decodes the promise record
     zh-CN: seed Harness 解码这个 promise record
 then:
+  - en: apiVersion must declare the supported Harness protocol version
+    zh-CN: apiVersion 必须声明受支持的 Harness protocol version
   - en: Required promise fields must be present
     zh-CN: required promise fields 必须存在
   - en: lifecycle, priority, and boundary must match the allowed values
@@ -25,6 +28,7 @@ then:
   - en: Natural-language fields may be plain English strings or localized text maps
     zh-CN: 自然语言字段可以是普通英文字符串，也可以是 localized text map
 observes:
+  - protocol/v1/promise.schema.yaml
   - packages/core/src/schema.ts
   - promises/**/*.promise.yaml
 

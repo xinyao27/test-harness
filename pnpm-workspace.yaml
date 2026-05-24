@@ -15,6 +15,7 @@ catalog:
   vite-plus: latest
   effect: 4.0.0-beta.70
   yaml: ^2.9.0
+  ajv: ^8.20.0
 overrides:
   vite: "catalog:"
   vitest: "catalog:"

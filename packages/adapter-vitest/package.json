@@ -1,0 +1,52 @@
+{
+  "name": "@test-harness/adapter-vitest",
+  "version": "0.0.0",
+  "description": "Vitest adapter for the Harness protocol.",
+  "homepage": "https://github.com/xinyao27/test-harness#readme",
+  "bugs": {
+    "url": "https://github.com/xinyao27/test-harness/issues"
+  },
+  "license": "MIT",
+  "author": {
+    "name": "xinyao",
+    "email": "hi@xinyao.me"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xinyao27/test-harness.git",
+    "directory": "packages/adapter-vitest"
+  },
+  "funding": "https://github.com/sponsors/xinyao27",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./reporter": "./dist/reporter.mjs",
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "dev": "vp pack --watch"
+  },
+  "dependencies": {
+    "@test-harness/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "effect": "catalog:",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:"
+  },
+  "peerDependencies": {
+    "vite-plus": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "vite-plus": {
+      "optional": true
+    }
+  }
+}

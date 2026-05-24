@@ -1,4 +1,5 @@
 # Canonical behavior promise for readable promise validation.
+apiVersion: 1
 id: harness.validation.rejects_unreadable_promises
 feature: Seed Harness / Validation
 title:
