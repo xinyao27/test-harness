@@ -34,7 +34,8 @@
     "start": "node ./dist/index.mjs"
   },
   "dependencies": {
-    "@test-harness/core": "workspace:*"
+    "@test-harness/core": "workspace:*",
+    "effect": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",

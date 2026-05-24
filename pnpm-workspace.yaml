@@ -13,6 +13,8 @@ catalog:
   vite: npm:@voidzero-dev/vite-plus-core@latest
   vitest: npm:@voidzero-dev/vite-plus-test@latest
   vite-plus: latest
+  effect: 4.0.0-beta.70
+  yaml: ^2.9.0
 overrides:
   vite: "catalog:"
   vitest: "catalog:"
@@ -23,3 +25,5 @@ peerDependencyRules:
   allowedVersions:
     vite: "*"
     vitest: "*"
+allowBuilds:
+  msgpackr-extract: false

@@ -58,9 +58,11 @@ AGENTS.zh-CN.md
 ## Agent 工作备注
 
 - 把 promises 视为项目的一等 artifact。
-- 把 `.promise.json` files 视为已 review behavior promise meaning 的 canonical source。测试里的 `scenario(...)` 应该绑定 promise id，而不是重新定义 promise。
+- 把 `.promise.yaml` files 视为已 review behavior promise meaning 的 canonical source。测试里的 `scenario(...)` 应该绑定 promise id，而不是重新定义 promise。
+- 自然语言 promise 字段使用 `LocalizedText`：普通字符串视为默认英文，`{ en, zh-CN }` 这样的语言 map 可以提供可选翻译。Seed self-promises 优先同时写 `en` 和 `zh-CN`，但不要翻译 `id`、`priority`、`boundary`、`lifecycle`、`review` 或 `observes` 这类稳定机器字段。
 - 拆分持久化 lifecycle 和 computed run status。一个 promise 可以同时是 `accepted` 和当前 `failing`。
 - 代码里避免裸用 `Promise`，因为它会和 JavaScript `Promise` 冲突；优先使用 `BehaviorPromise`、`PromiseRecord` 和 `promiseId`。
+- 定义数据契约或公开 shape 时，优先使用 Effect Schema，让运行时校验和静态类型保持一致。只有当 schema 没有实际价值或技术上不适合时，才使用普通 TypeScript interface。
 - 保留 promise id 历史。Rename promise 意味着创建新 id，并 deprecate 或 supersede 旧 id。
 - 优先选择自举步骤。第一版实现应该先能验证这套 Harness 项目自身，再广泛支持外部项目。
 - 新增 Harness 能力时，先为这个能力编写或更新 promises。

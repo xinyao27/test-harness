@@ -58,9 +58,11 @@ When updating documentation, keep the English and Chinese versions aligned.
 ## Agent Working Notes
 
 - Treat promises as first-class project artifacts.
-- Treat `.promise.json` files as the canonical source of reviewed behavior promise meaning. `scenario(...)` in tests should bind to a promise id, not redefine the promise.
+- Treat `.promise.yaml` files as the canonical source of reviewed behavior promise meaning. `scenario(...)` in tests should bind to a promise id, not redefine the promise.
+- Natural-language promise fields use `LocalizedText`: a plain string is treated as default English, while a language map such as `{ en, zh-CN }` can provide optional translations. Prefer bilingual `en` and `zh-CN` text for seed self-promises, but do not localize stable machine fields such as `id`, `priority`, `boundary`, `lifecycle`, `review`, or `observes`.
 - Split persisted lifecycle from computed run status. A promise can be `accepted` and currently `failing` at the same time.
 - Avoid bare `Promise` in code because it conflicts with JavaScript `Promise`; prefer `BehaviorPromise`, `PromiseRecord`, and `promiseId`.
+- When defining data contracts or public shapes, prefer Effect Schema over TypeScript interfaces so runtime validation and static types stay aligned. Use plain interfaces only when a schema would add no value or is technically impractical.
 - Preserve promise id history. Renaming a promise means creating a new id and deprecating or superseding the old id.
 - Prefer self-bootstrapping steps. The first implementation should validate this Harness project itself before trying to support external projects broadly.
 - When adding a Harness capability, write or update promises for that capability first.

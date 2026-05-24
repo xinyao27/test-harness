@@ -1,0 +1,34 @@
+# Canonical behavior promise for binding Vitest tests to reviewed promises.
+id: harness.scenario_helper.binds_tests_to_canonical_promises
+feature: Seed Harness / Scenario Helper
+title:
+  en: Vitest tests can bind to canonical promises
+  zh-CN: Vitest 测试可以绑定到 canonical promises
+purpose:
+  en: Protect Vitest tests so they can stay attached to reviewed promise ids.
+  zh-CN: 保护 Vitest 测试可以稳定绑定到已 review 的 promise id。
+priority: P0
+boundary: unit
+lifecycle: accepted
+
+given:
+  - en: A canonical promise exists in promises/test-harness
+    zh-CN: promises/test-harness 中存在一条 canonical promise
+when:
+  - en: A Vitest test calls scenario with that promise id
+    zh-CN: Vitest 测试使用这个 promise id 调用 scenario
+then:
+  - en: The scenario helper returns a ScenarioBinding
+    zh-CN: scenario helper 返回一个 ScenarioBinding
+  - en: The binding keeps the promise id stable
+    zh-CN: 该 binding 会保持 promise id 稳定
+observes:
+  - scenario({ id, evidence })
+
+failureMeaning:
+  en: The Harness cannot connect executable tests back to reviewed promises.
+  zh-CN: Harness 无法把可执行测试连接回已 review 的 promises。
+
+review:
+  approvedBy: xinyao
+  approvedAt: "2026-05-24"

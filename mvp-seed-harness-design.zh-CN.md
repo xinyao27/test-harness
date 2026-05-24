@@ -64,7 +64,7 @@ Seed 可以先从文件开始。
 Canonical source 决策：
 
 ```text
-.promise.json files
+.promise.yaml files
   -> canonical reviewed promise meaning
 
 scenario({ id })
@@ -78,7 +78,7 @@ Seed review 机制：
 ```text
 Human review 基于 PR。
 
-修改 .promise.json files 需要正常 code review。
+修改 .promise.yaml files 需要正常 code review。
 review metadata 记录批准 promise 的 PR 或 commit。
 ```
 
@@ -95,10 +95,10 @@ M2 被接受之后，required metadata failures 变成 blocking。
 ```text
 promises/
   test-harness/
-    promise-registry.promise.json
-    scenario-helper.promise.json
-    result-collector.promise.json
-    quality-checker.promise.json
+    promise-registry.promise.yaml
+    scenario-helper.promise.yaml
+    result-collector.promise.yaml
+    quality-checker.promise.yaml
 
 src/
   scenario.ts
@@ -113,29 +113,37 @@ reports/
 
 Promise file 形态：
 
-```ts
-interface PromiseRecord {
-  id: string;
-  feature: string;
-  title: string;
-  purpose: string;
-  priority: "P0" | "P1" | "P2";
-  boundary: "unit" | "integration" | "browser" | "e2e" | "adapter";
-  lifecycle: "proposed" | "accepted" | "implemented" | "changed_requires_review" | "deprecated";
-  given: string[];
-  when: string[];
-  then: string[];
-  observes: string[];
-  failureMeaning: string;
-  supersedes?: string[];
-  deprecatedBy?: string;
-  review: {
-    approvedBy?: string;
-    approvedAt?: string;
-    approvedIn?: string;
-    notes?: string;
-  };
-}
+canonical file 使用 YAML。实现里用 Effect Schema 定义这个 shape，并从 schema 推导 TypeScript 类型。自然语言字段使用 `LocalizedText`：普通字符串是合法的，并被视为默认英文；也可以展开成 `en` / `zh-CN` 这样的语言 map。
+
+```yaml
+id: harness.promise_registry.load_canonical_yaml_promises
+feature: Seed Harness / Promise Registry
+title:
+  en: Accepted promises are loaded from canonical YAML files
+  zh-CN: 已接受的承诺会从 canonical YAML 文件中加载
+purpose:
+  en: Protect the seed Harness's reviewed behavior promises.
+  zh-CN: 保护 seed Harness 能读取自己已批准的行为承诺。
+priority: P0
+boundary: unit
+lifecycle: accepted
+given:
+  - en: A promise file exists under promises/test-harness
+    zh-CN: promises/test-harness 下存在一个 promise 文件
+when:
+  - en: The seed Harness loads promise records
+    zh-CN: seed Harness 加载 promise records
+then:
+  - en: The promise is decoded into a PromiseRecord
+    zh-CN: 该 promise 会被解码成 PromiseRecord
+observes:
+  - promises/test-harness/*.promise.yaml
+failureMeaning:
+  en: The Harness cannot trust its own reviewed behavior promises.
+  zh-CN: Harness 无法信任自己已经 review 过的行为承诺。
+review:
+  approvedBy: xinyao
+  approvedAt: "2026-05-24"
 ```
 
 Run status 不持久化在 promise file 里。它由 collector 计算：
@@ -162,17 +170,21 @@ scenario({
 Assertion fingerprint 形态：
 
 ```ts
-interface AssertionFingerprint {
-  scenarioId: string;
-  testFile: string;
-  testName: string;
-  assertions: Array<{
-    target?: string;
-    matcher: string;
-    literal?: string;
-    evidenceTag?: string;
-  }>;
-}
+const AssertionFingerprintSchema = Schema.Struct({
+  scenarioId: Schema.String,
+  testFile: Schema.String,
+  testName: Schema.String,
+  assertions: Schema.Array(
+    Schema.Struct({
+      target: Schema.optionalKey(Schema.String),
+      matcher: Schema.String,
+      literal: Schema.optionalKey(Schema.String),
+      evidenceTag: Schema.optionalKey(Schema.String),
+    }),
+  ),
+});
+
+type AssertionFingerprint = Schema.Schema.Type<typeof AssertionFingerprintSchema>;
 ```
 
 ## 四、MVP 自我 promises
