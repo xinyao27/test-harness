@@ -329,6 +329,111 @@ results:
     },
   );
 
+  scenarioTest(
+    "harness.cli.report_summary_lists_promises_compactly",
+    "summary header reports promise, error, and warning counts",
+    async () => {
+      const workspace = await withTempWorkspace(validPromiseYaml);
+
+      try {
+        const result = await run(["report", "--summary"], workspace.root);
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain(
+          "Seed Harness Report  ·  1 promises  ·  0 errors  ·  0 warnings",
+        );
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
+
+  scenarioTest(
+    "harness.cli.report_summary_lists_promises_compactly",
+    "summary groups promises by feature in alphabetical order",
+    async () => {
+      const workspace = await withTempWorkspace(validPromiseYaml);
+      const secondPromise = validPromiseYaml
+        .replace(
+          "id: harness.promise_registry.load_canonical_yaml_promises",
+          "id: harness.adapters.vitest.placeholder",
+        )
+        .replace("feature: Seed Harness / Promise Registry", "feature: Adapters / Vitest");
+      await writeFile(
+        join(workspace.root, "promises", "promise-registry", "second.promise.yaml"),
+        secondPromise,
+      );
+
+      try {
+        const result = await run(["report", "--summary"], workspace.root);
+        expect(result.exitCode).toBe(0);
+        const adaptersIndex = result.stdout.indexOf("Adapters / Vitest");
+        const seedIndex = result.stdout.indexOf("Seed Harness / Promise Registry");
+        expect(adaptersIndex).toBeGreaterThanOrEqual(0);
+        expect(seedIndex).toBeGreaterThan(adaptersIndex);
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
+
+  scenarioTest(
+    "harness.cli.report_summary_lists_promises_compactly",
+    "summary lists each promise on a single line with priority, lifecycle, run status, and title",
+    async () => {
+      const workspace = await withTempWorkspace(validPromiseYaml);
+
+      try {
+        await writeTestResultsFile(
+          workspace.root,
+          createTestResultsFile([
+            {
+              file: "packages/core/tests/index.test.ts",
+              promiseId: "harness.promise_registry.load_canonical_yaml_promises",
+              status: "passing",
+              testName: "loads canonical YAML promises",
+            },
+          ]),
+        );
+
+        const result = await run(["report", "--summary"], workspace.root);
+        expect(result.exitCode).toBe(0);
+        const promiseLines = result.stdout
+          .split("\n")
+          .filter((line) => line.trim().startsWith("P0"));
+        expect(promiseLines).toHaveLength(1);
+        const [line] = promiseLines;
+        expect(line).toContain("P0");
+        expect(line).toContain("accepted");
+        expect(line).toContain("passing");
+        expect(line).toContain("Accepted promises are loaded from canonical YAML files");
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
+
+  scenarioTest(
+    "harness.cli.report_summary_lists_promises_compactly",
+    "summary does not expand given, when, then, evidence, purpose, or failure meaning",
+    async () => {
+      const workspace = await withTempWorkspace(validPromiseYaml);
+
+      try {
+        const result = await run(["report", "--summary"], workspace.root);
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).not.toContain("Given:");
+        expect(result.stdout).not.toContain("When:");
+        expect(result.stdout).not.toContain("Then:");
+        expect(result.stdout).not.toContain("Evidence:");
+        expect(result.stdout).not.toContain("Purpose:");
+        expect(result.stdout).not.toContain("Failure meaning:");
+        expect(result.stdout).not.toContain("Promise ID:");
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
+
   test("fails when --lang is missing a language value", async () => {
     const workspace = await withTempWorkspace(validPromiseYaml);
 

@@ -134,3 +134,44 @@ export const renderSeedReportMarkdown = (report: SeedReport): string => {
 
   return lines.join("\n").trimEnd() + "\n";
 };
+
+export const renderSeedReportSummary = (report: SeedReport): string => {
+  const lines: string[] = [
+    `Seed Harness Report  ·  ${report.summary.promises} promises  ·  ${report.summary.errors} errors  ·  ${report.summary.warnings} warnings`,
+    "",
+  ];
+
+  const lifecycleWidth = Math.max(
+    0,
+    ...report.features.flatMap((feature) =>
+      feature.promises.map((promise) => promise.lifecycle.length),
+    ),
+  );
+  const runStatusWidth = Math.max(
+    0,
+    ...report.features.flatMap((feature) =>
+      feature.promises.map((promise) => promise.runStatus.length),
+    ),
+  );
+
+  for (const feature of report.features) {
+    lines.push(feature.feature);
+    for (const promise of feature.promises) {
+      const lifecycle = promise.lifecycle.padEnd(lifecycleWidth);
+      const runStatus = promise.runStatus.padEnd(runStatusWidth);
+      lines.push(`  ${promise.priority}  ${lifecycle}  ${runStatus}  ${promise.title}`);
+    }
+    lines.push("");
+  }
+
+  const globalIssues = report.issues.filter((issue) => issue.promiseId === undefined);
+  if (globalIssues.length > 0) {
+    lines.push("Global Issues", "");
+    for (const issue of globalIssues) {
+      lines.push(`- [${issue.severity}] ${issue.message}`);
+    }
+    lines.push("");
+  }
+
+  return lines.join("\n").trimEnd() + "\n";
+};

@@ -14,7 +14,12 @@ export {
 export { defaultLanguage, resolveLocalizedText } from "./localized-text.ts";
 export { loadPromiseRecords } from "./promise-registry.ts";
 export { buildSeedReport, checkSeedHarness, type SeedCheckResult } from "./programs.ts";
-export { generateSeedReport, renderSeedReportMarkdown, type SeedReportOptions } from "./report.ts";
+export {
+  generateSeedReport,
+  renderSeedReportMarkdown,
+  renderSeedReportSummary,
+  type SeedReportOptions,
+} from "./report.ts";
 export {
   createTestResultsFile,
   getPromiseRunStatus,

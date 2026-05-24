@@ -11,6 +11,7 @@ import {
   harnessResultsPath,
   loadTestResultsFile,
   renderSeedReportMarkdown,
+  renderSeedReportSummary,
   type TestResult,
   type TestResultsFile,
   type ValidationIssue,
@@ -83,17 +84,19 @@ const runDefaultTestRunner: TestRunner = ({ cwd, streams }) =>
     });
   });
 
-const usage = "Usage: harness <check|test|report|verify> [--lang <language>]";
+const usage = "Usage: harness <check|test|report|verify> [--lang <language>] [--summary]";
 
 type ParsedArgs = {
   readonly command?: string;
   readonly error?: string;
   readonly language?: string;
+  readonly summary?: boolean;
 };
 
 const parseArgs = (args: readonly string[]): ParsedArgs => {
   let command: string | undefined;
   let language: string | undefined;
+  let summary = false;
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
@@ -112,12 +115,16 @@ const parseArgs = (args: readonly string[]): ParsedArgs => {
       language = value;
       continue;
     }
+    if (arg === "--summary") {
+      summary = true;
+      continue;
+    }
     if (!arg?.startsWith("-") && command === undefined) {
       command = arg;
     }
   }
 
-  return { command, language };
+  return { command, language, summary };
 };
 
 const errorsOf = (issues: readonly ValidationIssue[]): readonly ValidationIssue[] =>
@@ -208,6 +215,7 @@ const runCheck = (options: CliOptions): Effect.Effect<number> =>
 type ReportOptions = {
   readonly language?: string;
   readonly results?: readonly TestResult[];
+  readonly summary?: boolean;
 };
 
 const runReport = (options: CliOptions, reportOptions: ReportOptions = {}): Effect.Effect<number> =>
@@ -223,7 +231,10 @@ const runReport = (options: CliOptions, reportOptions: ReportOptions = {}): Effe
         }),
       onSuccess: (report) =>
         Effect.sync(() => {
-          options.streams.stdout(renderSeedReportMarkdown(report).trimEnd());
+          const rendered = reportOptions.summary
+            ? renderSeedReportSummary(report)
+            : renderSeedReportMarkdown(report);
+          options.streams.stdout(rendered.trimEnd());
           return report.summary.errors > 0 ? 1 : 0;
         }),
     }),
@@ -264,7 +275,7 @@ const requireResultsFile = (
     }),
   );
 
-const runTest = (options: CliOptions, language?: string): Effect.Effect<number> =>
+const runTest = (options: CliOptions, reportOptions: ReportOptions = {}): Effect.Effect<number> =>
   Effect.gen(function* () {
     const cleared = yield* clearPreviousResults(options.cwd).pipe(
       Effect.match({
@@ -301,8 +312,9 @@ const runTest = (options: CliOptions, language?: string): Effect.Effect<number> 
       resultsFileCheck.type === "invalid"
         ? 1
         : yield* runReport(options, {
-            language,
+            language: reportOptions.language,
             results: resultsFileCheck.type === "found" ? resultsFileCheck.file.results : [],
+            summary: reportOptions.summary,
           });
     return testExitCode !== 0 || resultsFileCheck.type !== "found" || reportExitCode !== 0 ? 1 : 0;
   });
@@ -311,7 +323,7 @@ export const runCli = (
   args: readonly string[],
   options: Partial<CliOptions> = {},
 ): Effect.Effect<number> => {
-  const { command, error, language } = parseArgs(args);
+  const { command, error, language, summary } = parseArgs(args);
   const resolvedOptions: CliOptions = {
     cwd: options.cwd ?? process.cwd(),
     streams: options.streams ?? defaultStreams,
@@ -330,9 +342,9 @@ export const runCli = (
       return runCheck(resolvedOptions);
     case "report":
     case "verify":
-      return runReport(resolvedOptions, { language });
+      return runReport(resolvedOptions, { language, summary });
     case "test":
-      return runTest(resolvedOptions, language);
+      return runTest(resolvedOptions, { language, summary });
     default:
       return Effect.sync(() => {
         resolvedOptions.streams.stdout(usage);
