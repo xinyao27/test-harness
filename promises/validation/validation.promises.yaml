@@ -10,7 +10,7 @@ promises:
       zh-CN: 通过确保每条 promise 即便偏好本地化变体也仍然保留英文 fallback 文本，保护双语 review。
     priority: P1
     boundary: unit
-    lifecycle: proposed
+    lifecycle: accepted
 
     given:
       - en: A promise record has been decoded with localized text fields
@@ -29,7 +29,9 @@ promises:
       en: Reviewers without the localized variant may see blank promise text when default-language fallback is missing.
       zh-CN: 没有本地化变体的 reviewer 在 default-language fallback 缺失时可能看到空白 promise 文本。
 
-    review: {}
+    review:
+      approvedBy: xinyao
+      approvedAt: "2026-05-25"
   - id: harness.validation.checks_examples_table_shape
     feature: Seed Harness / Validation
     title:
@@ -110,7 +112,7 @@ promises:
       zh-CN: 保护 seed loop —— `scenarioTest(promiseId, ...)` 中的拼写错误或失效 id 不能悄悄被当作真实 promise 的证据。
     priority: P0
     boundary: unit
-    lifecycle: proposed
+    lifecycle: accepted
 
     given:
       - en: Canonical promise records and scenario bindings have been collected
@@ -129,7 +131,9 @@ promises:
       en: A test bound to a non-existent promise id can pass without ever proving any reviewed behavior.
       zh-CN: 绑定到不存在 promise id 的测试可以通过，但从未真正证明任何已 review 的行为。
 
-    review: {}
+    review:
+      approvedBy: xinyao
+      approvedAt: "2026-05-25"
   - id: harness.validation.flags_uncovered_source_files
     feature: Seed Harness / Validation
     title:
@@ -140,7 +144,7 @@ promises:
       zh-CN: 通过机械化检测没有 module owner 的代码，保护项目"以 promise 为先"的 review 表面。
     priority: P0
     boundary: unit
-    lifecycle: proposed
+    lifecycle: accepted
 
     given:
       - en: Module records have been loaded with their covers fields
@@ -164,7 +168,9 @@ promises:
       en: New code can land without any module taking review ownership, so reviewers cannot tell which area is responsible for it.
       zh-CN: 新代码可能在没有任何 module 接手 review 的情况下落地，reviewer 无法判断它归哪个区域负责。
 
-    review: {}
+    review:
+      approvedBy: xinyao
+      approvedAt: "2026-05-25"
   - id: harness.validation.flags_promises_without_test_results
     feature: Seed Harness / Validation
     title:

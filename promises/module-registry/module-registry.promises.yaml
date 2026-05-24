@@ -10,7 +10,7 @@ promises:
       zh-CN: 保护 seed Harness 的 module 层，让覆盖率校验和未来所有 module-aware 工具都有稳定的输入。
     priority: P0
     boundary: unit
-    lifecycle: proposed
+    lifecycle: accepted
 
     given:
       - en: A project root contains `modules/*.module.yaml` files
@@ -33,4 +33,6 @@ promises:
       en: Coverage validation and any future module-aware feature has no stable input — modules become inert YAML files.
       zh-CN: 覆盖率校验和未来所有 module-aware 功能都失去稳定输入 —— modules 退化为惰性 YAML 文件。
 
-    review: {}
+    review:
+      approvedBy: xinyao
+      approvedAt: "2026-05-25"

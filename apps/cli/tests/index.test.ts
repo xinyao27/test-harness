@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -11,6 +11,13 @@ import { validPromiseYaml } from "../../../tests/fixtures/promise-fixtures.ts";
 import { runCli } from "../src/index.ts";
 
 type RunCliOptions = NonNullable<Parameters<typeof runCli>[1]>;
+
+const rootDir = process.cwd();
+
+const readGoldenOutput = (name: string): Promise<string> =>
+  readFile(join(rootDir, "protocol", "fixtures", "cli", "golden", name), "utf8").then((content) =>
+    content.trimEnd(),
+  );
 
 const withTempWorkspace = async (content: string) => {
   const root = await mkdtemp(join(tmpdir(), "seed-harness-cli-"));
@@ -96,6 +103,22 @@ describe("harness CLI", () => {
         expect(result.stdout).toContain("Seed Harness Report");
         expect(result.stdout).toContain("Feature: Seed Harness / Promise Registry");
         expect(result.stdout).toContain("Run Status: unknown");
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
+
+  scenarioTest(
+    "harness.protocol.cli_golden_outputs_lock_human_surface",
+    "verify matches the portable full-report golden output",
+    async () => {
+      const workspace = await withTempWorkspace(validPromiseYaml);
+
+      try {
+        const result = await run(["verify"], workspace.root);
+        expect(result.exitCode).toBe(0);
+        await expect(readGoldenOutput("verify-basic.en.stdout")).resolves.toBe(result.stdout);
       } finally {
         await workspace.cleanup();
       }
@@ -340,6 +363,24 @@ results:
         expect(result.exitCode).toBe(0);
         expect(result.stdout).toContain(
           "Seed Harness Report  ·  1 promises  ·  0 errors  ·  0 warnings",
+        );
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
+
+  scenarioTest(
+    "harness.protocol.cli_golden_outputs_lock_human_surface",
+    "summary matches the portable compact-report golden output",
+    async () => {
+      const workspace = await withTempWorkspace(validPromiseYaml);
+
+      try {
+        const result = await run(["report", "--summary"], workspace.root);
+        expect(result.exitCode).toBe(0);
+        await expect(readGoldenOutput("report-summary-basic.en.stdout")).resolves.toBe(
+          result.stdout,
         );
       } finally {
         await workspace.cleanup();

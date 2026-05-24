@@ -7,7 +7,12 @@ import { describe, expect } from "vite-plus/test";
 import { parse } from "yaml";
 
 import { scenarioTest } from "../../adapter-vitest/src/index.ts";
-import { PromiseRecordSchema, SeedReportSchema, TestResultsFileSchema } from "../src/index.ts";
+import {
+  ModuleRecordSchema,
+  PromiseRecordSchema,
+  SeedReportSchema,
+  TestResultsFileSchema,
+} from "../src/index.ts";
 
 const rootDir = process.cwd();
 
@@ -20,7 +25,7 @@ const loadValidator = async (schemaName: string) => {
 };
 
 const fixturePaths = async (
-  kind: "promises" | "reports" | "results",
+  kind: "modules" | "promises" | "reports" | "results",
   validity: "invalid" | "valid",
 ) => {
   const directory = join(rootDir, "protocol", "fixtures", kind, validity);
@@ -30,7 +35,7 @@ const fixturePaths = async (
 
 const assertConformance = async <A>(
   schemaName: string,
-  fixtureKind: "promises" | "reports" | "results",
+  fixtureKind: "modules" | "promises" | "reports" | "results",
   effectSchema: Schema.Schema<A>,
 ) => {
   const validate = await loadValidator(schemaName);
@@ -54,6 +59,14 @@ const assertConformance = async <A>(
 };
 
 describe("protocol conformance", () => {
+  scenarioTest(
+    "harness.protocol.module_schema_is_portable",
+    "keeps module fixtures aligned between protocol schema and Effect Schema",
+    async () => {
+      await assertConformance("module.schema.yaml", "modules", ModuleRecordSchema);
+    },
+  );
+
   scenarioTest(
     "harness.protocol.conformance_fixtures_lock_reference_behavior",
     "keeps promise fixtures aligned between protocol schema and Effect Schema",

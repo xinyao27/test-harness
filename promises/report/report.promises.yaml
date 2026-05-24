@@ -10,7 +10,7 @@ promises:
       zh-CN: 当请求的语言缺失时，保护双语 review —— reviewer 永远能看到有意义的文本，而不是空字符串。
     priority: P1
     boundary: unit
-    lifecycle: proposed
+    lifecycle: accepted
 
     given:
       - en: A LocalizedText value may be either a plain string or a language map
@@ -33,7 +33,9 @@ promises:
       en: A reviewer requesting a missing language sees an empty promise field and cannot tell whether the promise is blank or merely untranslated.
       zh-CN: 请求缺失语言的 reviewer 会看到空的 promise 字段，无法判断 promise 本身就是空，还是只是没翻译。
 
-    review: {}
+    review:
+      approvedBy: xinyao
+      approvedAt: "2026-05-25"
   - id: harness.report.renders_in_requested_language
     feature: Seed Harness / Report
     title:
@@ -76,7 +78,7 @@ promises:
       zh-CN: 保护 reviewer 对报告的解读 —— 渲染报告中的每个 status 值都有已知、稳定的含义。
     priority: P0
     boundary: unit
-    lifecycle: proposed
+    lifecycle: accepted
 
     given:
       - en: A promise id and a list of collected test results have been loaded
@@ -101,4 +103,6 @@ promises:
       en: A green report may hide a failing or unproven promise if the mapping drifts unnoticed.
       zh-CN: 若映射规则悄悄变化，绿色报告可能掩盖一个 failing 或 unproven 的 promise。
 
-    review: {}
+    review:
+      approvedBy: xinyao
+      approvedAt: "2026-05-25"

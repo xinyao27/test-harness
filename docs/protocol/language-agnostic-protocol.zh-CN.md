@@ -10,7 +10,7 @@ Harness 首先是一套 protocol，而不是 TypeScript 或 Vitest 的功能。
 稳定层是：
 
 ```text
-promises/**/*.promise.yaml
+promises/**/*.promises.yaml
   -> adapter execution
   -> .harness/results.yaml
   -> Harness report
@@ -23,11 +23,13 @@ promises/**/*.promise.yaml
 Protocol contracts 放在 `protocol/v1/`：
 
 - `promise.schema.yaml`：canonical promise file shape。
+- `promises-file.schema.yaml`：canonical grouped promises wrapper shape。
+- `module.schema.yaml`：canonical module ownership file shape。
 - `results.schema.yaml`：adapter 产出的 result file shape。
 - `report.schema.yaml`：structured report shape。
 - `cli.yaml`：command、path、environment 和 exit-code contract。
 
-可移植 conformance samples 放在 `protocol/fixtures/` 下。参考实现应该像 protocol schemas 一样接受所有 valid fixtures，并拒绝所有 invalid fixtures。
+可移植 conformance samples 放在 `protocol/fixtures/` 下。参考实现应该像 protocol schemas 一样接受所有 valid fixtures，并拒绝所有 invalid fixtures。`protocol/fixtures/cli/golden/` 下的 CLI golden output fixtures 会固定代表性的面向人类 report output。
 
 这些文件是跨语言 contract。当前 `@test-harness/core` 里的 Effect Schemas 是这套 contract 的 TypeScript 参考实现，不是唯一合法实现。
 
@@ -44,11 +46,12 @@ Protocol 不能要求 Vitest task metadata、TypeScript imports 或 Node process
 
 Rust 重写成功的判断标准是：它能满足同一批 protocol promises 和 conformance fixtures：
 
-1. 加载同一批 `.promise.yaml` 文件。
-2. 拒绝同一批无效 promise 和 result fixtures。
-3. 读取或写出同样的 `.harness/results.yaml` shape。
-4. 渲染等价的 promise status。
-5. 保持 CLI 行为和 exit codes。
+1. 加载同一批 `.promises.yaml` 文件。
+2. 加载同一批 module ownership files。
+3. 拒绝同一批无效 module、promise、result 和 report fixtures。
+4. 读取或写出同样的 `.harness/results.yaml` shape。
+5. 渲染等价的 promise status，并在已固定的场景中匹配 CLI report golden fixtures。
+6. 保持 CLI 行为和 exit codes。
 
 重写不需要模仿 TypeScript 内部实现。它需要保持 protocol。
 

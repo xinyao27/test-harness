@@ -10,7 +10,7 @@ promises:
       zh-CN: 保护 Harness 不会接受 protocol shape 没有被明确定义的 result 文件，与 promise files 的保护方式平行。
     priority: P0
     boundary: unit
-    lifecycle: proposed
+    lifecycle: accepted
 
     given:
       - en: An adapter has written a `.harness/results.yaml` file
@@ -33,4 +33,6 @@ promises:
       en: Malformed adapter results may flow into report rendering and silently misrepresent promise status.
       zh-CN: 畸形的 adapter results 可能流入 report 渲染，悄悄错误地呈现 promise 状态。
 
-    review: {}
+    review:
+      approvedBy: xinyao
+      approvedAt: "2026-05-25"

@@ -36,6 +36,41 @@ promises:
     review:
       approvedBy: xinyao
       approvedAt: "2026-05-24"
+  - id: harness.protocol.cli_golden_outputs_lock_human_surface
+    feature: Harness Protocol / CLI
+    title:
+      en: CLI golden outputs lock the human report surface
+      zh-CN: CLI golden outputs 会锁定面向人类的报告表面
+    purpose:
+      en: Protect future rewrites by pinning representative full and summary report stdout as portable fixtures.
+      zh-CN: 通过把代表性的完整报告和摘要报告 stdout 固定为可移植 fixtures，保护未来重写。
+    priority: P0
+    boundary: integration
+    lifecycle: accepted
+
+    given:
+      - en: A minimal valid promise fixture can be loaded by the CLI
+        zh-CN: CLI 可以加载一个最小有效 promise fixture
+    when:
+      - en: The CLI renders a full verify report and a compact summary report
+        zh-CN: CLI 渲染完整 verify report 和紧凑 summary report
+    then:
+      - en: The rendered stdout matches the checked-in golden output fixtures
+        zh-CN: 渲染出的 stdout 会匹配已提交的 golden output fixtures
+      - en: Future implementations can compare human-facing output without reading TypeScript source
+        zh-CN: 未来实现不阅读 TypeScript source 也能比较面向人类的输出
+    observes:
+      - protocol/fixtures/cli/golden/*.stdout
+      - apps/cli/src/index.ts
+      - packages/core/src/report.ts
+
+    failureMeaning:
+      en: A rewrite could keep the same data model while drifting the human review surface in ways no fixture catches.
+      zh-CN: 重写版本可能保持相同数据模型，却让人类 review 表面发生 fixture 捕捉不到的漂移。
+
+    review:
+      approvedBy: xinyao
+      approvedAt: "2026-05-25"
   - id: harness.protocol.conformance_fixtures_lock_reference_behavior
     feature: Harness Protocol / Conformance
     title:
@@ -49,8 +84,8 @@ promises:
     lifecycle: accepted
 
     given:
-      - en: Protocol fixtures exist for valid and invalid promises, results, and reports
-        zh-CN: protocol fixtures 为有效和无效的 promises、results 和 reports 存在
+      - en: Protocol fixtures exist for valid and invalid modules, promises, results, and reports
+        zh-CN: protocol fixtures 为有效和无效的 modules、promises、results 和 reports 存在
     when:
       - en: The reference implementation runs conformance tests
         zh-CN: 参考实现运行 conformance tests
@@ -72,6 +107,43 @@ promises:
     review:
       approvedBy: xinyao
       approvedAt: "2026-05-24"
+  - id: harness.protocol.module_schema_is_portable
+    feature: Harness Protocol / Modules
+    title:
+      en: Module schema is portable across implementations
+      zh-CN: Module schema 可以跨实现移植
+    purpose:
+      en: Protect Rust and other rewrites from reverse-engineering TypeScript module records by making module ownership metadata a protocol fixture-backed contract.
+      zh-CN: 通过把 module ownership metadata 固定成带 fixtures 的 protocol contract，避免 Rust 和其他重写版本反向理解 TypeScript module records。
+    priority: P0
+    boundary: unit
+    lifecycle: accepted
+
+    given:
+      - en: A canonical module YAML file describes a reviewable source area
+        zh-CN: 一个 canonical module YAML file 描述可 review 的 source area
+    when:
+      - en: A Harness implementation decodes the module file
+        zh-CN: Harness 实现解码这个 module file
+    then:
+      - en: The module file declares apiVersion 1
+        zh-CN: module file 会声明 apiVersion 1
+      - en: The module id, localized title, summary, purpose, owned promise ids, and covered paths are defined by protocol schema
+        zh-CN: module id、本地化 title、summary、purpose、拥有的 promise ids 和覆盖路径由 protocol schema 定义
+      - en: Valid and invalid module fixtures are accepted or rejected consistently with the reference schema
+        zh-CN: 有效和无效 module fixtures 会与参考 schema 保持一致地被接受或拒绝
+    observes:
+      - protocol/v1/module.schema.yaml
+      - protocol/fixtures/modules/**/*.yaml
+      - packages/core/src/schema.ts
+
+    failureMeaning:
+      en: Future implementations may disagree on which source files belong to which reviewable module.
+      zh-CN: 未来实现可能无法就哪些 source files 属于哪个可 review module 达成一致。
+
+    review:
+      approvedBy: xinyao
+      approvedAt: "2026-05-25"
   - id: harness.protocol.promise_files_are_versioned
     feature: Harness Protocol / Promise Files
     title:
@@ -146,8 +218,8 @@ promises:
       en: Protocol schemas define the language-agnostic contract
       zh-CN: Protocol schemas 会定义语言无关 contract
     purpose:
-      en: Protect future rewrites by keeping promise, result, report, and CLI contracts outside the TypeScript implementation.
-      zh-CN: 通过把 promise、result、report 和 CLI contracts 放在 TypeScript 实现之外，保护未来重写。
+      en: Protect future rewrites by keeping promise, module, result, report, and CLI contracts outside the TypeScript implementation.
+      zh-CN: 通过把 promise、module、result、report 和 CLI contracts 放在 TypeScript 实现之外，保护未来重写。
     priority: P0
     boundary: unit
     lifecycle: accepted
@@ -159,13 +231,14 @@ promises:
       - en: It reads the protocol files under protocol/v1
         zh-CN: 它读取 protocol/v1 下的 protocol files
     then:
-      - en: The promise, result, report, and CLI contracts are visible without reading TypeScript source
-        zh-CN: 不阅读 TypeScript source 也能看到 promise、result、report 和 CLI contracts
+      - en: The promise, module, result, report, and CLI contracts are visible without reading TypeScript source
+        zh-CN: 不阅读 TypeScript source 也能看到 promise、module、result、report 和 CLI contracts
       - en: The TypeScript Effect Schemas remain a reference implementation of those contracts
         zh-CN: TypeScript Effect Schemas 只是这些 contracts 的参考实现
     observes:
       - protocol/v1/promise.schema.yaml
       - protocol/v1/promises-file.schema.yaml
+      - protocol/v1/module.schema.yaml
       - protocol/v1/results.schema.yaml
       - protocol/v1/report.schema.yaml
       - protocol/v1/cli.yaml

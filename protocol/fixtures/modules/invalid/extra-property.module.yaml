@@ -1,0 +1,13 @@
+apiVersion: 1
+id: protocol-fixture
+title:
+  en: Protocol fixture module
+summary:
+  en: A module fixture with an unexpected field.
+purpose:
+  en: Show that module records reject fields outside the protocol.
+promises:
+  - harness.fixture.valid_basic_promise
+covers:
+  - protocol/fixtures/promises/valid/basic.promise.yaml
+owner: core
