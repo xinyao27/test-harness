@@ -497,8 +497,8 @@ Right
 1. **Seed Harness**
    创建最小自托管循环：promise storage、按 promise id 收集 adapter results，以及针对这套 Harness 项目自身的可读报告。
 
-2. **Agent authoring skill**
-   教 Agent 如何草拟 Harness-friendly promises 和 tests。当前 skill 位于 [../../skills/harness-promise-authoring/SKILL.md](../../skills/harness-promise-authoring/SKILL.md)，并且保持在 Harness runtime data model 之外。
+2. **Agent authoring skills**
+   教 Agent 如何起草 Harness-friendly promises、modules 和 tests。Skill 按场景切分 —— [../../skills/harness-add-feature/SKILL.md](../../skills/harness-add-feature/SKILL.md) 用于日常功能开发，[../../skills/harness-onboard-project/SKILL.md](../../skills/harness-onboard-project/SKILL.md) 用于首次接入，[../../skills/harness-troubleshoot/SKILL.md](../../skills/harness-troubleshoot/SKILL.md) 用于诊断命令失败。字段级别的规则放在 AGENTS.md 以及现有 `.promise.yaml` / `.module.yaml` 文件中作为模板，skill 本身专注于工作流。整体保持在 Harness runtime data model 之外。
 
 3. **Promise registry**
    存储 promises、生命周期状态、review 状态、历史和 drift records。

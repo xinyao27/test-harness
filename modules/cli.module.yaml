@@ -1,0 +1,16 @@
+apiVersion: 1
+id: cli
+title:
+  en: CLI — human-facing harness commands
+  zh-CN: CLI — 面向人类的 harness 命令
+summary:
+  en: The four commands a human actually runs — harness check (validate promise files), harness test (run an adapter and verify), harness report (full promise status), and harness report --summary (one-line-per-promise overview). This is the only surface most contributors will touch; the registry, schema, validation, and report modules are wired in behind these commands.
+  zh-CN: 人类实际会运行的四条命令 — harness check（校验 promise 文件）、harness test（运行 adapter 并 verify）、harness report（完整 promise 状态）、harness report --summary（每条 promise 一行的概览）。大多数贡献者只会接触这一层；registry、schema、validation 和 report 模块都被组装在这些命令背后。
+purpose:
+  en: The CLI is the seed loop's user interface — if humans cannot get readable promise status without opening source files, the whole "review promises, not code" premise fails.
+  zh-CN: CLI 是 seed loop 的用户界面 — 如果人类不打开源代码就拿不到可读的 promise status，那么"review promises，而不是 review code"这个前提就站不住脚。
+promises:
+  - harness.cli.check_validates_promises
+  - harness.cli.report_renders_promise_status
+  - harness.cli.report_summary_lists_promises_compactly
+  - harness.cli.test_orchestrates_adapter_and_verify

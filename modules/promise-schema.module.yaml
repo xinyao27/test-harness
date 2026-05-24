@@ -1,0 +1,13 @@
+apiVersion: 1
+id: promise-schema
+title:
+  en: Promise Schema — required-field shape for promise records
+  zh-CN: Promise Schema — promise records 的必填字段形状
+summary:
+  en: Decodes each loaded promise record through the versioned protocol schema (Effect Schema mirroring protocol/v1/promise.schema.yaml). Rejects promise files whose shape is not explicitly defined, so missing or malformed fields surface at load time rather than later in reports or test runs.
+  zh-CN: 把每条加载到的 promise record 通过版本化 protocol schema（与 protocol/v1/promise.schema.yaml 对齐的 Effect Schema）解码。拒绝 protocol shape 没有被明确定义的 promise 文件，让缺失或畸形字段在加载阶段就暴露，而不是在后续报告或测试运行中才出现。
+purpose:
+  en: Distinct review audience from the loader — this module owns the protocol field contract, while promise-registry owns file discovery.
+  zh-CN: 与 loader 的 review 受众不同 —— 这个模块负责 protocol 字段契约，promise-registry 负责文件发现。
+promises:
+  - harness.promise.schema_defines_required_fields

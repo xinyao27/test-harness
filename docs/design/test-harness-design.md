@@ -497,8 +497,8 @@ Build the smallest version that preserves the core model. The detailed seed plan
 1. **Seed Harness**
    Create the smallest self-hosting loop: promise storage, adapter result collection by promise id, and a readable report for this Harness project itself.
 
-2. **Agent authoring skill**
-   Teach Agents how to draft Harness-friendly promises and tests. The current skill lives in [../../skills/harness-promise-authoring/SKILL.md](../../skills/harness-promise-authoring/SKILL.md) and stays outside the Harness runtime data model.
+2. **Agent authoring skills**
+   Teach Agents how to draft Harness-friendly promises, modules, and tests. The skills are scenario-shaped — [../../skills/harness-add-feature/SKILL.md](../../skills/harness-add-feature/SKILL.md) for routine feature work, [../../skills/harness-onboard-project/SKILL.md](../../skills/harness-onboard-project/SKILL.md) for first-time onboarding, [../../skills/harness-troubleshoot/SKILL.md](../../skills/harness-troubleshoot/SKILL.md) for diagnosing command failures. Field-level rules live in AGENTS.md and in existing `.promise.yaml` / `.module.yaml` files as templates; the skills stay workflow-focused. All of this stays outside the Harness runtime data model.
 
 3. **Promise registry**
    Store promises, lifecycle state, review state, history, and drift records.
