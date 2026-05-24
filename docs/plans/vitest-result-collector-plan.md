@@ -110,7 +110,7 @@ Report generation can derive `PromiseRunStatus` from these results:
 1. Add a new self-promise:
 
 ```text
-promises/test-harness/result-collector.promise.yaml
+promises/result-collector/maps-results.promise.yaml
 ```
 
 It should describe the Harness promise that Vitest results can be mapped back to canonical promise ids.

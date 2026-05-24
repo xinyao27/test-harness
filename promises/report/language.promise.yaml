@@ -1,0 +1,33 @@
+# Canonical behavior promise for localized report rendering.
+id: harness.report.renders_in_requested_language
+feature: Seed Harness / Report
+title:
+  en: Reports render promise text in the requested language
+  zh-CN: Report 会使用请求的语言渲染 promise text
+purpose:
+  en: Protect bilingual review so humans can read promises in the language they requested.
+  zh-CN: 保护双语 review，让人类可以用自己请求的语言阅读 promises。
+priority: P1
+boundary: unit
+lifecycle: accepted
+
+given:
+  - en: A promise contains localized text fields
+    zh-CN: 一条 promise 包含 localized text fields
+when:
+  - en: A seed report is generated with a requested language
+    zh-CN: seed report 使用请求的语言生成
+then:
+  - en: title, purpose, Given / When / Then, and failure meaning use the requested language when available
+    zh-CN: title、purpose、Given / When / Then 和 failure meaning 会在可用时使用请求的语言
+observes:
+  - packages/core/src/localized-text.ts
+  - packages/core/src/report.ts
+
+failureMeaning:
+  en: Bilingual promises may exist but reports may still force humans to review the wrong language.
+  zh-CN: 即使存在双语 promises，report 仍可能迫使人类使用错误语言 review。
+
+review:
+  approvedBy: xinyao
+  approvedAt: "2026-05-24"

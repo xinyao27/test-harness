@@ -1,0 +1,36 @@
+# Canonical behavior promise for CLI report rendering.
+id: harness.cli.report_renders_promise_status
+feature: Seed Harness / CLI
+title:
+  en: Report commands render readable promise status
+  zh-CN: report 命令会渲染可读的 promise status
+purpose:
+  en: Protect the human-facing CLI path for reading promise lifecycle and run status without opening test files.
+  zh-CN: 保护面向人类的 CLI 路径，让人无需打开测试文件就能读取 promise lifecycle 和 run status。
+priority: P0
+boundary: integration
+lifecycle: accepted
+
+given:
+  - en: Canonical promises and optional test results exist in the workspace
+    zh-CN: workspace 中存在 canonical promises 和可选的 test results
+when:
+  - en: The user runs harness report or harness verify
+    zh-CN: 用户运行 harness report 或 harness verify
+then:
+  - en: The CLI renders a Seed Harness Report
+    zh-CN: CLI 会渲染 Seed Harness Report
+  - en: Each promise shows lifecycle, run status, purpose, Given / When / Then, evidence, and failure meaning
+    zh-CN: 每条 promise 都会显示 lifecycle、run status、purpose、Given / When / Then、evidence 和 failure meaning
+observes:
+  - harness report
+  - harness verify
+  - .harness/results.yaml
+
+failureMeaning:
+  en: Humans cannot inspect the current promise status without reading implementation or test files.
+  zh-CN: 人类无法在不阅读实现或测试文件的情况下检查当前 promise status。
+
+review:
+  approvedBy: xinyao
+  approvedAt: "2026-05-24"

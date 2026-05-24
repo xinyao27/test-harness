@@ -171,7 +171,22 @@ export const validateTestResults = (
   results: readonly TestResult[],
 ): readonly ValidationIssue[] => {
   const promiseIds = new Set(records.map((record) => record.id));
-  return results.flatMap((result) => {
+  const resultPromiseIds = new Set(results.map((result) => result.promiseId));
+  const issues: ValidationIssue[] = records.flatMap((record) => {
+    if (record.lifecycle === "implemented" && !resultPromiseIds.has(record.id)) {
+      return [
+        {
+          code: "missing_test_result",
+          message: `Implemented promise "${record.id}" has no collected test result.`,
+          promiseId: record.id,
+          severity: "warning",
+        },
+      ];
+    }
+    return [];
+  });
+
+  const unknownResultIssues: ValidationIssue[] = results.flatMap((result): ValidationIssue[] => {
     if (promiseIds.has(result.promiseId)) return [];
     return [
       {
@@ -182,4 +197,8 @@ export const validateTestResults = (
       },
     ];
   });
+
+  issues.push(...unknownResultIssues);
+
+  return issues;
 };

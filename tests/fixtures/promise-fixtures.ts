@@ -11,8 +11,8 @@ priority: P0
 boundary: unit
 lifecycle: accepted
 given:
-  - en: A promise file exists under promises/test-harness
-    zh-CN: promises/test-harness 下存在一个 promise 文件
+  - en: A promise file exists under the promises root
+    zh-CN: promises/ 目录下存在一个 promise 文件
 when:
   - en: The seed Harness loads promise records
     zh-CN: seed Harness 加载 promise records
@@ -20,7 +20,7 @@ then:
   - en: The promise is decoded into a PromiseRecord
     zh-CN: 该 promise 会被解码成 PromiseRecord
 observes:
-  - promises/test-harness/*.promise.yaml
+  - promises/**/*.promise.yaml
 failureMeaning:
   en: The Harness cannot trust its own reviewed behavior promises.
   zh-CN: Harness 无法信任自己已经 review 过的行为承诺。

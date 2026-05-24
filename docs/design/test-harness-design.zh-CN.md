@@ -494,7 +494,7 @@ Right
    创建最小自托管循环：promise storage、Vitest scenario bindings、按 promise id 收集结果，以及针对这套 Harness 项目自身的可读报告。
 
 2. **Agent authoring skill**
-   教 Agent 如何草拟 Harness-friendly promises 和 tests。
+   教 Agent 如何草拟 Harness-friendly promises 和 tests。当前 skill 位于 [../../skills/harness-promise-authoring/SKILL.md](../../skills/harness-promise-authoring/SKILL.md)，并且保持在 Harness runtime data model 之外。
 
 3. **Promise registry**
    存储 promises、生命周期状态、review 状态、历史和 drift records。

@@ -1,0 +1,35 @@
+# Canonical behavior promise for detecting implemented promises without collected test results.
+id: harness.validation.flags_promises_without_test_results
+feature: Seed Harness / Validation
+title:
+  en: Implemented promises without collected test results are flagged
+  zh-CN: 没有 collected test results 的 implemented promises 会被标记
+purpose:
+  en: Protect promise-first authoring by making unproven implemented promises visible after a Harness run.
+  zh-CN: 通过在 Harness run 后暴露尚未被证明的 implemented promises，保护 promise-first authoring。
+priority: P0
+boundary: unit
+lifecycle: accepted
+
+given:
+  - en: Implemented canonical promises have been loaded
+    zh-CN: implemented canonical promises 已经被加载
+when:
+  - en: The seed Harness compares promises with collected test results
+    zh-CN: seed Harness 将 promises 与 collected test results 进行比较
+then:
+  - en: Each implemented promise without a matching result is reported as a warning
+    zh-CN: 每条没有 matching result 的 implemented promise 都会被报告为 warning
+  - en: Unknown result promise ids are still reported as errors
+    zh-CN: unknown result promise ids 仍然会被报告为 errors
+observes:
+  - .harness/results.yaml
+  - packages/core/src/validation.ts
+
+failureMeaning:
+  en: A promise can be marked implemented while no executable test result proves it.
+  zh-CN: 一条 promise 可能已经 marked implemented，但没有任何可执行测试结果证明它。
+
+review:
+  approvedBy: xinyao
+  approvedAt: "2026-05-24"

@@ -1,0 +1,35 @@
+# Canonical behavior promise for readable promise validation.
+id: harness.validation.rejects_unreadable_promises
+feature: Seed Harness / Validation
+title:
+  en: Unreadable canonical promises are reported as validation issues
+  zh-CN: 不可读的 canonical promises 会被报告为 validation issues
+purpose:
+  en: Protect human review by rejecting or warning about promise metadata that cannot be managed reliably.
+  zh-CN: 通过拒绝或警告无法可靠管理的 promise metadata，保护人类 review。
+priority: P0
+boundary: unit
+lifecycle: accepted
+
+given:
+  - en: Canonical promise records have been decoded
+    zh-CN: canonical promise records 已经被解码
+when:
+  - en: The seed Harness validates promise readability and review metadata
+    zh-CN: seed Harness 校验 promise 的可读性和 review metadata
+then:
+  - en: Invalid ids, duplicate ids, blank required fields, and vague titles are errors
+    zh-CN: invalid ids、duplicate ids、blank required fields 和 vague titles 会成为 errors
+  - en: Accepted promises without review approval metadata are warnings
+    zh-CN: 缺少 review approval metadata 的 accepted promises 会成为 warnings
+observes:
+  - packages/core/src/validation.ts
+  - promises/**/*.promise.yaml
+
+failureMeaning:
+  en: Humans may be asked to approve promises that are hard to read, unstable, or not reviewable.
+  zh-CN: 人类可能会被要求批准难以阅读、不稳定或无法 review 的 promises。
+
+review:
+  approvedBy: xinyao
+  approvedAt: "2026-05-24"

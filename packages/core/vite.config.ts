@@ -11,6 +11,7 @@ export default defineConfig({
   },
   pack: {
     dts: true,
+    entry: ["src/index.ts", "src/vitest.ts"],
     exports: true,
     sourcemap: true,
   },

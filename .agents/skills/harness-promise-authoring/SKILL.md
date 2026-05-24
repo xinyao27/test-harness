@@ -1,0 +1,1 @@
+../../../skills/harness-promise-authoring/SKILL.md

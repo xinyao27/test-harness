@@ -494,7 +494,7 @@ Build the smallest version that preserves the core model. The detailed seed plan
    Create the smallest self-hosting loop: promise storage, Vitest scenario bindings, result collection by promise id, and a readable report for this Harness project itself.
 
 2. **Agent authoring skill**
-   Teach Agents how to draft Harness-friendly promises and tests.
+   Teach Agents how to draft Harness-friendly promises and tests. The current skill lives in [../../skills/harness-promise-authoring/SKILL.md](../../skills/harness-promise-authoring/SKILL.md) and stays outside the Harness runtime data model.
 
 3. **Promise registry**
    Store promises, lifecycle state, review state, history, and drift records.

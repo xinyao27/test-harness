@@ -45,71 +45,106 @@ const run = async (
 };
 
 describe("harness CLI", () => {
-  test("check succeeds for valid YAML promises", async () => {
-    const workspace = await withTempWorkspace(validPromiseYaml);
+  scenarioTest(
+    "harness.cli.check_validates_promises",
+    "check succeeds for valid YAML promises",
+    async () => {
+      const workspace = await withTempWorkspace(validPromiseYaml);
 
-    try {
-      const result = await run(["check"], workspace.root);
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain("Seed Harness Check");
-      expect(result.stdout).toContain("Errors: 0");
-    } finally {
-      await workspace.cleanup();
-    }
-  });
+      try {
+        const result = await run(["check"], workspace.root);
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain("Seed Harness Check");
+        expect(result.stdout).toContain("Errors: 0");
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
 
-  test("check fails for invalid YAML promises", async () => {
-    const workspace = await withTempWorkspace(
-      validPromiseYaml.replace("lifecycle: accepted", "lifecycle: done"),
-    );
-
-    try {
-      const result = await run(["check"], workspace.root);
-      expect(result.exitCode).toBe(1);
-      expect(result.stderr).toContain("PromiseRecordLoadErrors");
-      expect(result.stderr).toContain("PromiseSchemaDecodeError");
-    } finally {
-      await workspace.cleanup();
-    }
-  });
-
-  test("verify renders a readable report", async () => {
-    const workspace = await withTempWorkspace(validPromiseYaml);
-
-    try {
-      const result = await run(["verify"], workspace.root);
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain("Seed Harness Report");
-      expect(result.stdout).toContain("Feature: Seed Harness / Promise Registry");
-      expect(result.stdout).toContain("Run Status: unknown");
-    } finally {
-      await workspace.cleanup();
-    }
-  });
-
-  test("verify renders run status from YAML results", async () => {
-    const workspace = await withTempWorkspace(validPromiseYaml);
-
-    try {
-      await writeTestResultsFile(
-        workspace.root,
-        createTestResultsFile([
-          {
-            file: "packages/core/tests/index.test.ts",
-            promiseId: "harness.promise_registry.load_canonical_yaml_promises",
-            status: "passing",
-            testName: "loads canonical YAML promises with Effect Schema",
-          },
-        ]),
+  scenarioTest(
+    "harness.cli.check_validates_promises",
+    "check fails for invalid YAML promises",
+    async () => {
+      const workspace = await withTempWorkspace(
+        validPromiseYaml.replace("lifecycle: accepted", "lifecycle: done"),
       );
 
-      const result = await run(["verify"], workspace.root);
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain("Run Status: passing");
-    } finally {
-      await workspace.cleanup();
-    }
-  });
+      try {
+        const result = await run(["check"], workspace.root);
+        expect(result.exitCode).toBe(1);
+        expect(result.stderr).toContain("PromiseRecordLoadErrors");
+        expect(result.stderr).toContain("PromiseSchemaDecodeError");
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
+
+  scenarioTest(
+    "harness.cli.report_renders_promise_status",
+    "verify renders a readable report",
+    async () => {
+      const workspace = await withTempWorkspace(validPromiseYaml);
+
+      try {
+        const result = await run(["verify"], workspace.root);
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain("Seed Harness Report");
+        expect(result.stdout).toContain("Feature: Seed Harness / Promise Registry");
+        expect(result.stdout).toContain("Run Status: unknown");
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
+
+  scenarioTest(
+    "harness.cli.report_renders_promise_status",
+    "verify renders run status from YAML results",
+    async () => {
+      const workspace = await withTempWorkspace(validPromiseYaml);
+
+      try {
+        await writeTestResultsFile(
+          workspace.root,
+          createTestResultsFile([
+            {
+              file: "packages/core/tests/index.test.ts",
+              promiseId: "harness.promise_registry.load_canonical_yaml_promises",
+              status: "passing",
+              testName: "loads canonical YAML promises with Effect Schema",
+            },
+          ]),
+        );
+
+        const result = await run(["verify"], workspace.root);
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain("Run Status: passing");
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
+
+  scenarioTest(
+    "harness.cli.report_renders_promise_status",
+    "report renders the same readable promise status",
+    async () => {
+      const workspace = await withTempWorkspace(validPromiseYaml);
+
+      try {
+        const result = await run(["report"], workspace.root);
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain("Seed Harness Report");
+        expect(result.stdout).toContain(
+          "Promise ID: harness.promise_registry.load_canonical_yaml_promises",
+        );
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
 
   scenarioTest(
     "harness.cli.test_orchestrates_vitest_and_verify",
@@ -257,30 +292,38 @@ results:
     },
   );
 
-  test("verify renders the requested report language", async () => {
-    const workspace = await withTempWorkspace(validPromiseYaml);
+  scenarioTest(
+    "harness.report.renders_in_requested_language",
+    "verify renders the requested report language",
+    async () => {
+      const workspace = await withTempWorkspace(validPromiseYaml);
 
-    try {
-      const result = await run(["verify", "--lang", "zh-CN"], workspace.root);
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain("已接受的承诺会从 canonical YAML 文件中加载");
-      expect(result.stdout).toContain("该 promise 会被解码成 PromiseRecord");
-    } finally {
-      await workspace.cleanup();
-    }
-  });
+      try {
+        const result = await run(["verify", "--lang", "zh-CN"], workspace.root);
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain("已接受的承诺会从 canonical YAML 文件中加载");
+        expect(result.stdout).toContain("该 promise 会被解码成 PromiseRecord");
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
 
-  test("verify renders the requested report language with equals syntax", async () => {
-    const workspace = await withTempWorkspace(validPromiseYaml);
+  scenarioTest(
+    "harness.report.renders_in_requested_language",
+    "verify renders the requested report language with equals syntax",
+    async () => {
+      const workspace = await withTempWorkspace(validPromiseYaml);
 
-    try {
-      const result = await run(["verify", "--lang=zh-CN"], workspace.root);
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain("已接受的承诺会从 canonical YAML 文件中加载");
-    } finally {
-      await workspace.cleanup();
-    }
-  });
+      try {
+        const result = await run(["verify", "--lang=zh-CN"], workspace.root);
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain("已接受的承诺会从 canonical YAML 文件中加载");
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
 
   test("fails when --lang is missing a language value", async () => {
     const workspace = await withTempWorkspace(validPromiseYaml);

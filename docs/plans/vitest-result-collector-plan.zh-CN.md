@@ -110,7 +110,7 @@ Report generation 根据这些 results 推导 `PromiseRunStatus`：
 1. 增加一条新的 self-promise：
 
 ```text
-promises/test-harness/result-collector.promise.yaml
+promises/result-collector/maps-results.promise.yaml
 ```
 
 它描述 Harness 能把 Vitest results 映射回 canonical promise ids 这一承诺。

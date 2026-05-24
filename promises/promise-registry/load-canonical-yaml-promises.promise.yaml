@@ -12,8 +12,8 @@ boundary: unit
 lifecycle: accepted
 
 given:
-  - en: A promise file exists under promises/test-harness
-    zh-CN: promises/test-harness 下存在一个 promise 文件
+  - en: A promise file exists under the promises root
+    zh-CN: promises/ 目录下存在一个 promise 文件
 when:
   - en: The seed Harness loads promise records
     zh-CN: seed Harness 加载 promise records
@@ -23,7 +23,7 @@ then:
   - en: The lifecycle and review metadata are preserved
     zh-CN: lifecycle 和 review metadata 会被保留
 observes:
-  - promises/test-harness/*.promise.yaml
+  - promises/**/*.promise.yaml
 
 failureMeaning:
   en: The Harness cannot trust its own reviewed behavior promises.
