@@ -1,11 +1,17 @@
 #!/usr/bin/env node
+import { spawn } from "node:child_process";
 import { realpathSync } from "node:fs";
+import { rm } from "node:fs/promises";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
   buildSeedReport,
   checkSeedHarness,
+  harnessResultsPath,
+  loadTestResultsFile,
   renderSeedReportMarkdown,
+  type TestResultsFile,
   type ValidationIssue,
 } from "@test-harness/core";
 import { Effect } from "effect";
@@ -15,15 +21,44 @@ type CliStreams = {
   readonly stdout: (message: string) => void;
 };
 
+type TestRunnerOptions = {
+  readonly cwd: string;
+  readonly streams: CliStreams;
+};
+
+type TestRunner = (options: TestRunnerOptions) => Promise<number>;
+
 type CliOptions = {
   readonly cwd: string;
   readonly streams: CliStreams;
+  readonly testRunner: TestRunner;
 };
 
 const defaultStreams: CliStreams = {
   stderr: (message) => console.error(message),
   stdout: (message) => console.log(message),
 };
+
+const forwardChunk = (write: (message: string) => void, chunk: Buffer): void => {
+  const message = chunk.toString();
+  if (message.trim().length > 0) write(message.trimEnd());
+};
+
+const runDefaultTestRunner: TestRunner = ({ cwd, streams }) =>
+  new Promise((resolve, reject) => {
+    const child = spawn("vp", ["run", "-r", "test"], {
+      cwd,
+      env: process.env,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    child.stdout.on("data", (chunk: Buffer) => forwardChunk(streams.stdout, chunk));
+    child.stderr.on("data", (chunk: Buffer) => forwardChunk(streams.stderr, chunk));
+    child.on("error", reject);
+    child.on("close", (exitCode) => {
+      resolve(exitCode ?? 1);
+    });
+  });
 
 const usage = "Usage: harness <check|test|report|verify> [--lang <language>]";
 
@@ -147,8 +182,16 @@ const runCheck = (options: CliOptions): Effect.Effect<number> =>
     }),
   );
 
-const runReport = (options: CliOptions, language?: string): Effect.Effect<number> =>
-  buildSeedReport(options.cwd, { language }).pipe(
+type ReportOptions = {
+  readonly language?: string;
+  readonly resultsFile?: TestResultsFile;
+};
+
+const runReport = (options: CliOptions, reportOptions: ReportOptions = {}): Effect.Effect<number> =>
+  buildSeedReport(options.cwd, {
+    language: reportOptions.language,
+    results: reportOptions.resultsFile?.results,
+  }).pipe(
     Effect.matchEffect({
       onFailure: (error) =>
         Effect.sync(() => {
@@ -163,6 +206,77 @@ const runReport = (options: CliOptions, language?: string): Effect.Effect<number
     }),
   );
 
+const clearPreviousResults = (cwd: string): Effect.Effect<void, unknown> =>
+  Effect.tryPromise({
+    try: () => rm(join(cwd, harnessResultsPath), { force: true }),
+    catch: (cause) => cause,
+  });
+
+type ResultsFileCheck =
+  | { readonly file: TestResultsFile; readonly type: "found" }
+  | { readonly type: "invalid" }
+  | { readonly type: "missing" };
+
+const requireResultsFile = (options: CliOptions): Effect.Effect<ResultsFileCheck> =>
+  loadTestResultsFile(options.cwd).pipe(
+    Effect.match({
+      onFailure: (error) => {
+        options.streams.stderr(formatFailure(error));
+        return { type: "invalid" };
+      },
+      onSuccess: (file) => {
+        if (!file) {
+          options.streams.stderr(
+            `No Harness result file found at ${harnessResultsPath} after the test command.`,
+          );
+          return { type: "missing" };
+        }
+        return { file, type: "found" };
+      },
+    }),
+  );
+
+const runTest = (options: CliOptions, language?: string): Effect.Effect<number> =>
+  Effect.gen(function* () {
+    const cleared = yield* clearPreviousResults(options.cwd).pipe(
+      Effect.match({
+        onFailure: (error) => {
+          options.streams.stderr(formatFailure(error));
+          return false;
+        },
+        onSuccess: () => true,
+      }),
+    );
+    if (!cleared) return 1;
+
+    const testExitCode = yield* Effect.tryPromise({
+      try: () => options.testRunner({ cwd: options.cwd, streams: options.streams }),
+      catch: (cause) => cause,
+    }).pipe(
+      Effect.match({
+        onFailure: (error) => {
+          options.streams.stderr(formatFailure(error));
+          return 1;
+        },
+        onSuccess: (exitCode) => exitCode,
+      }),
+    );
+
+    if (testExitCode !== 0) {
+      options.streams.stderr(`Test command failed with exit code ${testExitCode}.`);
+    }
+
+    const resultsFileCheck = yield* requireResultsFile(options);
+    const reportExitCode =
+      resultsFileCheck.type === "invalid"
+        ? 1
+        : yield* runReport(options, {
+            language,
+            resultsFile: resultsFileCheck.type === "found" ? resultsFileCheck.file : undefined,
+          });
+    return testExitCode !== 0 || resultsFileCheck.type !== "found" || reportExitCode !== 0 ? 1 : 0;
+  });
+
 export const runCli = (
   args: readonly string[],
   options: Partial<CliOptions> = {},
@@ -171,6 +285,7 @@ export const runCli = (
   const resolvedOptions: CliOptions = {
     cwd: options.cwd ?? process.cwd(),
     streams: options.streams ?? defaultStreams,
+    testRunner: options.testRunner ?? runDefaultTestRunner,
   };
 
   if (error) {
@@ -185,14 +300,9 @@ export const runCli = (
       return runCheck(resolvedOptions);
     case "report":
     case "verify":
-      return runReport(resolvedOptions, language);
+      return runReport(resolvedOptions, { language });
     case "test":
-      return Effect.sync(() => {
-        resolvedOptions.streams.stdout(
-          "harness test will orchestrate Vitest in a later seed slice. For now, run vp run -r test.",
-        );
-        return 0;
-      });
+      return runTest(resolvedOptions, language);
     default:
       return Effect.sync(() => {
         resolvedOptions.streams.stdout(usage);

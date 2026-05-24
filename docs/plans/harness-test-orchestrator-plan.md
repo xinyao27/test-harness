@@ -56,9 +56,10 @@ Out of scope:
 2. Remove or overwrite stale `.harness/results.yaml`.
 3. Run the configured Vite+/Vitest command.
 4. Fail if the test command exits non-zero.
-5. Read `.harness/results.yaml` through the existing Effect Schema decoder.
-6. Render the same report as `harness verify`.
-7. Return non-zero if tests fail, result YAML is invalid, or verification contains errors.
+5. Fail if `.harness/results.yaml` is missing after a successful test command.
+6. Read `.harness/results.yaml` through the existing Effect Schema decoder.
+7. Render the same report as `harness verify`.
+8. Return non-zero if tests fail, result YAML is missing or invalid, or verification contains errors.
 
 The command should keep `harness check`, `harness report`, and `harness verify` behavior unchanged.
 

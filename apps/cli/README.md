@@ -1,23 +1,16 @@
-# vite-plus-starter
+# @test-harness/cli
 
-A starter for creating a Vite Plus project.
+CLI for the seed Harness.
 
-## Development
+## Commands
 
-- Install dependencies:
+- `harness check`: validates canonical promise files and known bindings.
+- `harness report`: renders a promise report from existing results.
+- `harness verify`: alias for report in the seed loop.
+- `harness test`: runs Vite+/Vitest, collects `.harness/results.yaml`, then renders the verification report.
 
-```bash
-vp install
-```
-
-- Run the unit tests:
-
-```bash
-vp test
-```
-
-- Build the library:
+All reporting commands support:
 
 ```bash
-vp pack
+harness test --lang zh-CN
 ```

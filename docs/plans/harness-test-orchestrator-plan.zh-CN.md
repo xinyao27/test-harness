@@ -56,9 +56,10 @@ harness test --lang zh-CN
 2. 删除或覆盖旧的 `.harness/results.yaml`。
 3. 运行配置好的 Vite+/Vitest 命令。
 4. 如果 test command 非 0，就失败。
-5. 通过已有 Effect Schema decoder 读取 `.harness/results.yaml`。
-6. 渲染和 `harness verify` 一样的 report。
-7. 如果测试失败、result YAML 无效，或 verification 有 errors，就返回非 0。
+5. 如果 test command 成功后仍然缺少 `.harness/results.yaml`，就失败。
+6. 通过已有 Effect Schema decoder 读取 `.harness/results.yaml`。
+7. 渲染和 `harness verify` 一样的 report。
+8. 如果测试失败、result YAML 缺失或无效，或 verification 有 errors，就返回非 0。
 
 这个命令不应该改变 `harness check`、`harness report` 和 `harness verify` 的现有行为。
 
@@ -101,6 +102,7 @@ harness test --lang zh-CN
 
 - CLI unit test：`harness test` 会调用配置好的 test runner，然后渲染 report。
 - CLI unit test：test runner 非 0 时返回非 0，并打印失败信息。
+- CLI unit test：缺少 `.harness/results.yaml` 返回非 0，并说明缺少 result file。
 - CLI unit test：无效 `.harness/results.yaml` 返回非 0，并带 typed error。
 - Integration/manual check：
 

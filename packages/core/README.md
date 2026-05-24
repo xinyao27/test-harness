@@ -1,23 +1,13 @@
-# vite-plus-starter
+# @test-harness/core
 
-A starter for creating a Vite Plus project.
+Core seed Harness primitives:
 
-## Development
+- canonical `.promise.yaml` loading
+- Effect Schema validation
+- localized promise text resolution
+- scenario binding helpers
+- YAML result loading and writing
+- promise status report generation
+- Vitest `scenarioTest(...)` helper and reporter
 
-- Install dependencies:
-
-```bash
-vp install
-```
-
-- Run the unit tests:
-
-```bash
-vp test
-```
-
-- Build the library:
-
-```bash
-vp pack
-```
+The package keeps Harness-owned artifacts in YAML by default, including `.harness/results.yaml`.
