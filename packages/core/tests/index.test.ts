@@ -13,11 +13,17 @@ import {
   createScenarioRegistry,
   generateSeedReport,
   getPromiseRunStatus,
+  loadModuleRecords,
   loadTestResults,
+  loadTestResultsFile,
   loadPromiseRecords,
+  type ModuleRecord,
+  type PromiseRecord,
   renderSeedReportMarkdown,
   resetScenarioBindings,
+  resolveLocalizedText,
   scenario,
+  validateModuleCoverage,
   validatePromiseRecords,
   validateScenarioBindings,
   validateTestResults,
@@ -570,7 +576,7 @@ results:
   );
 
   scenarioTest(
-    "harness.protocol.results_are_versioned_adapter_outputs",
+    "harness.report.computes_promise_run_status_from_results",
     "derives promise run status from collected results",
     () => {
       const promiseId = "harness.promise_registry.load_canonical_yaml_promises";
@@ -706,6 +712,268 @@ results:
       } finally {
         await workspace.cleanup();
       }
+    },
+  );
+});
+
+const validModuleYaml = `
+apiVersion: 1
+id: test-module
+title:
+  en: Test Module
+  zh-CN: 测试 module
+summary:
+  en: A module fixture used by registry and coverage tests.
+  zh-CN: registry 和 coverage 测试使用的 module fixture。
+purpose:
+  en: Exercise the module registry loader and the coverage validator without touching real project modules.
+  zh-CN: 在不动真实项目 module 的前提下，演练 module registry loader 和 coverage validator。
+promises:
+  - harness.promise_registry.load_canonical_yaml_promises
+covers:
+  - packages/core/src/promise-registry.ts
+`;
+
+const withTempModuleWorkspace = async (files: Record<string, string>) => {
+  const root = await mkdtemp(join(tmpdir(), "seed-harness-modules-"));
+  await mkdir(join(root, "modules"), { recursive: true });
+  await Promise.all(
+    Object.entries(files).map(([name, content]) => writeFile(join(root, "modules", name), content)),
+  );
+  return {
+    async cleanup() {
+      await rm(root, { force: true, recursive: true });
+    },
+    root,
+  };
+};
+
+describe("module registry", () => {
+  scenarioTest(
+    "harness.module_registry.load_canonical_yaml_modules",
+    "loads canonical YAML modules with Effect Schema",
+    async () => {
+      const workspace = await withTempModuleWorkspace({
+        "test-module.module.yaml": validModuleYaml,
+      });
+
+      try {
+        const modules = await Effect.runPromise(loadModuleRecords(workspace.root));
+        expect(modules).toHaveLength(1);
+        expect(modules[0]?.id).toBe("test-module");
+        expect(modules[0]?.covers).toEqual(["packages/core/src/promise-registry.ts"]);
+        expect(modules[0]?.promises).toEqual([
+          "harness.promise_registry.load_canonical_yaml_promises",
+        ]);
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
+
+  scenarioTest(
+    "harness.module_registry.load_canonical_yaml_modules",
+    "rejects module files missing required fields",
+    async () => {
+      const malformed = validModuleYaml.replace(/covers:[\s\S]*$/, "");
+      const workspace = await withTempModuleWorkspace({
+        "missing-covers.module.yaml": malformed,
+      });
+
+      try {
+        await expect(Effect.runPromise(loadModuleRecords(workspace.root))).rejects.toMatchObject({
+          _tag: "ModuleRecordLoadErrors",
+        });
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
+});
+
+describe("results schema", () => {
+  scenarioTest(
+    "harness.results.schema_defines_required_fields",
+    "rejects result files missing required fields",
+    async () => {
+      const workspace = await withTempRoot();
+
+      try {
+        await mkdir(join(workspace.root, ".harness"), { recursive: true });
+        await writeFile(
+          join(workspace.root, ".harness", "results.yaml"),
+          "apiVersion: 1\nresults: []\n",
+        );
+        await expect(Effect.runPromise(loadTestResultsFile(workspace.root))).rejects.toMatchObject({
+          _tag: "TestResultsSchemaDecodeError",
+        });
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
+
+  scenarioTest(
+    "harness.results.schema_defines_required_fields",
+    "rejects result entries with non-protocol status values",
+    async () => {
+      const workspace = await withTempRoot();
+
+      try {
+        await mkdir(join(workspace.root, ".harness"), { recursive: true });
+        await writeFile(
+          join(workspace.root, ".harness", "results.yaml"),
+          [
+            "apiVersion: 1",
+            'generatedAt: "2026-05-24T00:00:00Z"',
+            "results:",
+            '  - file: "packages/core/tests/index.test.ts"',
+            '    promiseId: "harness.test"',
+            '    status: "weird"',
+            '    testName: "bad status"',
+          ].join("\n"),
+        );
+        await expect(Effect.runPromise(loadTestResultsFile(workspace.root))).rejects.toMatchObject({
+          _tag: "TestResultsSchemaDecodeError",
+        });
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
+});
+
+const buildModuleRecord = (
+  overrides: Partial<ModuleRecord> & Pick<ModuleRecord, "id" | "covers">,
+): ModuleRecord => ({
+  apiVersion: 1,
+  promises: ["harness.placeholder"],
+  purpose: "purpose",
+  summary: "summary",
+  title: "title",
+  ...overrides,
+});
+
+describe("module coverage", () => {
+  scenarioTest(
+    "harness.validation.flags_uncovered_source_files",
+    "flags source files not matched by any module's covers list",
+    () => {
+      const modules: readonly ModuleRecord[] = [
+        buildModuleRecord({ id: "foo", covers: ["packages/core/src/foo.ts"] }),
+      ];
+      const sourceFiles = ["packages/core/src/foo.ts", "packages/core/src/uncovered.ts"];
+
+      const issues = validateModuleCoverage(modules, sourceFiles);
+
+      expect(issues).toEqual([
+        expect.objectContaining({
+          code: "uncovered_source_file",
+          path: "packages/core/src/uncovered.ts",
+          severity: "error",
+        }),
+      ]);
+    },
+  );
+
+  scenarioTest(
+    "harness.validation.flags_uncovered_source_files",
+    "treats `<dir>/**` covers entries as recursive prefix matches",
+    () => {
+      const modules: readonly ModuleRecord[] = [
+        buildModuleRecord({ id: "tree", covers: ["packages/core/src/**"] }),
+      ];
+      const sourceFiles = [
+        "packages/core/src/foo.ts",
+        "packages/core/src/nested/bar.ts",
+        "apps/cli/src/index.ts",
+      ];
+
+      const issues = validateModuleCoverage(modules, sourceFiles);
+
+      expect(issues).toEqual([
+        expect.objectContaining({
+          code: "uncovered_source_file",
+          path: "apps/cli/src/index.ts",
+        }),
+      ]);
+    },
+  );
+});
+
+describe("scenario binding validation", () => {
+  scenarioTest(
+    "harness.validation.flags_unknown_scenario_bindings",
+    "flags scenario bindings whose id does not match any canonical promise",
+    async () => {
+      const workspace = await withTempWorkspace({
+        "promise-registry.promise.yaml": validPromiseYaml,
+      });
+
+      try {
+        const records = await Effect.runPromise(loadPromiseRecords(workspace.root));
+        const issues = validateScenarioBindings(records, [{ id: "harness.does_not_exist" }]);
+        expect(issues).toEqual([
+          expect.objectContaining({
+            code: "unknown_scenario_binding",
+            promiseId: "harness.does_not_exist",
+            severity: "error",
+          }),
+        ]);
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
+});
+
+describe("localized text fallback", () => {
+  scenarioTest(
+    "harness.report.falls_back_through_language_chain",
+    "resolves a LocalizedText by walking the requested language, its base, then the default",
+    () => {
+      expect(resolveLocalizedText("hello", "zh-CN")).toBe("hello");
+      expect(resolveLocalizedText({ en: "Hello", "zh-CN": "你好" }, "zh-CN")).toBe("你好");
+      expect(resolveLocalizedText({ en: "Hello", zh: "你好(zh)" }, "zh-CN")).toBe("你好(zh)");
+      expect(resolveLocalizedText({ en: "Hello" }, "fr")).toBe("Hello");
+      expect(resolveLocalizedText({ "zh-CN": "只有中文" }, "fr")).toBe("只有中文");
+    },
+  );
+});
+
+describe("default-language coverage validation", () => {
+  scenarioTest(
+    "harness.validation.warns_when_default_language_missing",
+    "warns when a localized field has no default-language (en) text",
+    () => {
+      const record: PromiseRecord = {
+        apiVersion: 1,
+        boundary: "unit",
+        failureMeaning: "fallback",
+        feature: "Test",
+        given: ["something"],
+        id: "harness.test.example",
+        lifecycle: "proposed",
+        observes: ["packages/core/src/validation.ts"],
+        priority: "P0",
+        purpose: "purpose",
+        review: {},
+        then: ["something"],
+        title: { "zh-CN": "仅中文标题" },
+        when: ["something"],
+      };
+
+      const issues = validatePromiseRecords([record]);
+
+      expect(issues).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            code: "missing_default_language",
+            promiseId: "harness.test.example",
+            severity: "warning",
+          }),
+        ]),
+      );
     },
   );
 });

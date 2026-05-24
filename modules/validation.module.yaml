@@ -11,4 +11,9 @@ purpose:
   zh-CN: Promise-first authoring 依赖 reviewer 能信任 metadata，也依赖未被证明的 implemented promises 是可见的 — 两者都靠这个模块。
 promises:
   - harness.validation.flags_promises_without_test_results
+  - harness.validation.flags_uncovered_source_files
+  - harness.validation.flags_unknown_scenario_bindings
   - harness.validation.rejects_unreadable_promises
+  - harness.validation.warns_when_default_language_missing
+covers:
+  - packages/core/src/validation.ts

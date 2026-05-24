@@ -2,26 +2,42 @@ apiVersion: 1
 kind: harness-cli-contract
 commands:
   check:
-    purpose: Validate canonical promise YAML files and in-process scenario bindings.
+    purpose: Validate canonical promise YAML files, module YAML files (including module-level source-file coverage), and in-process scenario bindings.
     reads:
       - promises/**/*.promise.yaml
+      - modules/**/*.module.yaml
+      - packages/**
+      - apps/**
+      - protocol/**
     writes: []
   report:
-    purpose: Render a human-readable report from canonical promises and optional result YAML.
+    purpose: Render a human-readable report from canonical promises, modules, and optional result YAML.
     reads:
       - promises/**/*.promise.yaml
+      - modules/**/*.module.yaml
+      - packages/**
+      - apps/**
+      - protocol/**
       - .harness/results.yaml
     writes: []
   verify:
     purpose: Alias the report path for human verification.
     reads:
       - promises/**/*.promise.yaml
+      - modules/**/*.module.yaml
+      - packages/**
+      - apps/**
+      - protocol/**
       - .harness/results.yaml
     writes: []
   test:
     purpose: Run a configured adapter command, require Harness result YAML when the adapter succeeds, and render the report.
     reads:
       - promises/**/*.promise.yaml
+      - modules/**/*.module.yaml
+      - packages/**
+      - apps/**
+      - protocol/**
       - .harness/results.yaml
     writes:
       - .harness/results.yaml

@@ -1,0 +1,37 @@
+# Canonical behavior promise for module-level source-file coverage.
+apiVersion: 1
+id: harness.validation.flags_uncovered_source_files
+feature: Seed Harness / Validation
+title:
+  en: Source files not covered by any module are flagged
+  zh-CN: 没有被任何 module 覆盖的源文件会被标记
+purpose:
+  en: Protect the project's promise-first review surface by mechanically detecting code that has no module owner.
+  zh-CN: 通过机械化检测没有 module owner 的代码，保护项目"以 promise 为先"的 review 表面。
+priority: P0
+boundary: unit
+lifecycle: proposed
+
+given:
+  - en: Module records have been loaded with their covers fields
+    zh-CN: module records 已经加载，且 covers 字段已读取
+  - en: Source files under packages/, apps/, and protocol/ have been scanned
+    zh-CN: packages/、apps/ 和 protocol/ 下的源文件已被扫描
+when:
+  - en: The seed Harness cross-references each scanned source file against every module's covers list
+    zh-CN: seed Harness 用每个 module 的 covers 列表逐一匹配每个被扫描到的源文件
+then:
+  - en: Each source file not matched by any covers entry is reported as an error
+    zh-CN: 每个没有被任何 covers entry 匹配到的源文件都会被报告为 error
+  - en: Covers entries support exact paths and `<dir>/**` recursive globs
+    zh-CN: covers entries 支持精确路径以及 `<dir>/**` 形式的递归 glob
+observes:
+  - packages/core/src/validation.ts
+  - packages/core/src/module-registry.ts
+  - modules/*.module.yaml
+
+failureMeaning:
+  en: New code can land without any module taking review ownership, so reviewers cannot tell which area is responsible for it.
+  zh-CN: 新代码可能在没有任何 module 接手 review 的情况下落地，reviewer 无法判断它归哪个区域负责。
+
+review: {}

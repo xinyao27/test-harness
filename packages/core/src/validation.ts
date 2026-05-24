@@ -4,7 +4,12 @@ import {
   resolveLocalizedText,
 } from "./localized-text.ts";
 import type { TestResult } from "./results.ts";
-import { type PromiseRecord, type ScenarioBinding, type ValidationIssue } from "./schema.ts";
+import {
+  type ModuleRecord,
+  type PromiseRecord,
+  type ScenarioBinding,
+  type ValidationIssue,
+} from "./schema.ts";
 
 const idPattern = /^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/;
 
@@ -165,6 +170,33 @@ export const validateScenarioBindings = (
     ];
   });
 };
+
+const matchesCoverGlob = (filePath: string, pattern: string): boolean => {
+  if (pattern.endsWith("/**")) {
+    const prefix = pattern.slice(0, -3);
+    return filePath === prefix || filePath.startsWith(`${prefix}/`);
+  }
+  return filePath === pattern;
+};
+
+export const validateModuleCoverage = (
+  modules: readonly ModuleRecord[],
+  sourceFiles: readonly string[],
+): readonly ValidationIssue[] =>
+  sourceFiles.flatMap((filePath): readonly ValidationIssue[] => {
+    const isCovered = modules.some((module) =>
+      module.covers.some((pattern) => matchesCoverGlob(filePath, pattern)),
+    );
+    if (isCovered) return [];
+    return [
+      {
+        code: "uncovered_source_file",
+        message: `Source file "${filePath}" is not covered by any module's covers list.`,
+        path: filePath,
+        severity: "error",
+      },
+    ];
+  });
 
 export const validateTestResults = (
   records: readonly PromiseRecord[],

@@ -1,12 +1,14 @@
 import { Effect } from "effect";
 
 import type { HarnessError } from "./errors.ts";
+import { findSourceFiles, loadModuleRecords } from "./module-registry.ts";
 import { loadPromiseRecords } from "./promise-registry.ts";
 import { generateSeedReport, type SeedReportOptions } from "./report.ts";
 import { loadTestResults } from "./results.ts";
 import { getScenarioBindings } from "./scenario.ts";
-import type { PromiseRecord, SeedReport, ValidationIssue } from "./schema.ts";
+import type { ModuleRecord, PromiseRecord, SeedReport, ValidationIssue } from "./schema.ts";
 import {
+  validateModuleCoverage,
   validatePromiseRecords,
   validateScenarioBindings,
   validateTestResults,
@@ -14,17 +16,21 @@ import {
 
 export type SeedCheckResult = {
   readonly issues: readonly ValidationIssue[];
+  readonly modules: readonly ModuleRecord[];
   readonly records: readonly PromiseRecord[];
 };
 
 export const checkSeedHarness = (rootDir: string): Effect.Effect<SeedCheckResult, HarnessError> =>
   Effect.gen(function* () {
     const records = yield* loadPromiseRecords(rootDir);
+    const modules = yield* loadModuleRecords(rootDir);
+    const sourceFiles = yield* findSourceFiles(rootDir);
     const issues = [
       ...validatePromiseRecords(records),
       ...validateScenarioBindings(records, getScenarioBindings()),
+      ...validateModuleCoverage(modules, sourceFiles),
     ];
-    return { issues, records };
+    return { issues, modules, records };
   });
 
 export const buildSeedReport = (

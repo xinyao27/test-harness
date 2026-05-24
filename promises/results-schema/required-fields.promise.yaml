@@ -1,0 +1,36 @@
+# Canonical behavior promise for the protocol-backed result file shape.
+apiVersion: 1
+id: harness.results.schema_defines_required_fields
+feature: Seed Harness / Results Schema
+title:
+  en: Adapter result files are decoded through the versioned protocol schema
+  zh-CN: Adapter result files 会通过版本化 protocol schema 解码
+purpose:
+  en: Protect the Harness from accepting result files whose protocol shape is not explicitly defined, parallel to how promise files are protected.
+  zh-CN: 保护 Harness 不会接受 protocol shape 没有被明确定义的 result 文件，与 promise files 的保护方式平行。
+priority: P0
+boundary: unit
+lifecycle: proposed
+
+given:
+  - en: An adapter has written a `.harness/results.yaml` file
+    zh-CN: 某个 adapter 已经写出 `.harness/results.yaml` 文件
+when:
+  - en: The seed Harness loads the results file via `loadTestResultsFile`
+    zh-CN: seed Harness 通过 `loadTestResultsFile` 加载 results 文件
+then:
+  - en: Files missing required fields (`apiVersion`, `generatedAt`, `results`) are rejected as `TestResultsSchemaDecodeError`
+    zh-CN: 缺少必填字段（`apiVersion`、`generatedAt`、`results`）的文件会被拒绝为 `TestResultsSchemaDecodeError`
+  - en: Each result entry's status must be one of `passing`, `failing`, `skipped`
+    zh-CN: 每条 result 的 status 必须是 `passing`、`failing` 或 `skipped` 中的一个
+  - en: Excess properties are rejected to keep the protocol shape strict
+    zh-CN: 多余字段会被拒绝，以保持 protocol shape 严格
+observes:
+  - packages/core/src/results.ts
+  - .harness/results.yaml
+
+failureMeaning:
+  en: Malformed adapter results may flow into report rendering and silently misrepresent promise status.
+  zh-CN: 畸形的 adapter results 可能流入 report 渲染，悄悄错误地呈现 promise 状态。
+
+review: {}

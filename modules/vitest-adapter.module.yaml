@@ -13,3 +13,6 @@ promises:
   - harness.adapters.vitest.result_collector.maps_results_to_promises
   - harness.adapters.vitest.result_collector.writes_results_to_explicit_harness_root
   - harness.adapters.vitest.scenario_helper.binds_tests_to_canonical_promises
+covers:
+  - packages/adapter-vitest/src/**
+  - packages/core/src/scenario.ts

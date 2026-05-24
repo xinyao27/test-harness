@@ -11,3 +11,7 @@ purpose:
   zh-CN: 没有这个 loader，Harness 其它部分就没有可校验、可报告、可被测试绑定的 promises — seed loop 跑不起来。
 promises:
   - harness.promise_registry.load_canonical_yaml_promises
+covers:
+  - packages/core/src/promise-registry.ts
+  - packages/core/src/errors.ts
+  - packages/core/src/index.ts

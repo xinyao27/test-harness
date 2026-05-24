@@ -11,3 +11,5 @@ purpose:
   zh-CN: 与 loader 的 review 受众不同 —— 这个模块负责 protocol 字段契约，promise-registry 负责文件发现。
 promises:
   - harness.promise.schema_defines_required_fields
+covers:
+  - packages/core/src/schema.ts

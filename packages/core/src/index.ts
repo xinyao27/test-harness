@@ -1,17 +1,24 @@
 export {
   InvalidScenarioBindingError,
   type HarnessError,
+  ModuleFileReadError,
+  type ModuleRecordLoadError,
+  ModuleRecordLoadErrors,
+  ModuleSchemaDecodeError,
+  ModuleYamlParseError,
   PromiseFileReadError,
   type PromiseRecordLoadError,
   PromiseRecordLoadErrors,
   PromiseSchemaDecodeError,
   PromiseYamlParseError,
+  SourceFileScanError,
   TestResultsFileReadError,
   type TestResultsLoadError,
   TestResultsSchemaDecodeError,
   TestResultsYamlParseError,
 } from "./errors.ts";
 export { defaultLanguage, resolveLocalizedText } from "./localized-text.ts";
+export { findSourceFiles, loadModuleRecords } from "./module-registry.ts";
 export { loadPromiseRecords } from "./promise-registry.ts";
 export { buildSeedReport, checkSeedHarness, type SeedCheckResult } from "./programs.ts";
 export {
@@ -42,6 +49,8 @@ export {
   harnessProtocolVersion,
   type LocalizedText,
   LocalizedTextSchema,
+  type ModuleRecord,
+  ModuleRecordSchema,
   PromiseBoundarySchema,
   PromiseLifecycleSchema,
   PromisePrioritySchema,
@@ -69,6 +78,7 @@ export {
   type ScenarioRegistry,
 } from "./scenario.ts";
 export {
+  validateModuleCoverage,
   validatePromiseRecords,
   validateScenarioBindings,
   validateTestResults,

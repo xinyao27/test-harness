@@ -1,0 +1,32 @@
+# Canonical behavior promise for default-language coverage in promise text.
+apiVersion: 1
+id: harness.validation.warns_when_default_language_missing
+feature: Seed Harness / Validation
+title:
+  en: Promises without default-language text are warned
+  zh-CN: 缺少默认语言文本的 promise 会被警告
+purpose:
+  en: Protect bilingual review by ensuring every promise still has English fallback text even when a localized variant is preferred.
+  zh-CN: 通过确保每条 promise 即便偏好本地化变体也仍然保留英文 fallback 文本，保护双语 review。
+priority: P1
+boundary: unit
+lifecycle: proposed
+
+given:
+  - en: A promise record has been decoded with localized text fields
+    zh-CN: 已解码出带本地化文本字段的 promise record
+when:
+  - en: The seed Harness checks each natural-language field for default-language coverage
+    zh-CN: seed Harness 检查每个自然语言字段是否覆盖默认语言
+then:
+  - en: Fields that are non-blank but lack default-language (en) text produce a `missing_default_language` warning
+    zh-CN: 不为空但缺少默认语言（en）文本的字段会产生 `missing_default_language` warning
+observes:
+  - packages/core/src/validation.ts
+  - packages/core/src/localized-text.ts
+
+failureMeaning:
+  en: Reviewers without the localized variant may see blank promise text when default-language fallback is missing.
+  zh-CN: 没有本地化变体的 reviewer 在 default-language fallback 缺失时可能看到空白 promise 文本。
+
+review: {}

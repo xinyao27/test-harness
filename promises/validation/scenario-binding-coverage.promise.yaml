@@ -1,0 +1,32 @@
+# Canonical behavior promise for scenario binding validity.
+apiVersion: 1
+id: harness.validation.flags_unknown_scenario_bindings
+feature: Seed Harness / Validation
+title:
+  en: Scenario bindings to non-canonical promise ids are flagged
+  zh-CN: 绑定到非 canonical promise id 的 scenarioTest 会被标记
+purpose:
+  en: Protect the seed loop so a typo or stale id in `scenarioTest(promiseId, ...)` cannot silently pass as evidence for a real promise.
+  zh-CN: 保护 seed loop —— `scenarioTest(promiseId, ...)` 中的拼写错误或失效 id 不能悄悄被当作真实 promise 的证据。
+priority: P0
+boundary: unit
+lifecycle: proposed
+
+given:
+  - en: Canonical promise records and scenario bindings have been collected
+    zh-CN: Canonical promise records 和 scenario bindings 已经收集完毕
+when:
+  - en: The seed Harness compares each scenario binding's id against the canonical promise id set
+    zh-CN: seed Harness 用 canonical promise id 集合逐一匹配每个 scenario binding 的 id
+then:
+  - en: Each scenario binding whose id does not match any canonical promise is reported as an error
+    zh-CN: 每个 id 不匹配任何 canonical promise 的 scenario binding 都会被报告为 error
+observes:
+  - packages/core/src/validation.ts
+  - packages/core/src/scenario.ts
+
+failureMeaning:
+  en: A test bound to a non-existent promise id can pass without ever proving any reviewed behavior.
+  zh-CN: 绑定到不存在 promise id 的测试可以通过，但从未真正证明任何已 review 的行为。
+
+review: {}

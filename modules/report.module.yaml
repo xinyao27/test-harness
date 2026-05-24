@@ -10,4 +10,9 @@ purpose:
   en: Without this module bilingual review breaks down — Chinese-speaking reviewers would have to read promises in English regardless of the locale they asked for.
   zh-CN: 没有这个模块，双语 review 就会失效 — 中文 reviewer 不管请求什么语言，都只能看英文 promises。
 promises:
+  - harness.report.computes_promise_run_status_from_results
+  - harness.report.falls_back_through_language_chain
   - harness.report.renders_in_requested_language
+covers:
+  - packages/core/src/report.ts
+  - packages/core/src/localized-text.ts

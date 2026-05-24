@@ -1,0 +1,38 @@
+# Canonical behavior promise for the run-status mapping rule.
+apiVersion: 1
+id: harness.report.computes_promise_run_status_from_results
+feature: Seed Harness / Report
+title:
+  en: A promise's run status is computed from its collected results by a fixed mapping
+  zh-CN: 一条 promise 的 run status 由其收集到的 results 按固定映射规则计算
+purpose:
+  en: Protect the reviewer's interpretation of the report — every status value in the rendered report has a known, stable meaning.
+  zh-CN: 保护 reviewer 对报告的解读 —— 渲染报告中的每个 status 值都有已知、稳定的含义。
+priority: P0
+boundary: unit
+lifecycle: proposed
+
+given:
+  - en: A promise id and a list of collected test results have been loaded
+    zh-CN: 已加载一个 promise id 和一组收集到的 test results
+when:
+  - en: The report renderer asks `getPromiseRunStatus(promiseId, results)`
+    zh-CN: report renderer 调用 `getPromiseRunStatus(promiseId, results)`
+then:
+  - en: No matching result returns `unknown`
+    zh-CN: 没有匹配 result 时返回 `unknown`
+  - en: Any matching result with status `failing` returns `failing`
+    zh-CN: 任一匹配 result status 为 `failing` 时返回 `failing`
+  - en: Any matching result with status `skipped` (and no failing) returns `skipped`
+    zh-CN: 任一匹配 result status 为 `skipped`（且无 failing）时返回 `skipped`
+  - en: Otherwise returns `passing`
+    zh-CN: 否则返回 `passing`
+observes:
+  - packages/core/src/results.ts
+  - packages/core/src/report.ts
+
+failureMeaning:
+  en: A green report may hide a failing or unproven promise if the mapping drifts unnoticed.
+  zh-CN: 若映射规则悄悄变化，绿色报告可能掩盖一个 failing 或 unproven 的 promise。
+
+review: {}

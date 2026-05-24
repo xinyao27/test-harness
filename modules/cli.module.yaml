@@ -14,3 +14,6 @@ promises:
   - harness.cli.report_renders_promise_status
   - harness.cli.report_summary_lists_promises_compactly
   - harness.cli.test_orchestrates_adapter_and_verify
+covers:
+  - apps/cli/src/**
+  - packages/core/src/programs.ts

@@ -48,8 +48,40 @@ export type TestResultsLoadError =
   | TestResultsYamlParseError
   | TestResultsSchemaDecodeError;
 
+export class ModuleFileReadError extends Data.TaggedError("ModuleFileReadError")<{
+  readonly cause: unknown;
+  readonly path: string;
+}> {}
+
+export class ModuleYamlParseError extends Data.TaggedError("ModuleYamlParseError")<{
+  readonly cause: unknown;
+  readonly path: string;
+}> {}
+
+export class ModuleSchemaDecodeError extends Data.TaggedError("ModuleSchemaDecodeError")<{
+  readonly cause: unknown;
+  readonly path: string;
+}> {}
+
+export type ModuleRecordLoadError =
+  | ModuleFileReadError
+  | ModuleYamlParseError
+  | ModuleSchemaDecodeError;
+
+export class ModuleRecordLoadErrors extends Data.TaggedError("ModuleRecordLoadErrors")<{
+  readonly errors: readonly ModuleRecordLoadError[];
+}> {}
+
+export class SourceFileScanError extends Data.TaggedError("SourceFileScanError")<{
+  readonly cause: unknown;
+  readonly path: string;
+}> {}
+
 export type HarnessError =
   | PromiseFileReadError
   | PromiseRecordLoadErrors
   | InvalidScenarioBindingError
-  | TestResultsLoadError;
+  | TestResultsLoadError
+  | ModuleFileReadError
+  | ModuleRecordLoadErrors
+  | SourceFileScanError;

@@ -15,3 +15,6 @@ promises:
   - harness.protocol.promise_files_are_versioned
   - harness.protocol.results_are_versioned_adapter_outputs
   - harness.protocol.schemas_define_language_agnostic_contract
+covers:
+  - protocol/v1/**
+  - protocol/fixtures/**

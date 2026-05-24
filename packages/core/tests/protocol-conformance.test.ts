@@ -87,17 +87,47 @@ describe("protocol conformance", () => {
       expect(contract).toMatchObject({
         apiVersion: 1,
         commands: {
-          check: { reads: ["promises/**/*.promise.yaml"], writes: [] },
+          check: {
+            reads: [
+              "promises/**/*.promise.yaml",
+              "modules/**/*.module.yaml",
+              "packages/**",
+              "apps/**",
+              "protocol/**",
+            ],
+            writes: [],
+          },
           report: {
-            reads: ["promises/**/*.promise.yaml", ".harness/results.yaml"],
+            reads: [
+              "promises/**/*.promise.yaml",
+              "modules/**/*.module.yaml",
+              "packages/**",
+              "apps/**",
+              "protocol/**",
+              ".harness/results.yaml",
+            ],
             writes: [],
           },
           test: {
-            reads: ["promises/**/*.promise.yaml", ".harness/results.yaml"],
+            reads: [
+              "promises/**/*.promise.yaml",
+              "modules/**/*.module.yaml",
+              "packages/**",
+              "apps/**",
+              "protocol/**",
+              ".harness/results.yaml",
+            ],
             writes: [".harness/results.yaml"],
           },
           verify: {
-            reads: ["promises/**/*.promise.yaml", ".harness/results.yaml"],
+            reads: [
+              "promises/**/*.promise.yaml",
+              "modules/**/*.module.yaml",
+              "packages/**",
+              "apps/**",
+              "protocol/**",
+              ".harness/results.yaml",
+            ],
             writes: [],
           },
         },
