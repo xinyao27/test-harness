@@ -8,6 +8,7 @@ import { parse } from "yaml";
 
 import { scenarioTest } from "../../adapter-vitest/src/index.ts";
 import {
+  HarnessConfigSchema,
   ModuleRecordSchema,
   PromiseRecordSchema,
   SeedReportSchema,
@@ -25,7 +26,7 @@ const loadValidator = async (schemaName: string) => {
 };
 
 const fixturePaths = async (
-  kind: "modules" | "promises" | "reports" | "results",
+  kind: "configs" | "modules" | "promises" | "reports" | "results",
   validity: "invalid" | "valid",
 ) => {
   const directory = join(rootDir, "protocol", "fixtures", kind, validity);
@@ -35,7 +36,7 @@ const fixturePaths = async (
 
 const assertConformance = async <A>(
   schemaName: string,
-  fixtureKind: "modules" | "promises" | "reports" | "results",
+  fixtureKind: "configs" | "modules" | "promises" | "reports" | "results",
   effectSchema: Schema.Schema<A>,
 ) => {
   const validate = await loadValidator(schemaName);
@@ -59,6 +60,14 @@ const assertConformance = async <A>(
 };
 
 describe("protocol conformance", () => {
+  scenarioTest(
+    "harness.protocol.runner_config_is_versioned",
+    "keeps Harness config fixtures aligned between protocol schema and Effect Schema",
+    async () => {
+      await assertConformance("harness-config.schema.yaml", "configs", HarnessConfigSchema);
+    },
+  );
+
   scenarioTest(
     "harness.protocol.module_schema_is_portable",
     "keeps module fixtures aligned between protocol schema and Effect Schema",
@@ -102,6 +111,7 @@ describe("protocol conformance", () => {
         commands: {
           check: {
             reads: [
+              "harness.yaml",
               "promises/**/*.promises.yaml",
               "modules/**/*.module.yaml",
               "packages/**",
@@ -112,6 +122,7 @@ describe("protocol conformance", () => {
           },
           report: {
             reads: [
+              "harness.yaml",
               "promises/**/*.promises.yaml",
               "modules/**/*.module.yaml",
               "packages/**",
@@ -123,6 +134,7 @@ describe("protocol conformance", () => {
           },
           test: {
             reads: [
+              "harness.yaml",
               "promises/**/*.promises.yaml",
               "modules/**/*.module.yaml",
               "packages/**",
@@ -134,6 +146,7 @@ describe("protocol conformance", () => {
           },
           verify: {
             reads: [
+              "harness.yaml",
               "promises/**/*.promises.yaml",
               "modules/**/*.module.yaml",
               "packages/**",

@@ -1,0 +1,7 @@
+apiVersion: 1
+test:
+  runner:
+    command: vp
+    args:
+      - test
+    shell: true

@@ -10,6 +10,8 @@ The Harness is a protocol first, not a TypeScript or Vitest feature.
 The stable layer is:
 
 ```text
+harness.yaml
+  -> configured adapter runner
 promises/**/*.promises.yaml
   -> adapter execution
   -> .harness/results.yaml
@@ -23,6 +25,7 @@ Any implementation can participate if it can read canonical promise YAML and wri
 Protocol contracts live under `protocol/v1/`:
 
 - `promise.schema.yaml`: canonical promise file shape.
+- `harness-config.schema.yaml`: project-level runner config shape.
 - `promises-file.schema.yaml`: canonical grouped promises wrapper shape.
 - `module.schema.yaml`: canonical module ownership file shape.
 - `results.schema.yaml`: adapter-produced result file shape.
@@ -48,10 +51,11 @@ A Rust rewrite is successful when it can satisfy the same protocol promises and 
 
 1. Load the same `.promises.yaml` files.
 2. Load the same module ownership files.
-3. Reject the same invalid module, promise, result, and report fixtures.
-4. Read or write the same `.harness/results.yaml` shape.
-5. Render equivalent promise status and match the golden CLI report fixtures for the pinned cases.
-6. Preserve CLI behavior and exit codes.
+3. Load the same `harness.yaml` runner config shape.
+4. Reject the same invalid config, module, promise, result, and report fixtures.
+5. Read or write the same `.harness/results.yaml` shape.
+6. Render equivalent promise status and match the golden CLI report fixtures for the pinned cases.
+7. Preserve CLI behavior and exit codes.
 
 The rewrite does not need to mimic the TypeScript internals. It needs to preserve the protocol.
 

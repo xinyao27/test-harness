@@ -1,5 +1,6 @@
 import { Effect } from "effect";
 
+import { loadHarnessConfig } from "./config.ts";
 import type { HarnessError } from "./errors.ts";
 import { findSourceFiles, loadModuleRecords } from "./module-registry.ts";
 import { loadPromiseRecords } from "./promise-registry.ts";
@@ -22,6 +23,7 @@ export type SeedCheckResult = {
 
 export const checkSeedHarness = (rootDir: string): Effect.Effect<SeedCheckResult, HarnessError> =>
   Effect.gen(function* () {
+    yield* loadHarnessConfig(rootDir);
     const records = yield* loadPromiseRecords(rootDir);
     const modules = yield* loadModuleRecords(rootDir);
     const sourceFiles = yield* findSourceFiles(rootDir);

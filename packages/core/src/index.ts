@@ -1,4 +1,8 @@
 export {
+  HarnessConfigFileReadError,
+  type HarnessConfigLoadError,
+  HarnessConfigSchemaDecodeError,
+  HarnessConfigYamlParseError,
   InvalidScenarioBindingError,
   type HarnessError,
   ModuleFileReadError,
@@ -18,6 +22,7 @@ export {
   TestResultsSchemaDecodeError,
   TestResultsYamlParseError,
 } from "./errors.ts";
+export { harnessConfigPath, loadHarnessConfig } from "./config.ts";
 export { defaultLanguage, resolveLocalizedText } from "./localized-text.ts";
 export { findSourceFiles, loadModuleRecords } from "./module-registry.ts";
 export { loadPromiseRecords } from "./promise-registry.ts";
@@ -46,7 +51,11 @@ export {
 export {
   type FeatureReport,
   FeatureReportSchema,
+  type HarnessConfig,
+  HarnessConfigSchema,
   HarnessProtocolVersionSchema,
+  type HarnessRunnerConfig,
+  HarnessRunnerConfigSchema,
   harnessProtocolVersion,
   type LocalizedText,
   LocalizedTextSchema,

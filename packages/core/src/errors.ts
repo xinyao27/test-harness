@@ -1,5 +1,27 @@
 import { Data } from "effect";
 
+export class HarnessConfigFileReadError extends Data.TaggedError("HarnessConfigFileReadError")<{
+  readonly cause: unknown;
+  readonly path: string;
+}> {}
+
+export class HarnessConfigYamlParseError extends Data.TaggedError("HarnessConfigYamlParseError")<{
+  readonly cause: unknown;
+  readonly path: string;
+}> {}
+
+export class HarnessConfigSchemaDecodeError extends Data.TaggedError(
+  "HarnessConfigSchemaDecodeError",
+)<{
+  readonly cause: unknown;
+  readonly path: string;
+}> {}
+
+export type HarnessConfigLoadError =
+  | HarnessConfigFileReadError
+  | HarnessConfigYamlParseError
+  | HarnessConfigSchemaDecodeError;
+
 export class PromiseFileReadError extends Data.TaggedError("PromiseFileReadError")<{
   readonly cause: unknown;
   readonly path: string;
@@ -87,6 +109,7 @@ export class SourceFileScanError extends Data.TaggedError("SourceFileScanError")
 }> {}
 
 export type HarnessError =
+  | HarnessConfigLoadError
   | PromiseFileReadError
   | PromiseRecordLoadErrors
   | InvalidScenarioBindingError

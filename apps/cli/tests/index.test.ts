@@ -19,9 +19,18 @@ const readGoldenOutput = (name: string): Promise<string> =>
     content.trimEnd(),
   );
 
+const validHarnessConfigYaml = `apiVersion: 1
+test:
+  runner:
+    command: vp
+    args:
+      - test
+`;
+
 const withTempWorkspace = async (content: string) => {
   const root = await mkdtemp(join(tmpdir(), "seed-harness-cli-"));
   await mkdir(join(root, "promises", "promise-registry"), { recursive: true });
+  await writeFile(join(root, "harness.yaml"), validHarnessConfigYaml);
   await writeFile(
     join(root, "promises", "promise-registry", "promise-registry.promises.yaml"),
     content,
@@ -201,6 +210,53 @@ describe("harness CLI", () => {
         expect(calls).toEqual([workspace.root]);
         expect(result.exitCode).toBe(0);
         expect(result.stdout).toContain("Seed Harness Report");
+        expect(result.stdout).toContain("Run Status: passing");
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
+
+  scenarioTest(
+    "harness.cli.test_reads_runner_config",
+    "test runs the runner command from harness.yaml",
+    async () => {
+      const workspace = await withTempWorkspace(validPromiseYaml);
+      const runnerScript = `
+import { mkdir, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+
+const root = process.env.HARNESS_ROOT_DIR;
+if (!root) throw new Error("HARNESS_ROOT_DIR is required.");
+await mkdir(join(root, ".harness"), { recursive: true });
+await writeFile(join(root, ".harness", "results.yaml"), ${JSON.stringify(`apiVersion: 1
+generatedAt: "2026-05-25T00:00:00.000Z"
+results:
+  - file: apps/cli/tests/index.test.ts
+    promiseId: harness.promise_registry.load_canonical_yaml_promises
+    status: passing
+    testName: configured runner writes results
+`)});
+`;
+
+      await writeFile(
+        join(workspace.root, "harness.yaml"),
+        [
+          "apiVersion: 1",
+          "test:",
+          "  runner:",
+          `    command: ${JSON.stringify(process.execPath)}`,
+          "    args:",
+          "      - --input-type=module",
+          "      - --eval",
+          `      - ${JSON.stringify(runnerScript)}`,
+          "",
+        ].join("\n"),
+      );
+
+      try {
+        const result = await run(["test"], workspace.root);
+        expect(result.exitCode).toBe(0);
         expect(result.stdout).toContain("Run Status: passing");
       } finally {
         await workspace.cleanup();

@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import {
   buildSeedReport,
   checkSeedHarness,
+  loadHarnessConfig,
   harnessResultsPath,
   loadTestResultsFile,
   renderSeedReportMarkdown,
@@ -64,11 +65,14 @@ const createLineForwarder = (write: (message: string) => void) => {
   };
 };
 
-const runDefaultTestRunner: TestRunner = ({ cwd, streams }) =>
-  new Promise((resolve, reject) => {
+const runConfiguredTestRunner: TestRunner = async ({ cwd, streams }) => {
+  const config = await Effect.runPromise(loadHarnessConfig(cwd));
+  const { args, command } = config.test.runner;
+
+  return await new Promise((resolve, reject) => {
     const stdout = createLineForwarder(streams.stdout);
     const stderr = createLineForwarder(streams.stderr);
-    const child = spawn("vp", ["test"], {
+    const child = spawn(command, args, {
       cwd,
       env: { ...process.env, [harnessRootEnvVar]: cwd },
       stdio: ["ignore", "pipe", "pipe"],
@@ -83,6 +87,7 @@ const runDefaultTestRunner: TestRunner = ({ cwd, streams }) =>
       resolve(exitCode ?? 1);
     });
   });
+};
 
 const usage = "Usage: harness <check|test|report|verify> [--lang <language>] [--summary]";
 
@@ -327,7 +332,7 @@ export const runCli = (
   const resolvedOptions: CliOptions = {
     cwd: options.cwd ?? process.cwd(),
     streams: options.streams ?? defaultStreams,
-    testRunner: options.testRunner ?? runDefaultTestRunner,
+    testRunner: options.testRunner ?? runConfiguredTestRunner,
   };
 
   if (error) {

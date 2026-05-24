@@ -89,6 +89,18 @@ export const ModuleRecordSchema = Schema.Struct({
   title: LocalizedTextSchema,
 });
 
+export const HarnessRunnerConfigSchema = Schema.Struct({
+  args: Schema.Array(Schema.String),
+  command: Schema.String,
+});
+
+export const HarnessConfigSchema = Schema.Struct({
+  apiVersion: HarnessProtocolVersionSchema,
+  test: Schema.Struct({
+    runner: HarnessRunnerConfigSchema,
+  }),
+});
+
 export const ScenarioBindingSchema = Schema.Struct({
   evidence: Schema.optionalKey(StringArraySchema),
   id: Schema.String,
@@ -137,6 +149,8 @@ export const SeedReportSchema = Schema.Struct({
 });
 
 export type FeatureReport = Schema.Schema.Type<typeof FeatureReportSchema>;
+export type HarnessConfig = Schema.Schema.Type<typeof HarnessConfigSchema>;
+export type HarnessRunnerConfig = Schema.Schema.Type<typeof HarnessRunnerConfigSchema>;
 export type LocalizedText = Schema.Schema.Type<typeof LocalizedTextSchema>;
 export type ModuleRecord = Schema.Schema.Type<typeof ModuleRecordSchema>;
 export type PromiseExampleRow = Schema.Schema.Type<typeof PromiseExampleRowSchema>;

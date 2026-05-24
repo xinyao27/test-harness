@@ -84,8 +84,8 @@ promises:
     lifecycle: accepted
 
     given:
-      - en: Protocol fixtures exist for valid and invalid modules, promises, results, and reports
-        zh-CN: protocol fixtures 为有效和无效的 modules、promises、results 和 reports 存在
+      - en: Protocol fixtures exist for valid and invalid configs, modules, promises, results, and reports
+        zh-CN: protocol fixtures 为有效和无效的 configs、modules、promises、results 和 reports 存在
     when:
       - en: The reference implementation runs conformance tests
         zh-CN: 参考实现运行 conformance tests
@@ -140,6 +140,44 @@ promises:
     failureMeaning:
       en: Future implementations may disagree on which source files belong to which reviewable module.
       zh-CN: 未来实现可能无法就哪些 source files 属于哪个可 review module 达成一致。
+
+    review:
+      approvedBy: xinyao
+      approvedAt: "2026-05-25"
+  - id: harness.protocol.runner_config_is_versioned
+    feature: Harness Protocol / Config
+    title:
+      en: Runner config is versioned and portable
+      zh-CN: Runner config 会带版本且可移植
+    purpose:
+      en: Protect future Rust CLI behavior by defining the external adapter runner command in protocol-backed project config instead of hard-coding a TypeScript test command.
+      zh-CN: 通过在带 protocol 支持的项目配置中定义外部 adapter runner command，而不是硬编码 TypeScript test command，保护未来 Rust CLI behavior。
+    priority: P0
+    boundary: unit
+    lifecycle: accepted
+
+    given:
+      - en: A project root contains harness.yaml
+        zh-CN: project root 中存在 harness.yaml
+    when:
+      - en: A Harness implementation decodes the project config
+        zh-CN: Harness 实现解码 project config
+    then:
+      - en: The config declares numeric apiVersion 1
+        zh-CN: config 会声明数字 apiVersion 1
+      - en: The test runner is represented as command plus args, not as a shell string
+        zh-CN: test runner 会表示为 command 加 args，而不是 shell string
+      - en: Valid and invalid config fixtures are accepted or rejected consistently with the reference schema
+        zh-CN: 有效和无效 config fixtures 会与参考 schema 保持一致地被接受或拒绝
+    observes:
+      - harness.yaml
+      - protocol/v1/harness-config.schema.yaml
+      - protocol/fixtures/configs/**/*.yaml
+      - packages/core/src/config.ts
+
+    failureMeaning:
+      en: A rewrite could accidentally bake in a specific JavaScript test runner and lose adapter portability.
+      zh-CN: 重写版本可能不小心把某个 JavaScript test runner 固化进去，从而丢失 adapter 可移植性。
 
     review:
       approvedBy: xinyao
@@ -218,8 +256,8 @@ promises:
       en: Protocol schemas define the language-agnostic contract
       zh-CN: Protocol schemas 会定义语言无关 contract
     purpose:
-      en: Protect future rewrites by keeping promise, module, result, report, and CLI contracts outside the TypeScript implementation.
-      zh-CN: 通过把 promise、module、result、report 和 CLI contracts 放在 TypeScript 实现之外，保护未来重写。
+      en: Protect future rewrites by keeping config, promise, module, result, report, and CLI contracts outside the TypeScript implementation.
+      zh-CN: 通过把 config、promise、module、result、report 和 CLI contracts 放在 TypeScript 实现之外，保护未来重写。
     priority: P0
     boundary: unit
     lifecycle: accepted
@@ -231,11 +269,12 @@ promises:
       - en: It reads the protocol files under protocol/v1
         zh-CN: 它读取 protocol/v1 下的 protocol files
     then:
-      - en: The promise, module, result, report, and CLI contracts are visible without reading TypeScript source
-        zh-CN: 不阅读 TypeScript source 也能看到 promise、module、result、report 和 CLI contracts
+      - en: The config, promise, module, result, report, and CLI contracts are visible without reading TypeScript source
+        zh-CN: 不阅读 TypeScript source 也能看到 config、promise、module、result、report 和 CLI contracts
       - en: The TypeScript Effect Schemas remain a reference implementation of those contracts
         zh-CN: TypeScript Effect Schemas 只是这些 contracts 的参考实现
     observes:
+      - protocol/v1/harness-config.schema.yaml
       - protocol/v1/promise.schema.yaml
       - protocol/v1/promises-file.schema.yaml
       - protocol/v1/module.schema.yaml

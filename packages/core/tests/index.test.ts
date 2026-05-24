@@ -18,6 +18,7 @@ import {
   generateSeedReport,
   getPromiseRunStatus,
   loadModuleRecords,
+  loadHarnessConfig,
   loadTestResults,
   loadTestResultsFile,
   loadPromiseRecords,
@@ -35,9 +36,18 @@ import {
 } from "../src/index.ts";
 import { findPromiseFiles } from "../src/promise-registry.ts";
 
+const validHarnessConfigYaml = `apiVersion: 1
+test:
+  runner:
+    command: vp
+    args:
+      - test
+`;
+
 const withTempWorkspace = async (files: Record<string, string>) => {
   const root = await mkdtemp(join(tmpdir(), "seed-harness-"));
   await mkdir(join(root, "promises", "promise-registry"), { recursive: true });
+  await writeFile(join(root, "harness.yaml"), validHarnessConfigYaml);
   await Promise.all(
     Object.entries(files).map(([name, content]) =>
       writeFile(join(root, "promises", "promise-registry", name), content),
@@ -60,6 +70,44 @@ const withTempRoot = async () => {
     root,
   };
 };
+
+describe("Harness config", () => {
+  scenarioTest(
+    "harness.cli.test_reads_runner_config",
+    "loads the configured runner command from harness.yaml",
+    async () => {
+      const workspace = await withTempRoot();
+
+      try {
+        await writeFile(join(workspace.root, "harness.yaml"), validHarnessConfigYaml);
+        const config = await Effect.runPromise(loadHarnessConfig(workspace.root));
+        expect(config.test.runner).toEqual({ args: ["test"], command: "vp" });
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
+
+  scenarioTest(
+    "harness.protocol.runner_config_is_versioned",
+    "rejects runner config files missing the supported protocol version",
+    async () => {
+      const workspace = await withTempRoot();
+
+      try {
+        await writeFile(
+          join(workspace.root, "harness.yaml"),
+          validHarnessConfigYaml.replace("apiVersion: 1\n", ""),
+        );
+        await expect(Effect.runPromise(loadHarnessConfig(workspace.root))).rejects.toMatchObject({
+          _tag: "HarnessConfigSchemaDecodeError",
+        });
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
+});
 
 describe("seed promise registry", () => {
   scenarioTest(
