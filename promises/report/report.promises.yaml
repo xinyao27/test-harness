@@ -1,0 +1,104 @@
+apiVersion: 1
+promises:
+  - id: harness.report.falls_back_through_language_chain
+    feature: Seed Harness / Report
+    title:
+      en: LocalizedText rendering falls back through a language chain
+      zh-CN: LocalizedText 渲染会沿语言回退链回退
+    purpose:
+      en: Protect bilingual review when the requested language is missing — reviewers always see meaningful text instead of an empty string.
+      zh-CN: 当请求的语言缺失时，保护双语 review —— reviewer 永远能看到有意义的文本，而不是空字符串。
+    priority: P1
+    boundary: unit
+    lifecycle: proposed
+
+    given:
+      - en: A LocalizedText value may be either a plain string or a language map
+        zh-CN: 一个 LocalizedText 值可能是纯字符串，也可能是语言 map
+    when:
+      - en: The renderer is asked to resolve a LocalizedText into a specific language
+        zh-CN: renderer 被要求将一个 LocalizedText 解析成某个具体语言
+    then:
+      - en: Plain strings are returned as-is
+        zh-CN: 纯字符串原样返回
+      - en: Language maps are searched in order — requested language, then its base language (e.g., `zh-CN` falls back to `zh`), then the default language (`en`)
+        zh-CN: 语言 map 按顺序查找 —— 请求语言、其基础语言（如 `zh-CN` 回退到 `zh`）、默认语言（`en`）
+      - en: If none of those match, the first non-blank value in the map is returned
+        zh-CN: 若都不匹配，返回 map 中第一个非空值
+    observes:
+      - packages/core/src/localized-text.ts
+      - packages/core/src/report.ts
+
+    failureMeaning:
+      en: A reviewer requesting a missing language sees an empty promise field and cannot tell whether the promise is blank or merely untranslated.
+      zh-CN: 请求缺失语言的 reviewer 会看到空的 promise 字段，无法判断 promise 本身就是空，还是只是没翻译。
+
+    review: {}
+  - id: harness.report.renders_in_requested_language
+    feature: Seed Harness / Report
+    title:
+      en: Reports render promise text in the requested language
+      zh-CN: Report 会使用请求的语言渲染 promise text
+    purpose:
+      en: Protect bilingual review so humans can read promises in the language they requested.
+      zh-CN: 保护双语 review，让人类可以用自己请求的语言阅读 promises。
+    priority: P1
+    boundary: unit
+    lifecycle: accepted
+
+    given:
+      - en: A promise contains localized text fields
+        zh-CN: 一条 promise 包含 localized text fields
+    when:
+      - en: A seed report is generated with a requested language
+        zh-CN: seed report 使用请求的语言生成
+    then:
+      - en: title, purpose, Given / When / Then, and failure meaning use the requested language when available
+        zh-CN: title、purpose、Given / When / Then 和 failure meaning 会在可用时使用请求的语言
+    observes:
+      - packages/core/src/localized-text.ts
+      - packages/core/src/report.ts
+
+    failureMeaning:
+      en: Bilingual promises may exist but reports may still force humans to review the wrong language.
+      zh-CN: 即使存在双语 promises，report 仍可能迫使人类使用错误语言 review。
+
+    review:
+      approvedBy: xinyao
+      approvedAt: "2026-05-24"
+  - id: harness.report.computes_promise_run_status_from_results
+    feature: Seed Harness / Report
+    title:
+      en: A promise's run status is computed from its collected results by a fixed mapping
+      zh-CN: 一条 promise 的 run status 由其收集到的 results 按固定映射规则计算
+    purpose:
+      en: Protect the reviewer's interpretation of the report — every status value in the rendered report has a known, stable meaning.
+      zh-CN: 保护 reviewer 对报告的解读 —— 渲染报告中的每个 status 值都有已知、稳定的含义。
+    priority: P0
+    boundary: unit
+    lifecycle: proposed
+
+    given:
+      - en: A promise id and a list of collected test results have been loaded
+        zh-CN: 已加载一个 promise id 和一组收集到的 test results
+    when:
+      - en: The report renderer asks `getPromiseRunStatus(promiseId, results)`
+        zh-CN: report renderer 调用 `getPromiseRunStatus(promiseId, results)`
+    then:
+      - en: No matching result returns `unknown`
+        zh-CN: 没有匹配 result 时返回 `unknown`
+      - en: Any matching result with status `failing` returns `failing`
+        zh-CN: 任一匹配 result status 为 `failing` 时返回 `failing`
+      - en: Any matching result with status `skipped` (and no failing) returns `skipped`
+        zh-CN: 任一匹配 result status 为 `skipped`（且无 failing）时返回 `skipped`
+      - en: Otherwise returns `passing`
+        zh-CN: 否则返回 `passing`
+    observes:
+      - packages/core/src/results.ts
+      - packages/core/src/report.ts
+
+    failureMeaning:
+      en: A green report may hide a failing or unproven promise if the mapping drifts unnoticed.
+      zh-CN: 若映射规则悄悄变化，绿色报告可能掩盖一个 failing 或 unproven 的 promise。
+
+    review: {}

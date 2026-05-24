@@ -1,4 +1,3 @@
-apiVersion: 1
 id: harness.fixture.extra_property
 feature: Harness Fixtures / Promise
 title: Extra properties are invalid

@@ -1,0 +1,179 @@
+apiVersion: 1
+promises:
+  - id: harness.protocol.cli_contract_is_versioned_and_enforced
+    feature: Harness Protocol / CLI
+    title:
+      en: The CLI protocol contract is versioned and explicit
+      zh-CN: CLI protocol contract 会明确声明版本和行为
+    purpose:
+      en: Protect cross-language command compatibility by pinning command names, reads, writes, environment, and exit codes in protocol YAML.
+      zh-CN: 通过在 protocol YAML 中固定 command names、reads、writes、environment 和 exit codes，保护跨语言命令兼容性。
+    priority: P0
+    boundary: unit
+    lifecycle: accepted
+
+    given:
+      - en: The protocol CLI contract exists under protocol/v1
+        zh-CN: protocol CLI contract 位于 protocol/v1 下
+    when:
+      - en: A Harness implementation reads the CLI contract
+        zh-CN: Harness 实现读取 CLI contract
+    then:
+      - en: The contract declares numeric apiVersion 1
+        zh-CN: contract 会声明数字 apiVersion 1
+      - en: The check, report, verify, and test commands declare their reads and writes
+        zh-CN: check、report、verify 和 test commands 会声明各自的 reads 和 writes
+      - en: Success and failure exit codes are fixed as 0 and 1
+        zh-CN: success 和 failure exit codes 固定为 0 和 1
+    observes:
+      - protocol/v1/cli.yaml
+      - apps/cli/src/index.ts
+
+    failureMeaning:
+      en: Rewrites and adapters may expose incompatible command behavior while still appearing to support the Harness.
+      zh-CN: 重写版本和 adapters 可能暴露不兼容的 command behavior，却仍看起来支持 Harness。
+
+    review:
+      approvedBy: xinyao
+      approvedAt: "2026-05-24"
+  - id: harness.protocol.conformance_fixtures_lock_reference_behavior
+    feature: Harness Protocol / Conformance
+    title:
+      en: Protocol fixtures keep the reference implementation aligned
+      zh-CN: Protocol fixtures 会让参考实现保持对齐
+    purpose:
+      en: Protect future rewrites by checking valid and invalid fixtures against both the protocol YAML schemas and the TypeScript Effect Schemas.
+      zh-CN: 通过同时用 protocol YAML schemas 和 TypeScript Effect Schemas 校验有效与无效 fixtures，保护未来重写。
+    priority: P0
+    boundary: unit
+    lifecycle: accepted
+
+    given:
+      - en: Protocol fixtures exist for valid and invalid promises, results, and reports
+        zh-CN: protocol fixtures 为有效和无效的 promises、results 和 reports 存在
+    when:
+      - en: The reference implementation runs conformance tests
+        zh-CN: 参考实现运行 conformance tests
+    then:
+      - en: Valid fixtures are accepted by both the protocol schema and Effect Schema
+        zh-CN: 有效 fixtures 会同时被 protocol schema 和 Effect Schema 接受
+      - en: Invalid fixtures are rejected by both the protocol schema and Effect Schema
+        zh-CN: 无效 fixtures 会同时被 protocol schema 和 Effect Schema 拒绝
+    observes:
+      - protocol/fixtures/**/*.yaml
+      - protocol/v1/*.schema.yaml
+      - packages/core/src/schema.ts
+      - packages/core/src/results.ts
+
+    failureMeaning:
+      en: A future implementation could satisfy the protocol while the TypeScript reference implementation accepts a different shape.
+      zh-CN: 未来实现可能满足 protocol，但 TypeScript 参考实现却接受另一种 shape。
+
+    review:
+      approvedBy: xinyao
+      approvedAt: "2026-05-24"
+  - id: harness.protocol.promise_files_are_versioned
+    feature: Harness Protocol / Promise Files
+    title:
+      en: Promise files declare the Harness protocol version
+      zh-CN: Promise files 会声明 Harness protocol version
+    purpose:
+      en: Protect cross-language implementations by making canonical promise files explicitly versioned at the wrapper level.
+      zh-CN: 通过让 canonical promise files 在容器层级明确带版本，保护跨语言实现。
+    priority: P0
+    boundary: unit
+    lifecycle: accepted
+
+    given:
+      - en: A canonical promise YAML file is loaded
+        zh-CN: 一个 canonical promise YAML 文件被加载
+    when:
+      - en: The Harness decodes the promise file
+        zh-CN: Harness 解码这个 promise file
+    then:
+      - en: The wrapper file must declare apiVersion 1 at the top level
+        zh-CN: 容器文件必须在顶层声明 apiVersion 1
+      - en: Missing or unsupported protocol versions are rejected by wrapper schema decoding
+        zh-CN: 缺失或不支持的 protocol version 会被 wrapper schema decoding 拒绝
+    observes:
+      - promises/**/*.promises.yaml
+      - protocol/v1/promises-file.schema.yaml
+
+    failureMeaning:
+      en: Different implementations may silently interpret the same promise file with different rules.
+      zh-CN: 不同实现可能会用不同规则悄悄解释同一个 promise file。
+
+    review:
+      approvedBy: xinyao
+      approvedAt: "2026-05-24"
+  - id: harness.protocol.results_are_versioned_adapter_outputs
+    feature: Harness Protocol / Results
+    title:
+      en: Adapter result files declare the Harness protocol version
+      zh-CN: Adapter result files 会声明 Harness protocol version
+    purpose:
+      en: Protect adapter interchange so TypeScript, Rust, and other implementations can read the same result files.
+      zh-CN: 保护 adapter interchange，让 TypeScript、Rust 和其他实现可以读取同一类 result files。
+    priority: P0
+    boundary: unit
+    lifecycle: accepted
+
+    given:
+      - en: An adapter writes Harness results
+        zh-CN: 一个 adapter 写出 Harness results
+    when:
+      - en: The result YAML file is persisted
+        zh-CN: result YAML file 被持久化
+    then:
+      - en: The result file declares apiVersion 1
+        zh-CN: result file 会声明 apiVersion 1
+      - en: The result file contains generatedAt and result records associated with promiseId
+        zh-CN: result file 包含 generatedAt，以及关联 promiseId 的 result records
+    observes:
+      - .harness/results.yaml
+      - protocol/v1/results.schema.yaml
+
+    failureMeaning:
+      en: A future adapter may write result files that the Harness cannot safely interpret.
+      zh-CN: 未来的 adapter 可能会写出 Harness 无法安全解释的 result files。
+
+    review:
+      approvedBy: xinyao
+      approvedAt: "2026-05-24"
+  - id: harness.protocol.schemas_define_language_agnostic_contract
+    feature: Harness Protocol / Schemas
+    title:
+      en: Protocol schemas define the language-agnostic contract
+      zh-CN: Protocol schemas 会定义语言无关 contract
+    purpose:
+      en: Protect future rewrites by keeping promise, result, report, and CLI contracts outside the TypeScript implementation.
+      zh-CN: 通过把 promise、result、report 和 CLI contracts 放在 TypeScript 实现之外，保护未来重写。
+    priority: P0
+    boundary: unit
+    lifecycle: accepted
+
+    given:
+      - en: A non-TypeScript implementation needs to interoperate with the Harness
+        zh-CN: 一个非 TypeScript 实现需要和 Harness 互操作
+    when:
+      - en: It reads the protocol files under protocol/v1
+        zh-CN: 它读取 protocol/v1 下的 protocol files
+    then:
+      - en: The promise, result, report, and CLI contracts are visible without reading TypeScript source
+        zh-CN: 不阅读 TypeScript source 也能看到 promise、result、report 和 CLI contracts
+      - en: The TypeScript Effect Schemas remain a reference implementation of those contracts
+        zh-CN: TypeScript Effect Schemas 只是这些 contracts 的参考实现
+    observes:
+      - protocol/v1/promise.schema.yaml
+      - protocol/v1/promises-file.schema.yaml
+      - protocol/v1/results.schema.yaml
+      - protocol/v1/report.schema.yaml
+      - protocol/v1/cli.yaml
+
+    failureMeaning:
+      en: Rewriting the Harness in another language would require reverse-engineering TypeScript internals instead of following a stable protocol.
+      zh-CN: 用其他语言重写 Harness 时，将不得不反向理解 TypeScript 内部实现，而不是遵循稳定 protocol。
+
+    review:
+      approvedBy: xinyao
+      approvedAt: "2026-05-24"

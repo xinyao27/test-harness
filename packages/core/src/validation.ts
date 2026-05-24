@@ -18,6 +18,12 @@ const isBlank = (value: string): boolean => value.trim().length === 0;
 const hasReviewApproval = (record: PromiseRecord): boolean =>
   Boolean(record.review.approvedBy?.trim() || record.review.approvedIn?.trim());
 
+const isSameKeySet = (a: Set<string>, b: Set<string>): boolean => {
+  if (a.size !== b.size) return false;
+  for (const key of a) if (!b.has(key)) return false;
+  return true;
+};
+
 export const validatePromiseRecords = (
   records: readonly PromiseRecord[],
 ): readonly ValidationIssue[] => {
@@ -147,6 +153,42 @@ export const validatePromiseRecords = (
         promiseId: record.id,
         severity: "warning",
       });
+    }
+
+    if (record.examples !== undefined) {
+      const firstRowKeys = new Set(Object.keys(record.examples[0]));
+      const seenNames = new Map<string, number>();
+      for (const [rowIndex, row] of record.examples.entries()) {
+        const rowKeys = new Set(Object.keys(row));
+        if (rowIndex > 0 && !isSameKeySet(rowKeys, firstRowKeys)) {
+          issues.push({
+            code: "inconsistent_example_columns",
+            message: `Promise "${record.id}" example row ${rowIndex} ("${row.name}") has columns differing from the first row.`,
+            promiseId: record.id,
+            severity: "error",
+          });
+        }
+        if (isBlank(row.name)) {
+          issues.push({
+            code: "blank_example_row_name",
+            message: `Promise "${record.id}" example row ${rowIndex} has a blank \`name\`.`,
+            promiseId: record.id,
+            severity: "error",
+          });
+          continue;
+        }
+        const previous = seenNames.get(row.name);
+        if (previous !== undefined) {
+          issues.push({
+            code: "duplicate_example_row_name",
+            message: `Promise "${record.id}" example rows ${previous} and ${rowIndex} share the same name "${row.name}".`,
+            promiseId: record.id,
+            severity: "error",
+          });
+        } else {
+          seenNames.set(row.name, rowIndex);
+        }
+      }
     }
   }
 

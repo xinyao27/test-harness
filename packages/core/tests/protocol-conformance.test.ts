@@ -89,7 +89,7 @@ describe("protocol conformance", () => {
         commands: {
           check: {
             reads: [
-              "promises/**/*.promise.yaml",
+              "promises/**/*.promises.yaml",
               "modules/**/*.module.yaml",
               "packages/**",
               "apps/**",
@@ -99,7 +99,7 @@ describe("protocol conformance", () => {
           },
           report: {
             reads: [
-              "promises/**/*.promise.yaml",
+              "promises/**/*.promises.yaml",
               "modules/**/*.module.yaml",
               "packages/**",
               "apps/**",
@@ -110,7 +110,7 @@ describe("protocol conformance", () => {
           },
           test: {
             reads: [
-              "promises/**/*.promise.yaml",
+              "promises/**/*.promises.yaml",
               "modules/**/*.module.yaml",
               "packages/**",
               "apps/**",
@@ -121,7 +121,7 @@ describe("protocol conformance", () => {
           },
           verify: {
             reads: [
-              "promises/**/*.promise.yaml",
+              "promises/**/*.promises.yaml",
               "modules/**/*.module.yaml",
               "packages/**",
               "apps/**",

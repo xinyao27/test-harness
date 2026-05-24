@@ -10,6 +10,7 @@ purpose:
   en: Promise-first authoring depends on the reviewer being able to trust the metadata and on unproven implemented promises being visible — both rely on this module.
   zh-CN: Promise-first authoring 依赖 reviewer 能信任 metadata，也依赖未被证明的 implemented promises 是可见的 — 两者都靠这个模块。
 promises:
+  - harness.validation.checks_examples_table_shape
   - harness.validation.flags_promises_without_test_results
   - harness.validation.flags_uncovered_source_files
   - harness.validation.flags_unknown_scenario_bindings

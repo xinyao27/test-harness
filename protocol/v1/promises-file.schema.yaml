@@ -1,0 +1,17 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://test-harness.local/protocol/v1/promises-file.schema.yaml
+title: Harness Promises File v1
+description: A canonical promises file holds an apiVersion-stamped wrapper around one or more promise records. The seed Harness only recognizes files with the `.promises.yaml` suffix.
+type: object
+additionalProperties: false
+required:
+  - apiVersion
+  - promises
+properties:
+  apiVersion:
+    const: 1
+  promises:
+    type: array
+    minItems: 1
+    items:
+      $ref: https://test-harness.local/protocol/v1/promise.schema.yaml

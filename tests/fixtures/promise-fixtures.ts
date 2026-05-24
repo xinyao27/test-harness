@@ -1,6 +1,4 @@
-export const validPromiseYaml = `
-apiVersion: 1
-id: harness.promise_registry.load_canonical_yaml_promises
+export const validPromiseRecordYaml = `id: harness.promise_registry.load_canonical_yaml_promises
 feature: Seed Harness / Promise Registry
 title:
   en: Accepted promises are loaded from canonical YAML files
@@ -21,7 +19,7 @@ then:
   - en: The promise is decoded into a PromiseRecord
     zh-CN: 该 promise 会被解码成 PromiseRecord
 observes:
-  - promises/**/*.promise.yaml
+  - promises/**/*.promises.yaml
 failureMeaning:
   en: The Harness cannot trust its own reviewed behavior promises.
   zh-CN: Harness 无法信任自己已经 review 过的行为承诺。
@@ -29,3 +27,18 @@ review:
   approvedBy: xinyao
   approvedAt: "2026-05-24"
 `;
+
+export const wrapPromisesFile = (records: readonly string[]): string => {
+  const indented = records.map((rec) => {
+    const lines = rec.trimEnd().split("\n");
+    const first = `  - ${lines[0]}`;
+    const rest = lines
+      .slice(1)
+      .map((line) => (line === "" ? "" : `    ${line}`))
+      .join("\n");
+    return rest.length > 0 ? `${first}\n${rest}` : first;
+  });
+  return `apiVersion: 1\npromises:\n${indented.join("\n")}\n`;
+};
+
+export const validPromiseYaml = wrapPromisesFile([validPromiseRecordYaml]);

@@ -1,4 +1,3 @@
-apiVersion: 1
 id: "Harness Fixture Invalid ID"
 feature: Harness Fixtures / Promise
 title: Invalid ids are rejected

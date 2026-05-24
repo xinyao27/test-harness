@@ -1,4 +1,3 @@
-apiVersion: 1
 id: harness.fixture.valid_basic_promise
 feature: Harness Fixtures / Promise
 title:

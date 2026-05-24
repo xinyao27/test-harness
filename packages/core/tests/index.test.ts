@@ -3,9 +3,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { Effect } from "effect";
-import { describe, expect, test } from "vite-plus/test";
+import { describe, expect } from "vite-plus/test";
 
-import { validPromiseYaml } from "../../../tests/fixtures/promise-fixtures.ts";
+import {
+  validPromiseRecordYaml,
+  validPromiseYaml,
+  wrapPromisesFile,
+} from "../../../tests/fixtures/promise-fixtures.ts";
 import { scenarioTest } from "../../adapter-vitest/src/index.ts";
 import {
   buildSeedReport,
@@ -63,7 +67,7 @@ describe("seed promise registry", () => {
     "loads canonical YAML promises with Effect Schema",
     async () => {
       const workspace = await withTempWorkspace({
-        "promise-registry.promise.yaml": validPromiseYaml,
+        "promise-registry.promises.yaml": validPromiseYaml,
       });
 
       try {
@@ -82,20 +86,20 @@ describe("seed promise registry", () => {
     "requires promise files to declare the supported protocol version",
     async () => {
       const validWorkspace = await withTempWorkspace({
-        "promise-registry.promise.yaml": validPromiseYaml,
+        "promise-registry.promises.yaml": validPromiseYaml,
       });
       const invalidWorkspace = await withTempWorkspace({
-        "promise-registry.promise.yaml": validPromiseYaml.replace("apiVersion: 1\n", ""),
+        "promise-registry.promises.yaml": validPromiseYaml.replace("apiVersion: 1\n", ""),
       });
 
       try {
         const records = await Effect.runPromise(loadPromiseRecords(validWorkspace.root));
-        expect(records[0]?.apiVersion).toBe(1);
+        expect(records).toHaveLength(1);
         await expect(
           Effect.runPromise(loadPromiseRecords(invalidWorkspace.root)),
         ).rejects.toMatchObject({
           _tag: "PromiseRecordLoadErrors",
-          errors: [expect.objectContaining({ _tag: "PromiseSchemaDecodeError" })],
+          errors: [expect.objectContaining({ _tag: "PromisesFileSchemaDecodeError" })],
         });
       } finally {
         await validWorkspace.cleanup();
@@ -104,25 +108,28 @@ describe("seed promise registry", () => {
     },
   );
 
-  test("returns an empty registry when the promises directory does not exist", async () => {
-    const workspace = await withTempRoot();
+  scenarioTest(
+    "harness.promise_registry.load_canonical_yaml_promises",
+    "returns an empty registry when the promises directory does not exist",
+    async () => {
+      const workspace = await withTempRoot();
 
-    try {
-      await expect(Effect.runPromise(findPromiseFiles(workspace.root))).resolves.toEqual([]);
-      await expect(Effect.runPromise(loadPromiseRecords(workspace.root))).resolves.toEqual([]);
-    } finally {
-      await workspace.cleanup();
-    }
-  });
+      try {
+        await expect(Effect.runPromise(findPromiseFiles(workspace.root))).resolves.toEqual([]);
+        await expect(Effect.runPromise(loadPromiseRecords(workspace.root))).resolves.toEqual([]);
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
 
   scenarioTest(
     "harness.promise.schema_defines_required_fields",
     "keeps plain string natural language fields valid for untranslated promises",
     async () => {
       const workspace = await withTempWorkspace({
-        "promise-registry.promise.yaml": `
-apiVersion: 1
-id: harness.promise_registry.load_plain_string_promises
+        "promise-registry.promises.yaml": wrapPromisesFile([
+          `id: harness.promise_registry.load_plain_string_promises
 feature: Seed Harness / Promise Registry
 title: Plain string promise fields remain valid
 purpose: Keep translation optional for small promises.
@@ -136,11 +143,12 @@ when:
 then:
   - The promise is still valid
 observes:
-  - promises/**/*.promise.yaml
+  - promises/**/*.promises.yaml
 failureMeaning: Translation became mandatory by accident.
 review:
   approvedBy: xinyao
 `,
+        ]),
       });
 
       try {
@@ -152,27 +160,31 @@ review:
     },
   );
 
-  test("fails with a typed error when YAML cannot be parsed", async () => {
-    const workspace = await withTempWorkspace({
-      "broken.promise.yaml": "id: [",
-    });
-
-    try {
-      await expect(Effect.runPromise(loadPromiseRecords(workspace.root))).rejects.toMatchObject({
-        _tag: "PromiseRecordLoadErrors",
-        errors: [expect.objectContaining({ _tag: "PromiseYamlParseError" })],
+  scenarioTest(
+    "harness.promise.canonical_file_is_grouped",
+    "fails with a typed error when YAML cannot be parsed",
+    async () => {
+      const workspace = await withTempWorkspace({
+        "broken.promises.yaml": "id: [",
       });
-    } finally {
-      await workspace.cleanup();
-    }
-  });
+
+      try {
+        await expect(Effect.runPromise(loadPromiseRecords(workspace.root))).rejects.toMatchObject({
+          _tag: "PromiseRecordLoadErrors",
+          errors: [expect.objectContaining({ _tag: "PromiseYamlParseError" })],
+        });
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
 
   scenarioTest(
     "harness.promise.schema_defines_required_fields",
     "fails with a typed error when schema decoding fails",
     async () => {
       const workspace = await withTempWorkspace({
-        "invalid.promise.yaml": validPromiseYaml.replace("lifecycle: accepted", "lifecycle: done"),
+        "invalid.promises.yaml": validPromiseYaml.replace("lifecycle: accepted", "lifecycle: done"),
       });
 
       try {
@@ -191,13 +203,15 @@ review:
     "fails with a typed error when required promise fields are missing",
     async () => {
       const workspace = await withTempWorkspace({
-        "missing-title.promise.yaml": validPromiseYaml.replace(
-          `title:
+        "missing-title.promises.yaml": wrapPromisesFile([
+          validPromiseRecordYaml.replace(
+            `title:
   en: Accepted promises are loaded from canonical YAML files
   zh-CN: 已接受的承诺会从 canonical YAML 文件中加载
 `,
-          "",
-        ),
+            "",
+          ),
+        ]),
       });
 
       try {
@@ -216,7 +230,7 @@ review:
     "rejects promise ids that do not match the protocol pattern",
     async () => {
       const workspace = await withTempWorkspace({
-        "invalid-id.promise.yaml": validPromiseYaml.replace(
+        "invalid-id.promises.yaml": validPromiseYaml.replace(
           "harness.promise_registry.load_canonical_yaml_promises",
           "Harness.Promise Registry",
         ),
@@ -238,8 +252,8 @@ review:
     "reports duplicate promise ids as validation issues",
     async () => {
       const workspace = await withTempWorkspace({
-        "another-registry.promise.yaml": validPromiseYaml,
-        "promise-registry.promise.yaml": validPromiseYaml,
+        "another-registry.promises.yaml": validPromiseYaml,
+        "promise-registry.promises.yaml": validPromiseYaml,
       });
 
       try {
@@ -264,10 +278,9 @@ review:
     "reports blank observes items as validation issues",
     async () => {
       const workspace = await withTempWorkspace({
-        "blank-observes.promise.yaml": validPromiseYaml.replace(
-          "  - promises/**/*.promise.yaml",
-          '  - ""',
-        ),
+        "blank-observes.promises.yaml": wrapPromisesFile([
+          validPromiseRecordYaml.replace("  - promises/**/*.promises.yaml", '  - ""'),
+        ]),
       });
 
       try {
@@ -292,13 +305,15 @@ review:
     "reports vague titles as validation issues",
     async () => {
       const workspace = await withTempWorkspace({
-        "vague-title.promise.yaml": validPromiseYaml.replace(
-          `title:
+        "vague-title.promises.yaml": wrapPromisesFile([
+          validPromiseRecordYaml.replace(
+            `title:
   en: Accepted promises are loaded from canonical YAML files
   zh-CN: 已接受的承诺会从 canonical YAML 文件中加载
 `,
-          "title: works\n",
-        ),
+            "title: works\n",
+          ),
+        ]),
       });
 
       try {
@@ -318,34 +333,40 @@ review:
     },
   );
 
-  test("accumulates load errors across promise files", async () => {
-    const workspace = await withTempWorkspace({
-      "invalid-lifecycle.promise.yaml": validPromiseYaml.replace(
-        "lifecycle: accepted",
-        "lifecycle: done",
-      ),
-      "invalid-yaml.promise.yaml": "id: [",
-    });
-
-    try {
-      await expect(Effect.runPromise(loadPromiseRecords(workspace.root))).rejects.toMatchObject({
-        _tag: "PromiseRecordLoadErrors",
-        errors: expect.arrayContaining([
-          expect.objectContaining({ _tag: "PromiseSchemaDecodeError" }),
-          expect.objectContaining({ _tag: "PromiseYamlParseError" }),
-        ]),
+  scenarioTest(
+    "harness.promise_registry.surfaces_per_record_decode_errors",
+    "accumulates load errors across promise files",
+    async () => {
+      const workspace = await withTempWorkspace({
+        "invalid-lifecycle.promises.yaml": validPromiseYaml.replace(
+          "lifecycle: accepted",
+          "lifecycle: done",
+        ),
+        "invalid-yaml.promises.yaml": "id: [",
       });
-    } finally {
-      await workspace.cleanup();
-    }
-  });
+
+      try {
+        await expect(Effect.runPromise(loadPromiseRecords(workspace.root))).rejects.toMatchObject({
+          _tag: "PromiseRecordLoadErrors",
+          errors: expect.arrayContaining([
+            expect.objectContaining({ _tag: "PromiseSchemaDecodeError" }),
+            expect.objectContaining({ _tag: "PromiseYamlParseError" }),
+          ]),
+        });
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
 
   scenarioTest(
     "harness.validation.rejects_unreadable_promises",
     "warns when an accepted promise is missing review approval metadata",
     async () => {
       const workspace = await withTempWorkspace({
-        "missing-review.promise.yaml": validPromiseYaml.replace("  approvedBy: xinyao\n", ""),
+        "missing-review.promises.yaml": wrapPromisesFile([
+          validPromiseRecordYaml.replace("  approvedBy: xinyao\n", ""),
+        ]),
       });
 
       try {
@@ -364,104 +385,371 @@ review:
       }
     },
   );
+
+  scenarioTest(
+    "harness.promise.canonical_file_is_grouped",
+    "ignores legacy single-record .promise.yaml files",
+    async () => {
+      const workspace = await withTempWorkspace({
+        "legacy.promise.yaml": validPromiseRecordYaml,
+      });
+
+      try {
+        const records = await Effect.runPromise(loadPromiseRecords(workspace.root));
+        expect(records).toEqual([]);
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
+
+  scenarioTest(
+    "harness.promise.canonical_file_is_grouped",
+    "rejects grouped wrappers with an empty promises array",
+    async () => {
+      const workspace = await withTempWorkspace({
+        "empty.promises.yaml": "apiVersion: 1\npromises: []\n",
+      });
+
+      try {
+        await expect(Effect.runPromise(loadPromiseRecords(workspace.root))).rejects.toMatchObject({
+          _tag: "PromiseRecordLoadErrors",
+          errors: [expect.objectContaining({ _tag: "PromisesFileSchemaDecodeError" })],
+        });
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
+
+  scenarioTest(
+    "harness.promise_registry.surfaces_per_record_decode_errors",
+    "surfaces every per-record decode error in one pass with file path and index",
+    async () => {
+      const badLifecycle = validPromiseRecordYaml
+        .replace(
+          "id: harness.promise_registry.load_canonical_yaml_promises",
+          "id: harness.test.bad_lifecycle",
+        )
+        .replace("lifecycle: accepted", "lifecycle: done");
+      const badId = validPromiseRecordYaml.replace(
+        "harness.promise_registry.load_canonical_yaml_promises",
+        "Harness.Bad Id",
+      );
+
+      const workspace = await withTempWorkspace({
+        "mixed.promises.yaml": wrapPromisesFile([validPromiseRecordYaml, badLifecycle, badId]),
+      });
+
+      try {
+        await expect(Effect.runPromise(loadPromiseRecords(workspace.root))).rejects.toMatchObject({
+          _tag: "PromiseRecordLoadErrors",
+          errors: expect.arrayContaining([
+            expect.objectContaining({ _tag: "PromiseSchemaDecodeError", index: 1 }),
+            expect.objectContaining({ _tag: "PromiseSchemaDecodeError", index: 2 }),
+          ]),
+        });
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
+
+  scenarioTest(
+    "harness.promise.schema_supports_example_variants",
+    "accepts a non-empty examples table where each row carries a name and string-valued columns",
+    async () => {
+      const recordWithExamples = validPromiseRecordYaml.replace(
+        "failureMeaning:",
+        `examples:
+  - { name: "uppercase host", input: "Foo@BAR.com", expected: "foo@bar.com" }
+  - { name: "leading whitespace", input: "  a@b.com  ", expected: "a@b.com" }
+failureMeaning:`,
+      );
+      const workspace = await withTempWorkspace({
+        "examples.promises.yaml": wrapPromisesFile([recordWithExamples]),
+      });
+
+      try {
+        const records = await Effect.runPromise(loadPromiseRecords(workspace.root));
+        expect(records).toHaveLength(1);
+        expect(records[0]?.examples).toEqual([
+          { expected: "foo@bar.com", input: "Foo@BAR.com", name: "uppercase host" },
+          { expected: "a@b.com", input: "  a@b.com  ", name: "leading whitespace" },
+        ]);
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
+
+  scenarioTest(
+    "harness.promise.schema_supports_example_variants",
+    "rejects an empty examples array at decode time",
+    async () => {
+      const recordWithEmptyExamples = validPromiseRecordYaml.replace(
+        "failureMeaning:",
+        `examples: []
+failureMeaning:`,
+      );
+      const workspace = await withTempWorkspace({
+        "empty-examples.promises.yaml": wrapPromisesFile([recordWithEmptyExamples]),
+      });
+
+      try {
+        await expect(Effect.runPromise(loadPromiseRecords(workspace.root))).rejects.toMatchObject({
+          _tag: "PromiseRecordLoadErrors",
+          errors: [expect.objectContaining({ _tag: "PromiseSchemaDecodeError" })],
+        });
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
+
+  scenarioTest(
+    "harness.promise.schema_supports_example_variants",
+    "rejects example rows missing the required name key at decode time",
+    async () => {
+      const recordWithNamelessRow = validPromiseRecordYaml.replace(
+        "failureMeaning:",
+        `examples:
+  - { input: "x", expected: "y" }
+failureMeaning:`,
+      );
+      const workspace = await withTempWorkspace({
+        "nameless.promises.yaml": wrapPromisesFile([recordWithNamelessRow]),
+      });
+
+      try {
+        await expect(Effect.runPromise(loadPromiseRecords(workspace.root))).rejects.toMatchObject({
+          _tag: "PromiseRecordLoadErrors",
+          errors: [expect.objectContaining({ _tag: "PromiseSchemaDecodeError" })],
+        });
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
+
+  scenarioTest(
+    "harness.validation.checks_examples_table_shape",
+    "flags example rows whose name is blank",
+    async () => {
+      const recordWithBlankName = validPromiseRecordYaml.replace(
+        "failureMeaning:",
+        `examples:
+  - { name: "good", input: "x" }
+  - { name: "   ", input: "y" }
+failureMeaning:`,
+      );
+      const workspace = await withTempWorkspace({
+        "blank-name.promises.yaml": wrapPromisesFile([recordWithBlankName]),
+      });
+
+      try {
+        const records = await Effect.runPromise(loadPromiseRecords(workspace.root));
+        const issues = validatePromiseRecords(records);
+        expect(issues).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              code: "blank_example_row_name",
+              promiseId: "harness.promise_registry.load_canonical_yaml_promises",
+              severity: "error",
+            }),
+          ]),
+        );
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
+
+  scenarioTest(
+    "harness.validation.checks_examples_table_shape",
+    "flags example rows whose column set differs from the first row",
+    async () => {
+      const recordWithDifferingColumns = validPromiseRecordYaml.replace(
+        "failureMeaning:",
+        `examples:
+  - { name: "row-a", input: "x", expected: "y" }
+  - { name: "row-b", input: "z", output: "w" }
+failureMeaning:`,
+      );
+      const workspace = await withTempWorkspace({
+        "mismatch.promises.yaml": wrapPromisesFile([recordWithDifferingColumns]),
+      });
+
+      try {
+        const records = await Effect.runPromise(loadPromiseRecords(workspace.root));
+        const issues = validatePromiseRecords(records);
+        expect(issues).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              code: "inconsistent_example_columns",
+              promiseId: "harness.promise_registry.load_canonical_yaml_promises",
+              severity: "error",
+            }),
+          ]),
+        );
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
+
+  scenarioTest(
+    "harness.validation.checks_examples_table_shape",
+    "flags duplicate example row names within one promise",
+    async () => {
+      const recordWithDuplicateNames = validPromiseRecordYaml.replace(
+        "failureMeaning:",
+        `examples:
+  - { name: "shared", input: "x" }
+  - { name: "shared", input: "y" }
+failureMeaning:`,
+      );
+      const workspace = await withTempWorkspace({
+        "duplicate.promises.yaml": wrapPromisesFile([recordWithDuplicateNames]),
+      });
+
+      try {
+        const records = await Effect.runPromise(loadPromiseRecords(workspace.root));
+        const issues = validatePromiseRecords(records);
+        expect(issues).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              code: "duplicate_example_row_name",
+              promiseId: "harness.promise_registry.load_canonical_yaml_promises",
+              severity: "error",
+            }),
+          ]),
+        );
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
 });
 
 describe("scenario bindings", () => {
-  test("creates a scenario binding for a canonical promise id", async () => {
-    resetScenarioBindings();
-    const binding = await Effect.runPromise(
-      scenario({
-        evidence: ["promises/**/*.promise.yaml"],
-        id: "harness.promise_registry.load_canonical_yaml_promises",
-      }),
-    );
-
-    expect(binding).toEqual({
-      evidence: ["promises/**/*.promise.yaml"],
-      id: "harness.promise_registry.load_canonical_yaml_promises",
-    });
-  });
-
-  test("supports explicit scenario registries for isolated binding collection", async () => {
-    resetScenarioBindings();
-    const registry = createScenarioRegistry();
-
-    await Effect.runPromise(
-      scenario(
-        {
+  scenarioTest(
+    "harness.adapters.vitest.scenario_helper.binds_tests_to_canonical_promises",
+    "creates a scenario binding for a canonical promise id",
+    async () => {
+      resetScenarioBindings();
+      const binding = await Effect.runPromise(
+        scenario({
+          evidence: ["promises/**/*.promises.yaml"],
           id: "harness.promise_registry.load_canonical_yaml_promises",
-        },
-        { registry },
-      ),
-    );
+        }),
+      );
 
-    expect(registry.get()).toEqual([
-      { id: "harness.promise_registry.load_canonical_yaml_promises" },
-    ]);
-    expect(validateScenarioBindings([], registry.get())).toEqual([
-      expect.objectContaining({
-        code: "unknown_scenario_binding",
-      }),
-    ]);
-  });
+      expect(binding).toEqual({
+        evidence: ["promises/**/*.promises.yaml"],
+        id: "harness.promise_registry.load_canonical_yaml_promises",
+      });
+    },
+  );
 
-  test("fails with a typed error when scenario id is missing", async () => {
-    resetScenarioBindings();
-    await expect(Effect.runPromise(scenario({ evidence: ["x"] }))).rejects.toMatchObject({
-      _tag: "InvalidScenarioBindingError",
-    });
-  });
+  scenarioTest(
+    "harness.adapters.vitest.scenario_helper.binds_tests_to_canonical_promises",
+    "supports explicit scenario registries for isolated binding collection",
+    async () => {
+      resetScenarioBindings();
+      const registry = createScenarioRegistry();
 
-  test("reports scenario bindings that do not match canonical promises", async () => {
-    const workspace = await withTempWorkspace({
-      "promise-registry.promise.yaml": validPromiseYaml,
-    });
+      await Effect.runPromise(
+        scenario(
+          {
+            id: "harness.promise_registry.load_canonical_yaml_promises",
+          },
+          { registry },
+        ),
+      );
 
-    try {
-      const records = await Effect.runPromise(loadPromiseRecords(workspace.root));
-      const issues = validateScenarioBindings(records, [{ id: "unknown.promise" }]);
-      expect(issues).toEqual([
+      expect(registry.get()).toEqual([
+        { id: "harness.promise_registry.load_canonical_yaml_promises" },
+      ]);
+      expect(validateScenarioBindings([], registry.get())).toEqual([
         expect.objectContaining({
           code: "unknown_scenario_binding",
-          severity: "error",
         }),
       ]);
-    } finally {
-      await workspace.cleanup();
-    }
-  });
+    },
+  );
+
+  scenarioTest(
+    "harness.adapters.vitest.scenario_helper.binds_tests_to_canonical_promises",
+    "fails with a typed error when scenario id is missing",
+    async () => {
+      resetScenarioBindings();
+      await expect(Effect.runPromise(scenario({ evidence: ["x"] }))).rejects.toMatchObject({
+        _tag: "InvalidScenarioBindingError",
+      });
+    },
+  );
+
+  scenarioTest(
+    "harness.validation.flags_unknown_scenario_bindings",
+    "reports scenario bindings that do not match canonical promises",
+    async () => {
+      const workspace = await withTempWorkspace({
+        "promise-registry.promises.yaml": validPromiseYaml,
+      });
+
+      try {
+        const records = await Effect.runPromise(loadPromiseRecords(workspace.root));
+        const issues = validateScenarioBindings(records, [{ id: "unknown.promise" }]);
+        expect(issues).toEqual([
+          expect.objectContaining({
+            code: "unknown_scenario_binding",
+            severity: "error",
+          }),
+        ]);
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
 });
 
 describe("seed reports", () => {
-  test("renders a readable report grouped by feature and promise", async () => {
-    const workspace = await withTempWorkspace({
-      "promise-registry.promise.yaml": validPromiseYaml,
-    });
+  scenarioTest(
+    "harness.cli.report_renders_promise_status",
+    "renders a readable report grouped by feature and promise",
+    async () => {
+      const workspace = await withTempWorkspace({
+        "promise-registry.promises.yaml": validPromiseYaml,
+      });
 
-    try {
-      const records = await Effect.runPromise(loadPromiseRecords(workspace.root));
-      const issues = validatePromiseRecords(records);
-      const report = generateSeedReport(records, issues);
-      const markdown = renderSeedReportMarkdown(report);
+      try {
+        const records = await Effect.runPromise(loadPromiseRecords(workspace.root));
+        const issues = validatePromiseRecords(records);
+        const report = generateSeedReport(records, issues);
+        const markdown = renderSeedReportMarkdown(report);
 
-      expect(markdown).toContain("Seed Harness Report");
-      expect(markdown).toContain("Feature: Seed Harness / Promise Registry");
-      expect(markdown).toContain("Purpose: Protect the seed Harness's reviewed behavior promises.");
-      expect(markdown).toContain("Given:");
-      expect(markdown).toContain("Then:");
-      expect(markdown).toContain("Lifecycle: accepted");
-      expect(markdown).toContain("Run Status: unknown");
-    } finally {
-      await workspace.cleanup();
-    }
-  });
+        expect(markdown).toContain("Seed Harness Report");
+        expect(markdown).toContain("Feature: Seed Harness / Promise Registry");
+        expect(markdown).toContain(
+          "Purpose: Protect the seed Harness's reviewed behavior promises.",
+        );
+        expect(markdown).toContain("Given:");
+        expect(markdown).toContain("Then:");
+        expect(markdown).toContain("Lifecycle: accepted");
+        expect(markdown).toContain("Run Status: unknown");
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
 
   scenarioTest(
     "harness.report.renders_in_requested_language",
     "renders localized promise text when a report language is requested",
     async () => {
       const workspace = await withTempWorkspace({
-        "promise-registry.promise.yaml": validPromiseYaml,
+        "promise-registry.promises.yaml": validPromiseYaml,
       });
 
       try {
@@ -523,12 +811,19 @@ describe("test results", () => {
     "keeps protocol schema files outside the TypeScript implementation packages",
     async () => {
       const files = await Promise.all(
-        ["promise.schema.yaml", "results.schema.yaml", "report.schema.yaml", "cli.yaml"].map(
-          (name) => readFile(join(process.cwd(), "protocol", "v1", name), "utf8"),
-        ),
+        [
+          "promise.schema.yaml",
+          "promises-file.schema.yaml",
+          "results.schema.yaml",
+          "report.schema.yaml",
+          "cli.yaml",
+        ].map((name) => readFile(join(process.cwd(), "protocol", "v1", name), "utf8")),
       );
 
-      for (const content of files) {
+      const apiVersionBearingFiles = files.filter(
+        (_, index) => index !== 0, // promise.schema.yaml is the per-record schema; apiVersion lives at the wrapper level
+      );
+      for (const content of apiVersionBearingFiles) {
         expect(content).toContain("apiVersion");
       }
       expect(files.join("\n")).toContain("const: 1");
@@ -536,15 +831,19 @@ describe("test results", () => {
     },
   );
 
-  test("returns no test results when the result file does not exist", async () => {
-    const workspace = await withTempRoot();
+  scenarioTest(
+    "harness.results.schema_defines_required_fields",
+    "returns no test results when the result file does not exist",
+    async () => {
+      const workspace = await withTempRoot();
 
-    try {
-      await expect(Effect.runPromise(loadTestResults(workspace.root))).resolves.toEqual([]);
-    } finally {
-      await workspace.cleanup();
-    }
-  });
+      try {
+        await expect(Effect.runPromise(loadTestResults(workspace.root))).resolves.toEqual([]);
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
 
   scenarioTest(
     "harness.protocol.results_are_versioned_adapter_outputs",
@@ -612,7 +911,7 @@ results:
     "renders collected result status in reports",
     async () => {
       const workspace = await withTempWorkspace({
-        "promise-registry.promise.yaml": validPromiseYaml,
+        "promise-registry.promises.yaml": validPromiseYaml,
       });
 
       try {
@@ -641,7 +940,7 @@ results:
     "flags implemented promises without collected test results",
     async () => {
       const workspace = await withTempWorkspace({
-        "promise-registry.promise.yaml": validPromiseYaml.replace(
+        "promise-registry.promises.yaml": validPromiseYaml.replace(
           "lifecycle: accepted",
           "lifecycle: implemented",
         ),
@@ -663,25 +962,29 @@ results:
     },
   );
 
-  test("does not flag accepted promises that are still waiting for implementation", async () => {
-    const workspace = await withTempWorkspace({
-      "promise-registry.promise.yaml": validPromiseYaml,
-    });
+  scenarioTest(
+    "harness.validation.flags_promises_without_test_results",
+    "does not flag accepted promises that are still waiting for implementation",
+    async () => {
+      const workspace = await withTempWorkspace({
+        "promise-registry.promises.yaml": validPromiseYaml,
+      });
 
-    try {
-      const records = await Effect.runPromise(loadPromiseRecords(workspace.root));
-      expect(validateTestResults(records, [])).toEqual([]);
-    } finally {
-      await workspace.cleanup();
-    }
-  });
+      try {
+        const records = await Effect.runPromise(loadPromiseRecords(workspace.root));
+        expect(validateTestResults(records, [])).toEqual([]);
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
 
   scenarioTest(
     "harness.validation.flags_promises_without_test_results",
     "reports result bindings that do not match canonical promises",
     async () => {
       const workspace = await withTempWorkspace({
-        "promise-registry.promise.yaml": validPromiseYaml,
+        "promise-registry.promises.yaml": validPromiseYaml,
       });
 
       try {
@@ -907,7 +1210,7 @@ describe("scenario binding validation", () => {
     "flags scenario bindings whose id does not match any canonical promise",
     async () => {
       const workspace = await withTempWorkspace({
-        "promise-registry.promise.yaml": validPromiseYaml,
+        "promise-registry.promises.yaml": validPromiseYaml,
       });
 
       try {
@@ -947,7 +1250,6 @@ describe("default-language coverage validation", () => {
     "warns when a localized field has no default-language (en) text",
     () => {
       const record: PromiseRecord = {
-        apiVersion: 1,
         boundary: "unit",
         failureMeaning: "fallback",
         feature: "Test",
@@ -958,6 +1260,7 @@ describe("default-language coverage validation", () => {
         priority: "P0",
         purpose: "purpose",
         review: {},
+        // oxlint-disable-next-line unicorn/no-thenable -- Given / When / Then is project vocabulary.
         then: ["something"],
         title: { "zh-CN": "仅中文标题" },
         when: ["something"],

@@ -1,0 +1,36 @@
+apiVersion: 1
+promises:
+  - id: harness.module_registry.load_canonical_yaml_modules
+    feature: Seed Harness / Module Registry
+    title:
+      en: Canonical modules are loaded from YAML files
+      zh-CN: Canonical modules 会从 YAML 文件加载
+    purpose:
+      en: Protect the seed Harness's module layer so coverage validation and any module-aware tooling have stable inputs.
+      zh-CN: 保护 seed Harness 的 module 层，让覆盖率校验和未来所有 module-aware 工具都有稳定的输入。
+    priority: P0
+    boundary: unit
+    lifecycle: proposed
+
+    given:
+      - en: A project root contains `modules/*.module.yaml` files
+        zh-CN: 项目根目录下存在 `modules/*.module.yaml` 文件
+    when:
+      - en: The seed Harness loads modules during a check or report run
+        zh-CN: seed Harness 在 check 或 report 运行时加载 modules
+    then:
+      - en: Every module file is decoded through the versioned ModuleRecord schema
+        zh-CN: 每个 module 文件都通过版本化的 ModuleRecord schema 解码
+      - en: Files with malformed shape are rejected as load errors aggregated into ModuleRecordLoadErrors
+        zh-CN: 形态不合法的文件会被拒绝，错误会聚合到 ModuleRecordLoadErrors 中
+      - en: Successfully loaded modules expose `id`, `title`, `summary`, `purpose`, `promises[]`, and `covers[]` to the rest of the Harness
+        zh-CN: 加载成功的 modules 把 `id`、`title`、`summary`、`purpose`、`promises[]` 和 `covers[]` 暴露给 Harness 其它部分
+    observes:
+      - packages/core/src/module-registry.ts
+      - modules/*.module.yaml
+
+    failureMeaning:
+      en: Coverage validation and any future module-aware feature has no stable input — modules become inert YAML files.
+      zh-CN: 覆盖率校验和未来所有 module-aware 功能都失去稳定输入 —— modules 退化为惰性 YAML 文件。
+
+    review: {}

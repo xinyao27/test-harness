@@ -1,4 +1,3 @@
-apiVersion: 1
 id: harness.fixture.empty_given
 feature: Harness Fixtures / Promise
 title: Empty Given is invalid

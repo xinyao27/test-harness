@@ -1,0 +1,105 @@
+apiVersion: 1
+promises:
+  - id: harness.adapters.vitest.result_collector.writes_results_to_explicit_harness_root
+    feature: Adapters / Vitest / Result Collector
+    title:
+      en: The result collector writes results under the explicit Harness root
+      zh-CN: result collector 会把结果写到明确的 Harness root 下
+    purpose:
+      en: Protect workspace-level protocol results from being written into package subdirectories.
+      zh-CN: 保护 workspace-level protocol results，避免 result files 被写进 package 子目录。
+    priority: P0
+    boundary: integration
+    lifecycle: accepted
+
+    given:
+      - en: The Harness root is provided through HARNESS_ROOT_DIR
+        zh-CN: Harness root 通过 HARNESS_ROOT_DIR 提供
+    when:
+      - en: The Vitest reporter persists collected promise results
+        zh-CN: Vitest reporter 持久化收集到的 promise results
+    then:
+      - en: The result file is written relative to the explicit Harness root
+        zh-CN: result file 会相对明确的 Harness root 写入
+      - en: The reporter falls back to the test process cwd only when no explicit root is provided
+        zh-CN: 只有没有提供明确 root 时，reporter 才 fallback 到 test process cwd
+    observes:
+      - .harness/results.yaml
+      - HARNESS_ROOT_DIR
+      - packages/adapter-vitest/src/reporter.ts
+
+    failureMeaning:
+      en: The CLI may read one result file while Vitest writes another, making the self-report untrustworthy.
+      zh-CN: CLI 可能读取一个 result file，而 Vitest 写入另一个，导致 self-report 不可信。
+
+    review:
+      approvedBy: xinyao
+      approvedAt: "2026-05-24"
+  - id: harness.adapters.vitest.result_collector.maps_results_to_promises
+    feature: Adapters / Vitest / Result Collector
+    title:
+      en: Vitest results are mapped into Harness protocol results
+      zh-CN: Vitest 结果会映射成 Harness protocol results
+    purpose:
+      en: Protect the adapter contract so executable Vitest outcomes can update reviewed promise status through the stable result protocol.
+      zh-CN: 保护 adapter contract，让可执行 Vitest 结果可以通过稳定的 result protocol 更新已 review promise 的状态。
+    priority: P0
+    boundary: unit
+    lifecycle: accepted
+
+    given:
+      - en: A Vitest test is bound to a canonical promise id
+        zh-CN: 一个 Vitest 测试绑定到 canonical promise id
+    when:
+      - en: The Harness result collector reads Vitest task metadata
+        zh-CN: Harness result collector 读取 Vitest task metadata
+    then:
+      - en: The collected result is persisted to .harness/results.yaml
+        zh-CN: 收集到的结果会持久化到 .harness/results.yaml
+      - en: The report uses that result to derive the promise run status
+        zh-CN: report 会使用该结果推导 promise run status
+    observes:
+      - .harness/results.yaml
+      - packages/adapter-vitest/src/reporter.ts
+
+    failureMeaning:
+      en: The Harness cannot show whether reviewed promises are currently backed by passing tests.
+      zh-CN: Harness 无法展示已 review 的 promises 当前是否由通过的测试支撑。
+
+    review:
+      approvedBy: xinyao
+      approvedAt: "2026-05-24"
+  - id: harness.adapters.vitest.scenario_helper.binds_tests_to_canonical_promises
+    feature: Adapters / Vitest / Scenario Helper
+    title:
+      en: Vitest tests can bind to canonical promises
+      zh-CN: Vitest 测试可以绑定到 canonical promises
+    purpose:
+      en: Protect the Vitest adapter so tests can stay attached to reviewed protocol promise ids.
+      zh-CN: 保护 Vitest adapter，让测试可以稳定绑定到已 review 的 protocol promise id。
+    priority: P0
+    boundary: unit
+    lifecycle: accepted
+
+    given:
+      - en: A canonical promise exists under the promises root
+        zh-CN: promises/ 目录下存在一条 canonical promise
+    when:
+      - en: A Vitest test calls scenario with that promise id
+        zh-CN: Vitest 测试使用这个 promise id 调用 scenario
+    then:
+      - en: The scenario helper returns a ScenarioBinding
+        zh-CN: scenario helper 返回一个 ScenarioBinding
+      - en: The binding keeps the promise id stable
+        zh-CN: 该 binding 会保持 promise id 稳定
+    observes:
+      - packages/adapter-vitest/src/index.ts
+      - packages/core/src/scenario.ts
+
+    failureMeaning:
+      en: The Harness cannot connect executable tests back to reviewed promises.
+      zh-CN: Harness 无法把可执行测试连接回已 review 的 promises。
+
+    review:
+      approvedBy: xinyao
+      approvedAt: "2026-05-24"

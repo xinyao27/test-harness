@@ -4,7 +4,7 @@ commands:
   check:
     purpose: Validate canonical promise YAML files, module YAML files (including module-level source-file coverage), and in-process scenario bindings.
     reads:
-      - promises/**/*.promise.yaml
+      - promises/**/*.promises.yaml
       - modules/**/*.module.yaml
       - packages/**
       - apps/**
@@ -13,7 +13,7 @@ commands:
   report:
     purpose: Render a human-readable report from canonical promises, modules, and optional result YAML.
     reads:
-      - promises/**/*.promise.yaml
+      - promises/**/*.promises.yaml
       - modules/**/*.module.yaml
       - packages/**
       - apps/**
@@ -23,7 +23,7 @@ commands:
   verify:
     purpose: Alias the report path for human verification.
     reads:
-      - promises/**/*.promise.yaml
+      - promises/**/*.promises.yaml
       - modules/**/*.module.yaml
       - packages/**
       - apps/**
@@ -33,7 +33,7 @@ commands:
   test:
     purpose: Run a configured adapter command, require Harness result YAML when the adapter succeeds, and render the report.
     reads:
-      - promises/**/*.promise.yaml
+      - promises/**/*.promises.yaml
       - modules/**/*.module.yaml
       - packages/**
       - apps/**

@@ -48,10 +48,16 @@ export const PromiseReviewSchema = Schema.Struct({
   notes: Schema.optionalKey(Schema.String),
 });
 
+export const PromiseExampleRowSchema = Schema.StructWithRest(
+  Schema.Struct({ name: Schema.String }),
+  [Schema.Record(Schema.String, Schema.String)],
+);
+const PromiseExamplesArraySchema = Schema.Array(PromiseExampleRowSchema).check(Schema.isNonEmpty());
+
 export const PromiseRecordSchema = Schema.Struct({
-  apiVersion: HarnessProtocolVersionSchema,
   boundary: PromiseBoundarySchema,
   deprecatedBy: Schema.optionalKey(Schema.String),
+  examples: Schema.optionalKey(PromiseExamplesArraySchema),
   failureMeaning: LocalizedTextSchema,
   feature: Schema.String,
   given: LocalizedTextArraySchema,
@@ -66,6 +72,11 @@ export const PromiseRecordSchema = Schema.Struct({
   then: LocalizedTextArraySchema,
   title: LocalizedTextSchema,
   when: LocalizedTextArraySchema,
+});
+
+export const PromisesFileSchema = Schema.Struct({
+  apiVersion: HarnessProtocolVersionSchema,
+  promises: Schema.Array(PromiseRecordSchema).check(Schema.isNonEmpty()),
 });
 
 export const ModuleRecordSchema = Schema.Struct({
@@ -128,7 +139,9 @@ export const SeedReportSchema = Schema.Struct({
 export type FeatureReport = Schema.Schema.Type<typeof FeatureReportSchema>;
 export type LocalizedText = Schema.Schema.Type<typeof LocalizedTextSchema>;
 export type ModuleRecord = Schema.Schema.Type<typeof ModuleRecordSchema>;
+export type PromiseExampleRow = Schema.Schema.Type<typeof PromiseExampleRowSchema>;
 export type PromiseRecord = Schema.Schema.Type<typeof PromiseRecordSchema>;
+export type PromisesFile = Schema.Schema.Type<typeof PromisesFileSchema>;
 export type PromiseReportItem = Schema.Schema.Type<typeof PromiseReportItemSchema>;
 export type PromiseRunStatus = Schema.Schema.Type<typeof PromiseRunStatusSchema>;
 export type ScenarioBinding = Schema.Schema.Type<typeof ScenarioBindingSchema>;

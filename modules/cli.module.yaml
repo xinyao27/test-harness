@@ -11,6 +11,7 @@ purpose:
   zh-CN: CLI 是 seed loop 的用户界面 — 如果人类不打开源代码就拿不到可读的 promise status，那么"review promises，而不是 review code"这个前提就站不住脚。
 promises:
   - harness.cli.check_validates_promises
+  - harness.cli.rejects_invalid_arguments_with_usage_hint
   - harness.cli.report_renders_promise_status
   - harness.cli.report_summary_lists_promises_compactly
   - harness.cli.test_orchestrates_adapter_and_verify

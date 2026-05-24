@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { Effect } from "effect";
-import { describe, expect, test } from "vite-plus/test";
+import { describe, expect } from "vite-plus/test";
 
 import { scenarioTest } from "../../../packages/adapter-vitest/src/index.ts";
 import { createTestResultsFile, writeTestResultsFile } from "../../../packages/core/src/index.ts";
@@ -16,7 +16,7 @@ const withTempWorkspace = async (content: string) => {
   const root = await mkdtemp(join(tmpdir(), "seed-harness-cli-"));
   await mkdir(join(root, "promises", "promise-registry"), { recursive: true });
   await writeFile(
-    join(root, "promises", "promise-registry", "promise-registry.promise.yaml"),
+    join(root, "promises", "promise-registry", "promise-registry.promises.yaml"),
     content,
   );
   return {
@@ -359,7 +359,7 @@ results:
         )
         .replace("feature: Seed Harness / Promise Registry", "feature: Adapters / Vitest");
       await writeFile(
-        join(workspace.root, "promises", "promise-registry", "second.promise.yaml"),
+        join(workspace.root, "promises", "promise-registry", "second.promises.yaml"),
         secondPromise,
       );
 
@@ -434,16 +434,20 @@ results:
     },
   );
 
-  test("fails when --lang is missing a language value", async () => {
-    const workspace = await withTempWorkspace(validPromiseYaml);
+  scenarioTest(
+    "harness.cli.rejects_invalid_arguments_with_usage_hint",
+    "fails when --lang is missing a language value",
+    async () => {
+      const workspace = await withTempWorkspace(validPromiseYaml);
 
-    try {
-      const result = await run(["verify", "--lang"], workspace.root);
-      expect(result.exitCode).toBe(1);
-      expect(result.stderr).toContain("--lang requires a language value.");
-      expect(result.stderr).toContain("Usage: harness");
-    } finally {
-      await workspace.cleanup();
-    }
-  });
+      try {
+        const result = await run(["verify", "--lang"], workspace.root);
+        expect(result.exitCode).toBe(1);
+        expect(result.stderr).toContain("--lang requires a language value.");
+        expect(result.stderr).toContain("Usage: harness");
+      } finally {
+        await workspace.cleanup();
+      }
+    },
+  );
 });

@@ -13,11 +13,20 @@ export class PromiseYamlParseError extends Data.TaggedError("PromiseYamlParseErr
 export class PromiseSchemaDecodeError extends Data.TaggedError("PromiseSchemaDecodeError")<{
   readonly cause: unknown;
   readonly path: string;
+  readonly index: number;
+}> {}
+
+export class PromisesFileSchemaDecodeError extends Data.TaggedError(
+  "PromisesFileSchemaDecodeError",
+)<{
+  readonly cause: unknown;
+  readonly path: string;
 }> {}
 
 export type PromiseRecordLoadError =
   | PromiseFileReadError
   | PromiseYamlParseError
+  | PromisesFileSchemaDecodeError
   | PromiseSchemaDecodeError;
 
 export class PromiseRecordLoadErrors extends Data.TaggedError("PromiseRecordLoadErrors")<{
