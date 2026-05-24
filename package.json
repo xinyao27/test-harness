@@ -1,0 +1,39 @@
+{
+  "name": "test-harness",
+  "version": "0.0.0",
+  "private": true,
+  "homepage": "https://github.com/xinyao27/test-harness#readme",
+  "bugs": {
+    "url": "https://github.com/xinyao27/test-harness/issues"
+  },
+  "license": "MIT",
+  "author": {
+    "name": "xinyao",
+    "email": "hi@xinyao.me"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xinyao27/test-harness.git"
+  },
+  "funding": "https://github.com/sponsors/xinyao27",
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm run build && pnpm -r --parallel run dev",
+    "build": "vp run --filter './packages/*' build",
+    "check": "vp check --fix",
+    "lint": "vp lint --fix",
+    "fmt": "vp fmt",
+    "test": "vp test",
+    "ready": "vp check && vp run -r test && vp run -r build",
+    "up": "taze major -Ir",
+    "prepare": "vp config"
+  },
+  "devDependencies": {
+    "taze": "latest",
+    "vite-plus": "catalog:"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "packageManager": "pnpm@11.2.2"
+}

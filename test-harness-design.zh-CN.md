@@ -1,0 +1,528 @@
+# Test Harness 设计
+
+> 状态：设计草案 v2
+> 目标：构建一套 Vitest-first、promise-driven 的 Test Harness，让人类 review 行为承诺，让 Agent 实现满足这些承诺的代码。
+
+## 文档约定
+
+项目文档默认使用英文。每一份英文 Markdown 文档都必须有对应的中文翻译，使用相同基础文件名并添加 `.zh-CN.md` 后缀。
+
+示例：
+
+```text
+test-harness-design.md
+test-harness-design.zh-CN.md
+```
+
+## 一、这是什么
+
+这个项目是一个构建在 Vitest 之上的 **承诺驱动 Test Harness**。
+
+它不是要替代 Vitest。Vitest 已经很好地解决了 test discovery、test running、failure display、reporters、projects、Browser Mode、coverage 和 Node API。
+
+这套 Harness 增加的是 Vitest 没有提供的那一层：
+
+- 人类可读的行为承诺
+- 承诺 review 和批准
+- 承诺生命周期历史
+- Agent 写测试的质量规则
+- promise drift 和 evidence drift 检测
+- 测试结果和证据映射回 promise
+- 支持持续承诺迭代的 UX
+
+核心思想：
+
+```text
+人类 review promises。
+Agent 编写测试和实现。
+Vitest 运行可执行检查。
+Harness 把结果映射回已批准的 promises。
+```
+
+## 二、架构一览
+
+```text
+Human + Agent
+  -> 讨论 feature 意图
+  -> 草拟行为承诺
+
+Promise Workspace
+  -> review / approve / request changes
+  -> 跟踪生命周期和 drift
+
+Promise Registry
+  -> 存储 promises、review 状态、历史、drift records
+
+Vitest Tests
+  -> 把 promises 编码成可执行证据
+  -> 使用 scenario bindings
+
+Vitest Runner / UI / Reporters
+  -> 运行测试、browser checks、coverage、reports
+
+Result + Evidence Collector
+  -> 收集 pass/fail、logs、screenshots、DOM/state/file evidence
+
+Analyzer
+  -> 生成 feature map、promise map、evidence coverage、risk map
+
+Promise Review Console
+  -> 展示 promises、review queues、drift、evidence、failures、run history
+```
+
+Vitest 负责执行。Harness 负责承诺语义。
+
+## 三、开发流程
+
+1. 人类和 Agent 讨论一个 feature。
+2. Agent 草拟这个 feature 的行为承诺。
+3. 人类 review promises，而不是实现代码。
+4. 被批准的 promises 变成稳定的行为约定。
+5. Agent 编写 Vitest tests 和实现逻辑。
+6. Vitest 运行检查。
+7. Harness 把测试结果和证据映射回 promise ids。
+8. 未来修改通过 review 来更新、拆分、合并或废弃 promises。
+9. Promise drift 和 evidence drift 都必须显式提醒人类。
+
+目标是：人主要 review **系统承诺什么**，Agent 负责 **代码如何满足这些承诺**。
+
+## 四、自举策略
+
+这套 Harness 应该尽早开始使用自己来构建自己。
+
+第一版实现应该是一个很小的 **seed Harness**，而不是完整最终系统。它的任务是让项目具备自托管能力：
+
+```text
+Seed Harness
+  -> 存储这套 Harness 项目自己的 promises
+  -> 给 Vitest tests 附加 scenario bindings
+  -> 运行 Vitest
+  -> 按 promise id 收集结果
+  -> 检查基础可读性和 evidence 规则
+  -> 报告哪些 Harness promises 通过、失败或需要 review
+```
+
+当 seed 存在之后，Harness 的每个主要部分都应该通过“关于 Harness 自身的 promises”来开发：
+
+```text
+构建最小 Harness 能力
+  -> 为下一个 Harness 能力写 promises
+  -> review 这些 promises
+  -> 实现 tests 和逻辑
+  -> 用 Harness 运行并验证 Harness 自身
+  -> 用 failures 和 drift records 指导下一轮迭代
+```
+
+详细 MVP 方案见 [mvp-seed-harness-design.zh-CN.md](mvp-seed-harness-design.zh-CN.md)。
+
+## 五、核心术语
+
+### 人类管理模型
+
+测试会随着时间变得很多。人类不应该通过直接阅读测试文件来管理系统。
+
+面向人类的可读管理层级是：
+
+```text
+Feature
+  -> Promise
+    -> Evidence
+      -> Vitest Tests
+```
+
+Feature 是导航入口。Promise 是 review 单位。Evidence 解释为什么这个 promise 仍然可信。Vitest tests 是底层可执行编码。
+
+默认 UX 应该汇总稳定绿色的 promises，只突出真正需要注意的东西：
+
+```text
+Needs Review
+Changed
+Drifted
+Failing
+Missing Evidence
+Weak Evidence
+P0 / P1
+```
+
+目标是让人先读到这种信息：
+
+```text
+Checkout / Payment
+
+P0  Successful payment marks order as paid
+    Status: passing
+    Evidence: order.status, success page UI, payment event
+
+P0  Failed payment preserves unpaid order
+    Status: failing
+    Failure meaning: user may think payment failed but order changed
+
+P1  Payment retry does not duplicate charge
+    Status: evidence drift
+    Missing evidence: charge id uniqueness no longer asserted
+```
+
+然后再决定是否进入测试实现细节。
+
+### Promise
+
+**Promise** 是一条人类可读的行为承诺。
+
+在代码和 schema 里，避免裸用 `Promise`，因为这是 Vitest / Node 项目，而 `Promise` 已经表示 JavaScript `Promise`。优先使用明确命名：
+
+```text
+BehaviorPromise
+PromiseRecord
+promiseId
+```
+
+示例：
+
+```text
+当支付成功时，订单进入 paid 状态，并且用户看到成功页面。
+```
+
+一个 promise 应该解释：
+
+- 保证什么行为
+- 为什么重要
+- priority
+- boundary
+- Given / When / Then 行为
+- 什么可观察证据能证明它
+- 失败意味着什么
+
+Promise files 是已 review 行为承诺的 canonical source of truth。Promise rename 不能静默编辑 id：应该创建新 id，并 deprecate 旧 id，这样历史仍然可读。
+
+Promise 状态应该拆分成 review lifecycle 和 computed run state：
+
+```ts
+type PromiseLifecycle =
+  | "proposed"
+  | "accepted"
+  | "implemented"
+  | "changed_requires_review"
+  | "deprecated";
+
+type PromiseRunStatus =
+  | "unknown"
+  | "passing"
+  | "failing"
+  | "skipped"
+  | "missing_evidence"
+  | "evidence_drifted";
+```
+
+`lifecycle` 持久化在 promise files 中。`runStatus` 由 collector 根据最新 Vitest run 和 evidence checks 计算。
+
+### Scenario
+
+**Scenario** 是测试侧 metadata，用来把可执行测试连接回 promises。
+
+`scenario(...)` 不是 canonical promise definition。它应该把 Vitest test 绑定到已有 `promiseId`。如果本地 metadata 和 canonical promise file 冲突，Harness 应该报告 drift 或 invalid metadata。
+
+最小 Vitest-side 形态：
+
+```ts
+scenario({
+  id: "checkout.payment.success_marks_order_paid",
+  evidence: ["orders.status", "success page UI"],
+});
+```
+
+完整 title、priority、boundary、Given / When / Then 和 review lifecycle 都存在 promise file 里。
+
+### Evidence
+
+**Evidence** 是证明 promise 被满足的证据。
+
+示例：
+
+- 返回值
+- 数据库记录
+- 文件内容
+- 发出的事件
+- 可见 UI 文案
+- DOM 状态
+- screenshot
+- log 或 trace
+- error type
+
+Harness 应该优先使用可观察证据，而不是只断言 mock 被调用。
+
+Promise file 里的 `observes` 是 expected evidence claim。Vitest assertions 是实际可执行证据。Harness 应该把每个重要 `observes` item 映射到至少一个 assertion、显式 evidence tag 或捕获到的 assertion fingerprint。
+
+### Promise Drift
+
+**Promise drift** 指 promise 本身发生了变化。
+
+它不一定是坏事。产品行为可以变化。但 promise drift 必须可见、可 review，因为它改变了系统声称要保证的东西。
+
+示例：
+
+```text
+旧承诺：
+当支付成功时，订单进入 paid 状态，并且用户看到成功页面。
+
+新承诺：
+当支付成功时，系统会处理订单。
+```
+
+这变弱了，因为它删除了精确的 paid 状态和用户可见的成功页面。
+
+常见 promise drift 信号：
+
+- priority 降级：`P0 -> P1`
+- boundary 变弱：`browser/e2e -> unit`
+- `then` 删除重要结果
+- `observes` 删除 UI、数据库、文件或状态证据
+- Given 范围变窄
+- 精确行为变成模糊描述
+- 用户可见行为消失
+- 错误处理或边界情况被删除
+
+每一次弱化 drift 都应该生成 drift record：
+
+```text
+old promise
+new promise
+drift type
+initiator: human / agent / tool
+reason
+timestamp
+human acknowledgement state
+```
+
+### Evidence Drift
+
+**Evidence drift** 指 promise 没有变化，但测试已经不能像以前那样证明它。
+
+示例 promise：
+
+```text
+当支付成功时，订单进入 paid 状态，并且用户看到成功页面。
+```
+
+旧证据：
+
+```ts
+expect(order.status).toBe("paid");
+expect(screen.getByText("Payment successful")).toBeVisible();
+```
+
+新证据：
+
+```ts
+expect(payOrder()).resolves.toBeDefined();
+```
+
+测试可能仍然通过，但它已经不能证明订单变成 paid，也不能证明用户看到了成功页面。
+
+常见 evidence drift 信号：
+
+- 精确断言变宽松：`toBe("paid") -> toBeDefined()`
+- 状态断言被删除
+- UI 断言被删除
+- 数据库、文件、事件断言被删除
+- 测试只断言 mock 被调用
+- 被测业务逻辑被 mock，而不是只 mock 外部 IO
+- 测试变成 `skip`、`todo` 或不可达
+- 测试 boundary 未经 review 变弱
+- `observes` 里的证据不再被断言
+
+Evidence drift 应该生成 evidence delta：
+
+```text
+evidence added
+evidence removed
+evidence weakened
+evidence changed
+promises affected
+tests affected
+requires human review: yes / no
+```
+
+Seed Harness 应该用 deterministic 的方式实现 Evidence Drift v1：为每个 scenario 记录 assertion fingerprint。
+
+```text
+matcher names
+asserted symbols
+asserted literals
+observed targets
+explicit evidence tags
+```
+
+示例 fingerprint：
+
+```text
+scenario: checkout.payment.success_marks_order_paid
+assertions:
+  - target: order.status
+    matcher: toBe
+    literal: paid
+  - target: screen.getByText
+    matcher: toBeVisible
+    literal: Payment successful
+```
+
+当 fingerprint 变化时，即使还没有 AI drift classification，Harness 也可以先展示 evidence delta。
+
+简单区分：
+
+```text
+Promise drift:
+  目标变了。
+
+Evidence drift:
+  目标没变，但证明变弱了。
+```
+
+## 六、Vitest-First 设计
+
+使用 Vitest 负责：
+
+- test discovery
+- test execution
+- watch and run mode
+- assertions and matchers
+- mocks and fixtures
+- test projects
+- Browser Mode
+- reporters
+- coverage
+- UI
+- Node API
+
+使用 Harness 负责：
+
+- promise metadata
+- human review state
+- promise lifecycle history
+- promise drift records
+- evidence mapping
+- evidence drift detection
+- quality checks
+- 按 promise id 归一化结果
+- feature 和 risk maps
+- Promise Review Console UX
+
+## 七、可读性和可管理性规则
+
+Harness 必须通过改变管理单位来让测试可读：人管理 promises，而不是测试文件。
+
+规则：
+
+1. 人类按 feature 导航，而不是按文件路径导航。
+2. 人类先 review promises，而不是先 review 测试实现。
+3. Promise card 默认只展示 title、priority、boundary、lifecycle、run status、Given / When / Then、observable evidence 和 failure meaning。
+4. 测试代码作为 drill-down 细节存在，不作为第一屏。
+5. 稳定通过的 promises 只做汇总；review 注意力集中在 changed、failing、drifted、weak 或 missing-evidence promises。
+6. 每个 promise 都必须映射到 observable evidence。
+7. 每个重要 evidence item 都应该映射到一个或多个 Vitest assertions。
+8. Checker 必须拒绝不可读或不可管理的测试，包括模糊名称、缺少 purpose、缺少 Given / When / Then、缺少 observes，以及 adapter boundary 之外的 mock-call-only assertions。
+9. Promise files 是 canonical；测试里的 scenario bindings 不能静默重新定义已 review 的 promise meaning。
+10. Change view 应展示从上一次 review 以来新增的 promises、删除的 promises、rename 的 promises、弱化的 promises、被删除的 evidence，以及失败的已接受 promises。
+11. UI badge 必须明确区分 Promise Drift 和 Evidence Drift，不能只写 Drift。
+
+这样即使测试数量增长，系统仍然可以被人类管理。
+
+## 八、Harness Pass
+
+Vitest 测试通过只是 **Runtime Pass**。
+
+一个 promise 通过 Harness 需要：
+
+```text
+Runtime Pass
+  Vitest checks pass。
+
+Quality Pass
+  测试可读、结构清楚、断言有意义。
+
+Evidence Pass
+  当前证据仍然能证明已接受的 promise。
+
+Review Pass
+  所有 promise drift 或 evidence drift 都已经被确认。
+```
+
+## 九、UX 形态
+
+产品 UX 应该是 **Promise Review Console**，不是普通测试 dashboard。
+
+推荐布局：
+
+```text
+Left
+  Feature tree
+  按生命周期分组的 Promise board
+
+Center
+  当前 promise
+  Review controls
+  Promise diff
+  Promise Drift records
+  Evidence Drift records
+  Evidence coverage
+  History
+
+Right
+  Vitest UI / report
+  Run results
+  Logs
+  Screenshots
+  DOM / state / file evidence
+```
+
+重要 UX 问题：
+
+- 这个系统承诺了什么？
+- 哪些 promises 需要 review？
+- 哪些 promises 变了？
+- 哪些 promises 被弱化了？
+- 哪些测试是绿色的，但已经不能证明已接受的 promise？
+- 哪些 assertion fingerprints 从上一次 accepted review 后发生了变化？
+- 哪些已批准 promises 正在失败？
+- 哪些 feature 变更影响了哪些 promises？
+- 我现在能运行相关 Vitest checks 吗？
+
+## 十、MVP
+
+先构建能保留核心模型的最小版本。详细 seed 方案见 [mvp-seed-harness-design.zh-CN.md](mvp-seed-harness-design.zh-CN.md)。
+
+1. **Seed Harness**
+   创建最小自托管循环：promise storage、Vitest scenario bindings、按 promise id 收集结果，以及针对这套 Harness 项目自身的可读报告。
+
+2. **Agent authoring skill**
+   教 Agent 如何草拟 Harness-friendly promises 和 tests。
+
+3. **Promise registry**
+   存储 promises、生命周期状态、review 状态、历史和 drift records。
+
+4. **Vitest scenario helper**
+   为 Vitest tests 提供 `scenario(...)` metadata。
+
+5. **Quality and drift checker**
+   检查 canonical metadata、scenario bindings、可读结构、中文测试目的、boundary、可观察断言、promise drift、evidence drift 和 assertion fingerprint changes。
+
+6. **Evidence mapper**
+   跟踪 promises、tests 和 evidence 之间的 N:M 映射。
+
+7. **Vitest result collector**
+   读取 Vitest reporter 输出或 Node API 结果，并按 promise id 归一化。
+
+8. **Minimal Promise Review Console**
+   展示 promise review 状态、运行结果、drift records 和 evidence coverage。
+
+## 十一、成功标准
+
+这套 Harness 成功的标志是：
+
+1. 人类可以通过 promises 理解系统。
+2. 人类主要 review promises，而不是实现代码。
+3. Agent 写出的测试可读、可 review。
+4. Vitest 结果能清楚映射回已批准 promises。
+5. Promise drift 不能静默发生。
+6. Evidence drift 不能藏在绿色测试后面。
+7. Harness 可以使用自己的 promises 和 Vitest checks 来验证自己的核心行为。
+8. 可以从 promises、tests 和 evidence 生成 feature map 与 risk map。

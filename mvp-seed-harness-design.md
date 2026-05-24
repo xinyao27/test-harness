@@ -1,0 +1,343 @@
+# MVP Seed Harness Design
+
+> Status: MVP design draft v1
+> Goal: Build the smallest self-bootstrapping version of the Test Harness, so the Harness can start validating its own promises.
+
+## 1. Purpose
+
+The full Test Harness is still only a design. The first implementation should not try to build the complete Promise Review Console.
+
+The MVP should be a **seed Harness**: a minimal, file-based, Vitest-first system that can describe, run, and report promises about this Harness project itself.
+
+The seed Harness exists to create the first self-bootstrapping loop:
+
+```text
+write promises for the Harness itself
+  -> attach scenario bindings to Vitest tests
+  -> run Vitest
+  -> collect results by promise id
+  -> check readability and evidence rules
+  -> produce a readable promise report
+  -> use that report to guide the next Harness iteration
+```
+
+## 2. MVP Scope
+
+Build only what is needed for self-bootstrapping.
+
+In scope:
+
+1. **Promise files**
+   Store this Harness project's own promises in versioned files. These files are the canonical source for reviewed promise meaning.
+
+2. **Vitest scenario helper**
+   Provide `scenario(...)` bindings that connect Vitest tests to canonical promise ids.
+
+3. **Basic quality checker**
+   Check that canonical promise metadata and scenario bindings are present, readable, and complete enough.
+
+4. **Basic evidence mapper**
+   Track which tests and assertions claim to prove which promise. Capture assertion fingerprints for Evidence Drift v1.
+
+5. **Vitest result collector**
+   Run or read Vitest results and normalize them by promise id.
+
+6. **Seed report**
+   Output a human-readable report grouped by feature and promise.
+
+Out of scope for the seed:
+
+- full visual Promise Review Console
+- complex browser UX
+- multi-language adapters
+- full drift AI classification
+- advanced risk maps
+- organization-level permissions
+- external project onboarding
+
+The seed still records deterministic evidence drift through assertion fingerprints. Full AI-based drift classification is out of scope.
+
+## 3. Data Model
+
+The seed can start with files.
+
+Canonical source decision:
+
+```text
+.promise.json files
+  -> canonical reviewed promise meaning
+
+scenario({ id })
+  -> test-side binding to a canonical promise
+```
+
+If `scenario(...)` tries to redefine title, priority, boundary, Given / When / Then, or observes, the seed should treat that as invalid metadata or potential drift. The reviewed promise file wins.
+
+Seed review mechanism:
+
+```text
+Human review is PR-based.
+
+Changing .promise.json files requires normal code review.
+The review metadata records the PR or commit that approved the promise.
+```
+
+Bootstrap circularity rule:
+
+```text
+The first wave of self-promises is manually reviewed by a human.
+Before M2 stabilizes, the quality checker may warn instead of hard-failing.
+After M2 is accepted, required metadata failures become blocking.
+```
+
+Suggested structure:
+
+```text
+promises/
+  test-harness/
+    promise-registry.promise.json
+    scenario-helper.promise.json
+    result-collector.promise.json
+    quality-checker.promise.json
+
+src/
+  scenario.ts
+  collect-results.ts
+  check-quality.ts
+  evidence-map.ts
+
+reports/
+  harness-report.json
+  harness-report.md
+```
+
+Promise file shape:
+
+```ts
+interface PromiseRecord {
+  id: string;
+  feature: string;
+  title: string;
+  purpose: string;
+  priority: "P0" | "P1" | "P2";
+  boundary: "unit" | "integration" | "browser" | "e2e" | "adapter";
+  lifecycle: "proposed" | "accepted" | "implemented" | "changed_requires_review" | "deprecated";
+  given: string[];
+  when: string[];
+  then: string[];
+  observes: string[];
+  failureMeaning: string;
+  supersedes?: string[];
+  deprecatedBy?: string;
+  review: {
+    approvedBy?: string;
+    approvedAt?: string;
+    approvedIn?: string;
+    notes?: string;
+  };
+}
+```
+
+Run status is not persisted in the promise file. It is computed by the collector:
+
+```ts
+type PromiseRunStatus =
+  | "unknown"
+  | "passing"
+  | "failing"
+  | "skipped"
+  | "missing_evidence"
+  | "evidence_drifted";
+```
+
+Scenario metadata shape:
+
+```ts
+scenario({
+  id: "harness.promise_registry.persist_accepted_promises",
+  evidence: ["promise file loaded", "lifecycle field preserved"],
+});
+```
+
+Assertion fingerprint shape:
+
+```ts
+interface AssertionFingerprint {
+  scenarioId: string;
+  testFile: string;
+  testName: string;
+  assertions: Array<{
+    target?: string;
+    matcher: string;
+    literal?: string;
+    evidenceTag?: string;
+  }>;
+}
+```
+
+## 4. Self-Promises For The MVP
+
+The MVP should start by validating itself with a small set of promises.
+
+### Promise Registry
+
+```text
+Promise:
+Accepted promises are persisted with stable ids, lifecycle status, and review metadata.
+
+Evidence:
+- a promise file can be loaded
+- required fields are preserved
+- lifecycle and review fields are readable
+```
+
+### Scenario Helper
+
+```text
+Promise:
+Vitest tests can bind to a canonical promise with a stable promise id.
+
+Evidence:
+- scenario binding is registered during a test file load
+- duplicate ids are detected
+- missing required fields are reported
+- test-local redefinition of canonical promise fields is rejected
+```
+
+### Quality Checker
+
+```text
+Promise:
+The seed Harness rejects unreadable canonical metadata or incomplete scenario bindings.
+
+Evidence:
+- missing id fails
+- missing purpose fails
+- missing Given / When / Then or observes fails
+- vague titles such as "works" fail
+```
+
+### Result Collector
+
+```text
+Promise:
+Vitest results are normalized by promise id.
+
+Evidence:
+- passing tests produce passing promise results
+- failing tests produce failing promise results
+- unmapped tests are reported
+```
+
+### Evidence Mapper
+
+```text
+Promise:
+A promise can be mapped to one or more tests, evidence items, and assertion fingerprints.
+
+Evidence:
+- one promise can have multiple test records
+- one test can reference multiple evidence items
+- missing evidence is reported
+- assertion fingerprints are captured and diffed across runs
+```
+
+### Review Mechanism
+
+```text
+Promise:
+Seed promise approval is traceable through PR-based review metadata.
+
+Evidence:
+- accepted promises include approvedBy or approvedIn
+- unreviewed accepted promises are reported
+- promise id renames require deprecating the old id or superseding it explicitly
+```
+
+## 5. Seed Harness Commands
+
+The first CLI can stay tiny.
+
+Suggested commands:
+
+```text
+harness check
+  Validate promise files, scenario bindings, review metadata, and quality rules.
+
+harness test
+  Run Vitest, collect results by promise id, and capture assertion fingerprints.
+
+harness report
+  Generate reports/harness-report.json and reports/harness-report.md.
+```
+
+The first version can also combine these into one command:
+
+```text
+harness verify
+  check -> test -> report
+```
+
+## 6. Seed Report
+
+The seed report should be readable without opening test files.
+
+Example:
+
+```text
+Seed Harness Report
+
+Feature: Seed Harness / Promise Registry
+
+P0  Accepted promises are persisted with lifecycle state
+    Status: passing
+    Lifecycle: accepted
+    Evidence:
+    - promise file loaded
+    - required fields preserved
+    - review metadata readable
+
+Feature: Seed Harness / Quality Checker
+
+P0  Unreadable canonical metadata or scenario bindings are rejected
+    Status: failing
+    Lifecycle: accepted
+    Failure meaning:
+    The Harness may accept tests that humans cannot manage.
+```
+
+## 7. Bootstrap Milestones
+
+1. **M0: File convention**
+   Add promise files, make them canonical, choose PR-based review metadata, and decide where reports are written.
+
+2. **M1: Scenario helper**
+   Implement `scenario({ id })` bindings and store binding metadata during Vitest execution.
+
+3. **M2: Quality checker**
+   Validate required metadata and basic readability rules. Before this milestone is accepted, checker failures may be warnings; after acceptance, required metadata failures are blocking.
+
+4. **M3: Result collector**
+   Normalize Vitest results by promise id.
+
+5. **M4: Evidence mapper**
+   Track promise-to-test and promise-to-evidence mappings, and capture assertion fingerprints.
+
+6. **M5: Seed report**
+   Generate readable JSON and Markdown reports, including lifecycle, run status, and evidence deltas.
+
+7. **M6: Self-hosted iteration**
+   Use the seed report to drive one concrete next Harness feature end to end, from promise review to Vitest result to report.
+
+## 8. Success Criteria
+
+The MVP succeeds when:
+
+1. The Harness has its own promise files.
+2. Vitest tests can declare scenario bindings.
+3. The seed checker can reject incomplete or unreadable metadata.
+4. Vitest results can be grouped by promise id.
+5. Assertion fingerprints are captured and evidence deltas can be reported.
+6. A human can read the seed report and understand each Harness promise's lifecycle, run status, and evidence status.
+7. The next Harness feature can be planned as promises and validated by the seed Harness.
+8. One complete self-hosted feature has been demonstrated end to end.

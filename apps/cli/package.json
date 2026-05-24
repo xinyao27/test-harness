@@ -1,0 +1,44 @@
+{
+  "name": "@test-harness/cli",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Seed harness CLI: check, test, report, verify.",
+  "homepage": "https://github.com/xinyao27/test-harness#readme",
+  "bugs": {
+    "url": "https://github.com/xinyao27/test-harness/issues"
+  },
+  "license": "MIT",
+  "author": {
+    "name": "xinyao",
+    "email": "hi@xinyao.me"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xinyao27/test-harness.git",
+    "directory": "apps/cli"
+  },
+  "funding": "https://github.com/sponsors/xinyao27",
+  "bin": {
+    "harness": "./dist/index.mjs"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "dev": "vp pack --watch",
+    "start": "node ./dist/index.mjs"
+  },
+  "dependencies": {
+    "@test-harness/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}
