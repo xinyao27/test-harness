@@ -189,7 +189,7 @@ export const runCli = (
     case "test":
       return Effect.sync(() => {
         resolvedOptions.streams.stdout(
-          "harness test will collect Vitest results in the next seed slice.",
+          "harness test will orchestrate Vitest in a later seed slice. For now, run vp run -r test.",
         );
         return 0;
       });

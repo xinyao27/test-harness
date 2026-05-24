@@ -34,7 +34,7 @@
 - **Vitest Scenario Metadata Helper**：为 Vitest 测试提供 `scenario` / promise helper。
 - **Quality Checker**：静态检查测试是否具备可读结构、稳定 metadata、中文测试目的、boundary、priority 和可观察断言。
 - **Vitest Application Test Orchestration**：运行或连接到应用，执行配置好的 Vitest projects 和 browser checks，并收集证据。
-- **Vitest Result Collector**：把 Vitest reporter 输出或 Node API 结果转换成按 scenario 或 promise id 组织的统一 JSON。
+- **Vitest Result Collector**：把 Vitest reporter 输出或 Node API 结果转换成按 scenario 或 promise id 组织的统一 YAML。
 - **Analyzer**：生成 feature map、promise review map、risk map 和 failure impact summary。
 - **UX**：最终把 feature 讨论、promise review、运行历史、失败信息和行为地图组织成人类可用的工作流。
 
@@ -47,11 +47,13 @@
 示例：
 
 ```text
-test-harness-design.md
-test-harness-design.zh-CN.md
+docs/design/test-harness-design.md
+docs/design/test-harness-design.zh-CN.md
 AGENTS.md
 AGENTS.zh-CN.md
 ```
+
+设计和计划文档应该放在 `docs/` 下，并按用途分组。根目录的 `AGENTS.md` 和 `README.md` 保持原位，因为工具和代码托管平台会默认寻找这些入口文件。
 
 更新文档时，需要保持英文版和中文版同步。
 
@@ -59,6 +61,7 @@ AGENTS.zh-CN.md
 
 - 把 promises 视为项目的一等 artifact。
 - 把 `.promise.yaml` files 视为已 review behavior promise meaning 的 canonical source。测试里的 `scenario(...)` 应该绑定 promise id，而不是重新定义 promise。
+- Harness 自己拥有的 artifacts 优先使用 YAML，包括 `.harness/results.yaml` 这样的结果文件。只有外部工具或协议明确需要时，才使用 JSON。
 - 自然语言 promise 字段使用 `LocalizedText`：普通字符串视为默认英文，`{ en, zh-CN }` 这样的语言 map 可以提供可选翻译。Seed self-promises 优先同时写 `en` 和 `zh-CN`，但不要翻译 `id`、`priority`、`boundary`、`lifecycle`、`review` 或 `observes` 这类稳定机器字段。
 - 拆分持久化 lifecycle 和 computed run status。一个 promise 可以同时是 `accepted` 和当前 `failing`。
 - 代码里避免裸用 `Promise`，因为它会和 JavaScript `Promise` 冲突；优先使用 `BehaviorPromise`、`PromiseRecord` 和 `promiseId`。

@@ -1,4 +1,5 @@
 import { defaultLanguage, resolveLocalizedText } from "./localized-text.ts";
+import { getPromiseRunStatus, type TestResult } from "./results.ts";
 import {
   type FeatureReport,
   type PromiseRecord,
@@ -13,6 +14,7 @@ const issuesForPromise = (
 
 export type SeedReportOptions = {
   readonly language?: string;
+  readonly results?: readonly TestResult[];
 };
 
 export const generateSeedReport = (
@@ -21,6 +23,7 @@ export const generateSeedReport = (
   options: SeedReportOptions = {},
 ): SeedReport => {
   const language = options.language ?? defaultLanguage;
+  const results = options.results ?? [];
   const byFeature = new Map<string, PromiseRecord[]>();
 
   for (const record of records) {
@@ -43,7 +46,7 @@ export const generateSeedReport = (
           priority: record.priority,
           promiseId: record.id,
           purpose: resolveLocalizedText(record.purpose, language),
-          runStatus: "unknown",
+          runStatus: getPromiseRunStatus(record.id, results),
           // oxlint-disable-next-line unicorn/no-thenable -- Given / When / Then is project vocabulary.
           then: record.then.map((item) => resolveLocalizedText(item, language)),
           title: resolveLocalizedText(record.title, language),

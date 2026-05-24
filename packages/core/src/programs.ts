@@ -3,9 +3,14 @@ import { Effect } from "effect";
 import type { HarnessError } from "./errors.ts";
 import { loadPromiseRecords } from "./promise-registry.ts";
 import { generateSeedReport, type SeedReportOptions } from "./report.ts";
+import { loadTestResults } from "./results.ts";
 import { getScenarioBindings } from "./scenario.ts";
 import type { PromiseRecord, SeedReport, ValidationIssue } from "./schema.ts";
-import { validatePromiseRecords, validateScenarioBindings } from "./validation.ts";
+import {
+  validatePromiseRecords,
+  validateScenarioBindings,
+  validateTestResults,
+} from "./validation.ts";
 
 export type SeedCheckResult = {
   readonly issues: readonly ValidationIssue[];
@@ -28,5 +33,7 @@ export const buildSeedReport = (
 ): Effect.Effect<SeedReport, HarnessError> =>
   Effect.gen(function* () {
     const result = yield* checkSeedHarness(rootDir);
-    return generateSeedReport(result.records, result.issues, options);
+    const results = options.results ?? (yield* loadTestResults(rootDir));
+    const issues = [...result.issues, ...validateTestResults(result.records, results)];
+    return generateSeedReport(result.records, issues, { ...options, results });
   });

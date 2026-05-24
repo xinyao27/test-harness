@@ -3,6 +3,7 @@ import {
   isLocalizedTextBlank,
   resolveLocalizedText,
 } from "./localized-text.ts";
+import type { TestResult } from "./results.ts";
 import { type PromiseRecord, type ScenarioBinding, type ValidationIssue } from "./schema.ts";
 
 const idPattern = /^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/;
@@ -159,6 +160,24 @@ export const validateScenarioBindings = (
         code: "unknown_scenario_binding",
         message: `Scenario binding "${binding.id}" does not match any canonical promise.`,
         promiseId: binding.id,
+        severity: "error",
+      },
+    ];
+  });
+};
+
+export const validateTestResults = (
+  records: readonly PromiseRecord[],
+  results: readonly TestResult[],
+): readonly ValidationIssue[] => {
+  const promiseIds = new Set(records.map((record) => record.id));
+  return results.flatMap((result) => {
+    if (promiseIds.has(result.promiseId)) return [];
+    return [
+      {
+        code: "unknown_result_binding",
+        message: `Test result binding "${result.promiseId}" does not match any canonical promise.`,
+        promiseId: result.promiseId,
         severity: "error",
       },
     ];

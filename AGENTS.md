@@ -34,7 +34,7 @@ The project is expected to evolve into a small but structured toolkit with these
 - **Vitest Scenario Metadata Helper**: `scenario` / promise helpers for Vitest tests.
 - **Quality Checker**: static checks for readable test structure, stable metadata, Chinese test purpose, boundary, priority, and observable assertions.
 - **Vitest Application Test Orchestration**: run or connect to an application, execute configured Vitest projects and browser checks, and collect evidence.
-- **Vitest Result Collector**: convert Vitest reporter output or Node API results into unified JSON keyed by scenario or promise id.
+- **Vitest Result Collector**: convert Vitest reporter output or Node API results into unified YAML keyed by scenario or promise id.
 - **Analyzer**: build feature maps, promise review maps, risk maps, and failure impact summaries.
 - **UX**: eventually expose feature discussion, promise review, run history, failures, and behavior maps as a human-facing workflow.
 
@@ -47,11 +47,13 @@ Every English Markdown document should have a corresponding Chinese translation 
 Examples:
 
 ```text
-test-harness-design.md
-test-harness-design.zh-CN.md
+docs/design/test-harness-design.md
+docs/design/test-harness-design.zh-CN.md
 AGENTS.md
 AGENTS.zh-CN.md
 ```
+
+Design and planning documents should live under `docs/`, grouped by purpose. Keep root `AGENTS.md` and root `README.md` in place because tools and repository hosts expect those entry files there.
 
 When updating documentation, keep the English and Chinese versions aligned.
 
@@ -59,6 +61,7 @@ When updating documentation, keep the English and Chinese versions aligned.
 
 - Treat promises as first-class project artifacts.
 - Treat `.promise.yaml` files as the canonical source of reviewed behavior promise meaning. `scenario(...)` in tests should bind to a promise id, not redefine the promise.
+- Prefer YAML for Harness-owned artifacts, including result files such as `.harness/results.yaml`. Use JSON only when an external tool or protocol makes it necessary.
 - Natural-language promise fields use `LocalizedText`: a plain string is treated as default English, while a language map such as `{ en, zh-CN }` can provide optional translations. Prefer bilingual `en` and `zh-CN` text for seed self-promises, but do not localize stable machine fields such as `id`, `priority`, `boundary`, `lifecycle`, `review`, or `observes`.
 - Split persisted lifecycle from computed run status. A promise can be `accepted` and currently `failing` at the same time.
 - Avoid bare `Promise` in code because it conflicts with JavaScript `Promise`; prefer `BehaviorPromise`, `PromiseRecord`, and `promiseId`.

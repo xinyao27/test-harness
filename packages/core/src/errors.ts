@@ -28,7 +28,28 @@ export class InvalidScenarioBindingError extends Data.TaggedError("InvalidScenar
   readonly cause: unknown;
 }> {}
 
+export class TestResultsFileReadError extends Data.TaggedError("TestResultsFileReadError")<{
+  readonly cause: unknown;
+  readonly path: string;
+}> {}
+
+export class TestResultsYamlParseError extends Data.TaggedError("TestResultsYamlParseError")<{
+  readonly cause: unknown;
+  readonly path: string;
+}> {}
+
+export class TestResultsSchemaDecodeError extends Data.TaggedError("TestResultsSchemaDecodeError")<{
+  readonly cause: unknown;
+  readonly path: string;
+}> {}
+
+export type TestResultsLoadError =
+  | TestResultsFileReadError
+  | TestResultsYamlParseError
+  | TestResultsSchemaDecodeError;
+
 export type HarnessError =
   | PromiseFileReadError
   | PromiseRecordLoadErrors
-  | InvalidScenarioBindingError;
+  | InvalidScenarioBindingError
+  | TestResultsLoadError;

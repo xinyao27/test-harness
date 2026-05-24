@@ -1,0 +1,34 @@
+# Canonical behavior promise for mapping Vitest results back to reviewed promises.
+id: harness.result_collector.maps_vitest_results_to_promises
+feature: Seed Harness / Result Collector
+title:
+  en: Vitest results are mapped back to canonical promises
+  zh-CN: Vitest 结果会映射回 canonical promises
+purpose:
+  en: Protect the Harness loop so executable test outcomes can update reviewed promise status.
+  zh-CN: 保护 Harness 闭环，让可执行测试结果可以更新已 review promise 的状态。
+priority: P0
+boundary: unit
+lifecycle: accepted
+
+given:
+  - en: A Vitest test is bound to a canonical promise id
+    zh-CN: 一个 Vitest 测试绑定到 canonical promise id
+when:
+  - en: The Harness result collector reads Vitest task metadata
+    zh-CN: Harness result collector 读取 Vitest task metadata
+then:
+  - en: The collected result is persisted to .harness/results.yaml
+    zh-CN: 收集到的结果会持久化到 .harness/results.yaml
+  - en: The report uses that result to derive the promise run status
+    zh-CN: report 会使用该结果推导 promise run status
+observes:
+  - .harness/results.yaml
+
+failureMeaning:
+  en: The Harness cannot show whether reviewed promises are currently backed by passing tests.
+  zh-CN: Harness 无法展示已 review 的 promises 当前是否由通过的测试支撑。
+
+review:
+  approvedBy: xinyao
+  approvedAt: "2026-05-24"

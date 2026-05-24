@@ -35,4 +35,7 @@ export default defineConfig({
   run: {
     cache: true,
   },
+  test: {
+    reporters: ["default", "./packages/core/src/vitest-reporter.ts"],
+  },
 });

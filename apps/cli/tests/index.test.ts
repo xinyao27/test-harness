@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { Effect } from "effect";
 import { describe, expect, test } from "vite-plus/test";
 
+import { createTestResultsFile, writeTestResultsFile } from "../../../packages/core/src/index.ts";
 import { validPromiseYaml } from "../../../tests/fixtures/promise-fixtures.ts";
 import { runCli } from "../src/index.ts";
 
@@ -73,6 +74,30 @@ describe("harness CLI", () => {
       expect(result.stdout).toContain("Seed Harness Report");
       expect(result.stdout).toContain("Feature: Seed Harness / Promise Registry");
       expect(result.stdout).toContain("Run Status: unknown");
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  test("verify renders run status from YAML results", async () => {
+    const workspace = await withTempWorkspace(validPromiseYaml);
+
+    try {
+      await writeTestResultsFile(
+        workspace.root,
+        createTestResultsFile([
+          {
+            file: "packages/core/tests/index.test.ts",
+            promiseId: "harness.promise_registry.load_canonical_yaml_promises",
+            status: "passing",
+            testName: "loads canonical YAML promises with Effect Schema",
+          },
+        ]),
+      );
+
+      const result = await run(["verify"], workspace.root);
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("Run Status: passing");
     } finally {
       await workspace.cleanup();
     }
