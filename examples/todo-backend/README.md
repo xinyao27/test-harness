@@ -24,7 +24,7 @@ http://127.0.0.1:3101/todos
 
 Start a Todo-Backend-compatible server at that URL, then open the Vite URL printed by the command.
 
-## TypeScript Hono Backend
+## Backends
 
 Run the TypeScript implementation by itself:
 
@@ -44,12 +44,33 @@ Run its native Vitest coverage:
 pnpm example:todo:test:typescript:native
 ```
 
+Run the Rust Axum implementation by itself:
+
+```bash
+pnpm example:todo:serve:rust
+```
+
+It serves the same API at:
+
+```text
+http://127.0.0.1:3102/todos
+```
+
 ## Harness Run
 
-Run the TypeScript backend, execute the official Todo-Backend contract tests, collect adapter events, merge them into `.harness/results.yaml`, and render a Harness summary:
+Run the full showcase: TypeScript contract/native tests, Rust contract/native tests, and browser E2E against the TodoMVC client for both backends. The command collects adapter events, merges them into `.harness/results.yaml`, and renders a Harness summary:
 
 ```bash
 pnpm example:todo:test
+```
+
+Run focused slices when iterating:
+
+```bash
+pnpm example:todo:test:typescript
+pnpm example:todo:test:rust
+pnpm example:todo:test:browser:typescript
+pnpm example:todo:test:browser:rust
 ```
 
 Render the latest Todo-Backend Harness report:

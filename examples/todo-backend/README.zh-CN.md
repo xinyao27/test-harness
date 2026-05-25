@@ -24,7 +24,7 @@ http://127.0.0.1:3101/todos
 
 在这个 URL 启动一个 Todo-Backend-compatible server，然后打开命令打印出的 Vite URL。
 
-## TypeScript Hono Backend
+## Backends
 
 单独运行 TypeScript implementation：
 
@@ -44,12 +44,33 @@ http://127.0.0.1:3101/todos
 pnpm example:todo:test:typescript:native
 ```
 
+单独运行 Rust Axum implementation：
+
+```bash
+pnpm example:todo:serve:rust
+```
+
+它会在这个地址提供同一套 API：
+
+```text
+http://127.0.0.1:3102/todos
+```
+
 ## Harness Run
 
-启动 TypeScript backend、运行官方 Todo-Backend contract tests、收集 adapter events、合并到 `.harness/results.yaml`，并渲染 Harness summary：
+运行完整 showcase：TypeScript contract/native tests、Rust contract/native tests，以及同一个 TodoMVC client 分别连接两个 backend 的 browser E2E。命令会收集 adapter events、合并到 `.harness/results.yaml`，并渲染 Harness summary：
 
 ```bash
 pnpm example:todo:test
+```
+
+开发迭代时也可以只跑某个切片：
+
+```bash
+pnpm example:todo:test:typescript
+pnpm example:todo:test:rust
+pnpm example:todo:test:browser:typescript
+pnpm example:todo:test:browser:rust
 ```
 
 渲染最近一次 Todo-Backend Harness report：

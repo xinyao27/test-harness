@@ -1,6 +1,7 @@
 packages:
   - apps/*
   - packages/*
+  - examples/todo-backend/browser-tests
   - examples/todo-backend/client/*
   - examples/todo-backend/contract-tests
   - examples/todo-backend/implementations/*

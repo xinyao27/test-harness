@@ -3,4 +3,4 @@ test:
   runner:
     command: node
     args:
-      - tools/run-typescript-contract.mjs
+      - tools/run-todo-backend-suite.mjs

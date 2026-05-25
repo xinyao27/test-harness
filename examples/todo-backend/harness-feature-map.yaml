@@ -25,15 +25,24 @@ features:
       - examples/todo-backend/harness.yaml
       - examples/todo-backend/promises/showcase.promises.yaml
       - examples/todo-backend/tools/check-feature-map.mjs
+      - examples/todo-backend/tools/lib/processes.mjs
+      - examples/todo-backend/tools/run-browser-e2e.mjs
       - examples/todo-backend/tools/run-harness-cli.mjs
+      - examples/todo-backend/tools/run-rust-contract.mjs
+      - examples/todo-backend/tools/run-todo-backend-suite.mjs
       - examples/todo-backend/tools/run-typescript-contract.mjs
+      - examples/todo-backend/implementations/rust-axum
+      - examples/todo-backend/implementations/typescript-hono
     plannedArtifacts:
       - examples/todo-backend/.harness/runs/*/events/*.ndjson
       - examples/todo-backend/.harness/results.yaml
-      - examples/todo-backend/implementations/*/**
     implementedCommands:
       - pnpm example:todo:check
       - pnpm example:todo:test
+      - pnpm example:todo:test:browser:rust
+      - pnpm example:todo:test:browser:typescript
+      - pnpm example:todo:test:rust
+      - pnpm example:todo:test:typescript
     plannedCommands: []
 
   - moduleId: cli
@@ -174,6 +183,7 @@ features:
       - examples/todo-backend/harness-feature-map.yaml
       - examples/todo-backend/promises/showcase.promises.yaml
     plannedArtifacts:
+      - examples/todo-backend/.harness/runs/*/events/*.ndjson
       - examples/todo-backend/.harness/results.yaml
     implementedCommands:
       - pnpm example:todo-feature-map:check
@@ -192,13 +202,14 @@ features:
     currentArtifacts:
       - examples/todo-backend/modules/rust-axum.module.yaml
       - examples/todo-backend/promises/rust-axum.promises.yaml
+      - examples/todo-backend/implementations/rust-axum
+      - examples/todo-backend/tools/run-rust-contract.mjs
     plannedArtifacts:
-      - examples/todo-backend/implementations/rust-axum/**
       - examples/todo-backend/.harness/runs/*/events/*.ndjson
     implementedCommands:
       - pnpm example:todo-feature-map:check
-    plannedCommands:
       - pnpm example:todo:test:rust
+    plannedCommands: []
 
   - moduleId: validation
     harnessPromiseIds:
@@ -232,15 +243,19 @@ features:
       - todo_backend.typescript_hono.native_tests_are_promise_bound
       - todo_backend.showcase.cross_language_adapters_merge_evidence
     currentArtifacts:
+      - examples/todo-backend/browser-tests
       - examples/todo-backend/modules/typescript-hono.module.yaml
       - examples/todo-backend/promises/typescript-hono.promises.yaml
       - examples/todo-backend/contract-tests
       - examples/todo-backend/implementations/typescript-hono
+      - examples/todo-backend/tools/run-browser-e2e.mjs
       - examples/todo-backend/tools/run-typescript-contract.mjs
     plannedArtifacts:
       - examples/todo-backend/.harness/runs/*/events/*.ndjson
     implementedCommands:
       - pnpm example:todo-feature-map:check
-      - pnpm example:todo:test:typescript
-    plannedCommands:
+      - pnpm example:todo:test:browser:rust
+      - pnpm example:todo:test:browser:typescript
       - pnpm example:todo:test:contract
+      - pnpm example:todo:test:typescript
+    plannedCommands: []
