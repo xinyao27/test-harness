@@ -17,6 +17,7 @@ promises:
   - harness.cli.test_reads_runner_config
   - harness.cli.test_orchestrates_adapter_and_verify
 covers:
-  - apps/cli/src/**
-  - packages/core/src/config.ts
-  - packages/core/src/programs.ts
+  - crates/harness-cli/Cargo.toml
+  - crates/harness-cli/src/**
+  - crates/harness-core/src/config.rs
+  - crates/harness-core/src/programs.rs

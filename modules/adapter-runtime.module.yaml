@@ -1,0 +1,19 @@
+apiVersion: 1
+id: adapter-runtime
+title:
+  en: Adapter Runtime - language-neutral event collection
+  zh-CN: Adapter Runtime - 语言无关的事件收集
+summary:
+  en: Rust-owned runtime code that reads small adapter event shards from any test framework adapter and writes the canonical Harness result YAML. Thin adapters stay language/framework specific; merge, validation, run isolation, and final result semantics live here.
+  zh-CN: 由 Rust 拥有的 runtime 代码，读取任意测试框架 adapter 写出的小型 adapter event shards，并写出 canonical Harness result YAML。薄 adapter 保持语言/框架特定；合并、校验、run 隔离和最终结果语义都在这里。
+purpose:
+  en: Without this module, every adapter would have to know how to merge Harness results itself, making future Pytest, Go, JUnit, Cargo, and Vitest integrations inconsistent.
+  zh-CN: 没有这个模块，每个 adapter 都必须自己理解如何合并 Harness results，未来的 Pytest、Go、JUnit、Cargo 和 Vitest 集成会变得不一致。
+promises:
+  - harness.adapter_runtime.collects_event_shards_into_results
+  - harness.adapter_runtime.exposes_runner_for_non_cargo_users
+  - harness.adapter_runtime.preserves_framework_independent_evidence
+  - harness.adapter_runtime.uses_isolated_run_event_directories
+covers:
+  - crates/harness-adapter-runtime/Cargo.toml
+  - crates/harness-adapter-runtime/src/**

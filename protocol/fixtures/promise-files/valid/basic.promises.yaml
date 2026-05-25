@@ -1,0 +1,30 @@
+apiVersion: 1
+promises:
+  - id: harness.fixture.valid_promises_file
+    feature: Harness Fixtures / Promise Files
+    title:
+      en: Valid promise files decode through protocol v1
+      zh-CN: 有效 promise files 会通过 protocol v1 解码
+    purpose:
+      en: Provide a portable valid promise-file sample for conformance tests.
+      zh-CN: 为 conformance tests 提供一个可移植的有效 promise-file sample。
+    priority: P1
+    boundary: unit
+    lifecycle: accepted
+    given:
+      - en: A valid promises file fixture exists
+        zh-CN: 存在一个有效 promises file fixture
+    when:
+      - en: A Harness implementation decodes the fixture
+        zh-CN: Harness 实现解码这个 fixture
+    then:
+      - en: The fixture is accepted by protocol v1
+        zh-CN: 该 fixture 会被 protocol v1 接受
+    observes:
+      - protocol/fixtures/promise-files/valid/basic.promises.yaml
+    failureMeaning:
+      en: Implementations may not agree on the valid promises-file wrapper shape.
+      zh-CN: 不同实现可能无法就有效 promises-file wrapper shape 达成一致。
+    review:
+      approvedBy: xinyao
+      approvedAt: "2026-05-24"

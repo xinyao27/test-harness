@@ -14,4 +14,7 @@ promises:
   - harness.promise.schema_supports_example_variants
   - harness.promise.canonical_file_is_grouped
 covers:
-  - packages/core/src/schema.ts
+  - crates/harness-protocol/Cargo.toml
+  - crates/harness-protocol/src/lib.rs
+  - protocol/v1/promise.schema.yaml
+  - protocol/v1/promises-file.schema.yaml

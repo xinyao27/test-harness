@@ -11,7 +11,6 @@ promises:
     priority: P0
     boundary: unit
     lifecycle: accepted
-
     given:
       - en: The protocol CLI contract exists under protocol/v1
         zh-CN: protocol CLI contract 位于 protocol/v1 下
@@ -27,15 +26,14 @@ promises:
         zh-CN: success 和 failure exit codes 固定为 0 和 1
     observes:
       - protocol/v1/cli.yaml
-      - apps/cli/src/index.ts
-
+      - crates/harness-cli/src/lib.rs
     failureMeaning:
       en: Rewrites and adapters may expose incompatible command behavior while still appearing to support the Harness.
       zh-CN: 重写版本和 adapters 可能暴露不兼容的 command behavior，却仍看起来支持 Harness。
-
     review:
       approvedBy: xinyao
       approvedAt: "2026-05-24"
+
   - id: harness.protocol.cli_golden_outputs_lock_human_surface
     feature: Harness Protocol / CLI
     title:
@@ -47,7 +45,6 @@ promises:
     priority: P0
     boundary: integration
     lifecycle: accepted
-
     given:
       - en: A minimal valid promise fixture can be loaded by the CLI
         zh-CN: CLI 可以加载一个最小有效 promise fixture
@@ -57,32 +54,30 @@ promises:
     then:
       - en: The rendered stdout matches the checked-in golden output fixtures
         zh-CN: 渲染出的 stdout 会匹配已提交的 golden output fixtures
-      - en: Future implementations can compare human-facing output without reading TypeScript source
-        zh-CN: 未来实现不阅读 TypeScript source 也能比较面向人类的输出
+      - en: Future implementations can compare human-facing output without reading implementation source
+        zh-CN: 未来实现不阅读 implementation source 也能比较面向人类的输出
     observes:
       - protocol/fixtures/cli/golden/*.stdout
-      - apps/cli/src/index.ts
-      - packages/core/src/report.ts
-
+      - crates/harness-cli/src/lib.rs
+      - crates/harness-core/src/report.rs
     failureMeaning:
       en: A rewrite could keep the same data model while drifting the human review surface in ways no fixture catches.
       zh-CN: 重写版本可能保持相同数据模型，却让人类 review 表面发生 fixture 捕捉不到的漂移。
-
     review:
       approvedBy: xinyao
       approvedAt: "2026-05-25"
+
   - id: harness.protocol.conformance_fixtures_lock_reference_behavior
     feature: Harness Protocol / Conformance
     title:
       en: Protocol fixtures keep the reference implementation aligned
       zh-CN: Protocol fixtures 会让参考实现保持对齐
     purpose:
-      en: Protect future rewrites by checking valid and invalid fixtures against both the protocol YAML schemas and the TypeScript Effect Schemas.
-      zh-CN: 通过同时用 protocol YAML schemas 和 TypeScript Effect Schemas 校验有效与无效 fixtures，保护未来重写。
+      en: Protect future implementations by checking valid and invalid fixtures against both the protocol YAML schemas and the Rust protocol decoder.
+      zh-CN: 通过同时用 protocol YAML schemas 和 Rust protocol decoder 校验有效与无效 fixtures，保护未来实现。
     priority: P0
     boundary: unit
     lifecycle: accepted
-
     given:
       - en: Protocol fixtures exist for valid and invalid configs, modules, promises, results, and reports
         zh-CN: protocol fixtures 为有效和无效的 configs、modules、promises、results 和 reports 存在
@@ -97,28 +92,60 @@ promises:
     observes:
       - protocol/fixtures/**/*.yaml
       - protocol/v1/*.schema.yaml
-      - packages/core/src/schema.ts
-      - packages/core/src/results.ts
-
+      - crates/harness-protocol/src/lib.rs
+      - crates/harness-core/src/results.rs
     failureMeaning:
-      en: A future implementation could satisfy the protocol while the TypeScript reference implementation accepts a different shape.
-      zh-CN: 未来实现可能满足 protocol，但 TypeScript 参考实现却接受另一种 shape。
-
+      en: A future implementation could satisfy the protocol while the reference implementation accepts a different shape.
+      zh-CN: 未来实现可能满足 protocol，但参考实现却接受另一种 shape。
     review:
       approvedBy: xinyao
       approvedAt: "2026-05-24"
+
+  - id: harness.protocol.adapter_events_are_versioned_stream_records
+    feature: Harness Protocol / Adapter Events
+    title:
+      en: Adapter events are versioned stream records
+      zh-CN: Adapter events 是带版本的流式记录
+    purpose:
+      en: Protect multi-language adapters by defining the small event format they emit before the Rust runtime converts those events into canonical Harness result YAML.
+      zh-CN: 通过定义各语言 adapter 在 Rust runtime 转成 canonical Harness result YAML 前要输出的小型 event 格式，保护多语言 adapter 兼容性。
+    priority: P0
+    boundary: unit
+    lifecycle: accepted
+    given:
+      - en: A test framework adapter emits a Harness adapter event
+        zh-CN: 一个测试框架 adapter 输出 Harness adapter event
+    when:
+      - en: The event is decoded by a Harness implementation
+        zh-CN: 该 event 被 Harness 实现解码
+    then:
+      - en: Each event declares apiVersion 1, kind, runId, timestamp, adapter, and payload
+        zh-CN: 每条 event 都声明 apiVersion 1、kind、runId、timestamp、adapter 和 payload
+      - en: Test result events carry promiseId, file, testName, status, and optional failureMessage without depending on the source programming language
+        zh-CN: 测试结果 event 会携带 promiseId、file、testName、status，以及可选 failureMessage，并且不依赖来源编程语言
+      - en: Valid and invalid adapter event fixtures are accepted or rejected consistently with the protocol schema
+        zh-CN: 有效和无效 adapter event fixtures 会与 protocol schema 保持一致地被接受或拒绝
+    observes:
+      - protocol/v1/adapter-event.schema.yaml
+      - protocol/fixtures/adapter-events/**/*.ndjson
+    failureMeaning:
+      en: Every adapter would need bespoke merge logic, making Vitest, Cargo, Pytest, Go, and future framework integrations drift from each other.
+      zh-CN: 每个 adapter 都会需要定制合并逻辑，导致 Vitest、Cargo、Pytest、Go 和未来测试框架集成彼此漂移。
+    review:
+      approvedBy: xinyao
+      approvedAt: "2026-05-25"
+
   - id: harness.protocol.module_schema_is_portable
     feature: Harness Protocol / Modules
     title:
       en: Module schema is portable across implementations
       zh-CN: Module schema 可以跨实现移植
     purpose:
-      en: Protect Rust and other rewrites from reverse-engineering TypeScript module records by making module ownership metadata a protocol fixture-backed contract.
-      zh-CN: 通过把 module ownership metadata 固定成带 fixtures 的 protocol contract，避免 Rust 和其他重写版本反向理解 TypeScript module records。
+      en: Protect future implementations from reverse-engineering module records by making module ownership metadata a protocol fixture-backed contract.
+      zh-CN: 通过把 module ownership metadata 固定成带 fixtures 的 protocol contract，避免未来实现反向理解 module records。
     priority: P0
     boundary: unit
     lifecycle: accepted
-
     given:
       - en: A canonical module YAML file describes a reviewable source area
         zh-CN: 一个 canonical module YAML file 描述可 review 的 source area
@@ -135,27 +162,25 @@ promises:
     observes:
       - protocol/v1/module.schema.yaml
       - protocol/fixtures/modules/**/*.yaml
-      - packages/core/src/schema.ts
-
+      - crates/harness-protocol/src/lib.rs
     failureMeaning:
       en: Future implementations may disagree on which source files belong to which reviewable module.
       zh-CN: 未来实现可能无法就哪些 source files 属于哪个可 review module 达成一致。
-
     review:
       approvedBy: xinyao
       approvedAt: "2026-05-25"
+
   - id: harness.protocol.runner_config_is_versioned
     feature: Harness Protocol / Config
     title:
       en: Runner config is versioned and portable
       zh-CN: Runner config 会带版本且可移植
     purpose:
-      en: Protect future Rust CLI behavior by defining the external adapter runner command in protocol-backed project config instead of hard-coding a TypeScript test command.
-      zh-CN: 通过在带 protocol 支持的项目配置中定义外部 adapter runner command，而不是硬编码 TypeScript test command，保护未来 Rust CLI behavior。
+      en: Protect CLI behavior by defining the external adapter runner command in protocol-backed project config instead of hard-coding a test command.
+      zh-CN: 通过在带 protocol 支持的项目配置中定义外部 adapter runner command，而不是硬编码 test command，保护 CLI behavior。
     priority: P0
     boundary: unit
     lifecycle: accepted
-
     given:
       - en: A project root contains harness.yaml
         zh-CN: project root 中存在 harness.yaml
@@ -173,15 +198,14 @@ promises:
       - harness.yaml
       - protocol/v1/harness-config.schema.yaml
       - protocol/fixtures/configs/**/*.yaml
-      - packages/core/src/config.ts
-
+      - crates/harness-core/src/config.rs
     failureMeaning:
       en: A rewrite could accidentally bake in a specific JavaScript test runner and lose adapter portability.
       zh-CN: 重写版本可能不小心把某个 JavaScript test runner 固化进去，从而丢失 adapter 可移植性。
-
     review:
       approvedBy: xinyao
       approvedAt: "2026-05-25"
+
   - id: harness.protocol.promise_files_are_versioned
     feature: Harness Protocol / Promise Files
     title:
@@ -193,7 +217,6 @@ promises:
     priority: P0
     boundary: unit
     lifecycle: accepted
-
     given:
       - en: A canonical promise YAML file is loaded
         zh-CN: 一个 canonical promise YAML 文件被加载
@@ -208,14 +231,13 @@ promises:
     observes:
       - promises/**/*.promises.yaml
       - protocol/v1/promises-file.schema.yaml
-
     failureMeaning:
       en: Different implementations may silently interpret the same promise file with different rules.
       zh-CN: 不同实现可能会用不同规则悄悄解释同一个 promise file。
-
     review:
       approvedBy: xinyao
       approvedAt: "2026-05-24"
+
   - id: harness.protocol.results_are_versioned_adapter_outputs
     feature: Harness Protocol / Results
     title:
@@ -227,7 +249,6 @@ promises:
     priority: P0
     boundary: unit
     lifecycle: accepted
-
     given:
       - en: An adapter writes Harness results
         zh-CN: 一个 adapter 写出 Harness results
@@ -242,37 +263,35 @@ promises:
     observes:
       - .harness/results.yaml
       - protocol/v1/results.schema.yaml
-
     failureMeaning:
       en: A future adapter may write result files that the Harness cannot safely interpret.
       zh-CN: 未来的 adapter 可能会写出 Harness 无法安全解释的 result files。
-
     review:
       approvedBy: xinyao
       approvedAt: "2026-05-24"
+
   - id: harness.protocol.schemas_define_language_agnostic_contract
     feature: Harness Protocol / Schemas
     title:
       en: Protocol schemas define the language-agnostic contract
       zh-CN: Protocol schemas 会定义语言无关 contract
     purpose:
-      en: Protect future rewrites by keeping config, promise, module, result, report, and CLI contracts outside the TypeScript implementation.
-      zh-CN: 通过把 config、promise、module、result、report 和 CLI contracts 放在 TypeScript 实现之外，保护未来重写。
+      en: Protect future implementations by keeping config, promise, module, result, report, and CLI contracts outside any one implementation.
+      zh-CN: 通过把 config、promise、module、result、report 和 CLI contracts 放在任何单一实现之外，保护未来实现。
     priority: P0
     boundary: unit
     lifecycle: accepted
-
     given:
-      - en: A non-TypeScript implementation needs to interoperate with the Harness
-        zh-CN: 一个非 TypeScript 实现需要和 Harness 互操作
+      - en: Another implementation needs to interoperate with the Harness
+        zh-CN: 另一种实现需要和 Harness 互操作
     when:
       - en: It reads the protocol files under protocol/v1
         zh-CN: 它读取 protocol/v1 下的 protocol files
     then:
-      - en: The config, promise, module, result, report, and CLI contracts are visible without reading TypeScript source
-        zh-CN: 不阅读 TypeScript source 也能看到 config、promise、module、result、report 和 CLI contracts
-      - en: The TypeScript Effect Schemas remain a reference implementation of those contracts
-        zh-CN: TypeScript Effect Schemas 只是这些 contracts 的参考实现
+      - en: The config, promise, module, result, report, and CLI contracts are visible without reading implementation source
+        zh-CN: 不阅读 implementation source 也能看到 config、promise、module、result、report 和 CLI contracts
+      - en: The Rust protocol crate remains a reference implementation of those contracts
+        zh-CN: Rust protocol crate 是这些 contracts 的参考实现
     observes:
       - protocol/v1/harness-config.schema.yaml
       - protocol/v1/promise.schema.yaml
@@ -281,11 +300,9 @@ promises:
       - protocol/v1/results.schema.yaml
       - protocol/v1/report.schema.yaml
       - protocol/v1/cli.yaml
-
     failureMeaning:
-      en: Rewriting the Harness in another language would require reverse-engineering TypeScript internals instead of following a stable protocol.
-      zh-CN: 用其他语言重写 Harness 时，将不得不反向理解 TypeScript 内部实现，而不是遵循稳定 protocol。
-
+      en: Rewriting the Harness in another language would require reverse-engineering implementation internals instead of following a stable protocol.
+      zh-CN: 用其他语言重写 Harness 时，将不得不反向理解实现内部结构，而不是遵循稳定 protocol。
     review:
       approvedBy: xinyao
       approvedAt: "2026-05-24"

@@ -11,7 +11,6 @@ promises:
     priority: P0
     boundary: unit
     lifecycle: accepted
-
     given:
       - en: An adapter has written a `.harness/results.yaml` file
         zh-CN: 某个 adapter 已经写出 `.harness/results.yaml` 文件
@@ -26,13 +25,11 @@ promises:
       - en: Excess properties are rejected to keep the protocol shape strict
         zh-CN: 多余字段会被拒绝，以保持 protocol shape 严格
     observes:
-      - packages/core/src/results.ts
+      - crates/harness-core/src/results.rs
       - .harness/results.yaml
-
     failureMeaning:
       en: Malformed adapter results may flow into report rendering and silently misrepresent promise status.
       zh-CN: 畸形的 adapter results 可能流入 report 渲染，悄悄错误地呈现 promise 状态。
-
     review:
       approvedBy: xinyao
       approvedAt: "2026-05-25"

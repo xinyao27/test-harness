@@ -1,11 +1,11 @@
-import {
-  createTestResultsFile,
-  harnessRootEnvVar,
-  type TestResult,
-  type TestResultStatus,
-  writeTestResultsFile,
-} from "@test-harness/core";
-import type { Reporter } from "vite-plus/test/reporters";
+import { mkdir, rename, writeFile } from "node:fs/promises";
+import { isAbsolute, join } from "node:path";
+
+import type { Reporter } from "vitest/reporters";
+
+export const harnessRootEnvVar = "HARNESS_ROOT_DIR";
+export const harnessRunIdEnvVar = "HARNESS_RUN_ID";
+export const harnessAdapterEventsDirEnvVar = "HARNESS_ADAPTER_EVENTS_DIR";
 
 type ReporterTestModuleLike = {
   readonly children?: {
@@ -28,6 +28,34 @@ type ReporterTestCaseLike = {
     readonly state?: string;
   };
 };
+
+export type TestResultStatus = "failing" | "passing" | "skipped";
+
+export type TestResult = {
+  readonly failureMessage?: string;
+  readonly file: string;
+  readonly promiseId: string;
+  readonly status: TestResultStatus;
+  readonly testName: string;
+};
+
+export type AdapterEvent = {
+  readonly adapter: {
+    readonly framework?: string;
+    readonly name: string;
+    readonly version: string;
+  };
+  readonly apiVersion: 1;
+  readonly kind: "testResult";
+  readonly payload: TestResult;
+  readonly runId: string;
+  readonly timestamp: string;
+};
+
+const adapterName = "harness-adapter-vitest";
+const adapterVersion = "0.0.0";
+const defaultRunId = "default";
+let shardCounter = 0;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -89,13 +117,63 @@ export const collectTestResultsFromModules = (
   return results;
 };
 
+export const createAdapterEvents = (
+  results: readonly TestResult[],
+  options: {
+    readonly runId: string;
+    readonly timestamp?: string;
+  },
+): readonly AdapterEvent[] => {
+  const timestamp = options.timestamp ?? new Date().toISOString();
+  return results.map((result) => ({
+    adapter: {
+      framework: "vitest",
+      name: adapterName,
+      version: adapterVersion,
+    },
+    apiVersion: 1,
+    kind: "testResult",
+    payload: result,
+    runId: options.runId,
+    timestamp,
+  }));
+};
+
+export const resolveAdapterEventsDir = (rootDir: string, runId: string): string => {
+  const configured = process.env[harnessAdapterEventsDirEnvVar];
+  if (configured) {
+    return isAbsolute(configured) ? configured : join(rootDir, configured);
+  }
+  return join(rootDir, ".harness", "runs", runId, "events");
+};
+
+export const writeAdapterEvents = async (
+  rootDir: string,
+  events: readonly AdapterEvent[],
+): Promise<string | undefined> => {
+  if (events.length === 0) return undefined;
+  const runId = events[0]?.runId ?? defaultRunId;
+  const directory = resolveAdapterEventsDir(rootDir, runId);
+  await mkdir(directory, { recursive: true });
+  const name = `${Date.now()}-${process.pid}-${shardCounter++}`;
+  const path = join(directory, `${name}.ndjson`);
+  const temporaryPath = join(directory, `${name}.tmp`);
+  const raw = `${events.map((event) => JSON.stringify(event)).join("\n")}\n`;
+  await writeFile(temporaryPath, raw);
+  await rename(temporaryPath, path);
+  return path;
+};
+
+const currentRunId = (): string => process.env[harnessRunIdEnvVar] ?? defaultRunId;
+
 export default class HarnessReporter implements Reporter {
   async onTestRunEnd(
     testModules: Parameters<NonNullable<Reporter["onTestRunEnd"]>>[0],
   ): Promise<void> {
-    await writeTestResultsFile(
-      process.env[harnessRootEnvVar] ?? process.cwd(),
-      createTestResultsFile(collectTestResultsFromModules(testModules)),
-    );
+    const rootDir = process.env[harnessRootEnvVar] ?? process.cwd();
+    const runId = currentRunId();
+    const results = collectTestResultsFromModules(testModules);
+    const events = createAdapterEvents(results, { runId });
+    await writeAdapterEvents(rootDir, events);
   }
 }

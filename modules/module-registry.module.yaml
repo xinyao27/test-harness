@@ -12,4 +12,5 @@ purpose:
 promises:
   - harness.module_registry.load_canonical_yaml_modules
 covers:
-  - packages/core/src/module-registry.ts
+  - crates/harness-core/src/fs_utils.rs
+  - crates/harness-core/src/module_registry.rs

@@ -1,6 +1,6 @@
 # MVP Seed Harness 设计
 
-> 状态：MVP 设计草案 v1
+> 状态：MVP 设计；已更新为当前 Rust core/CLI 与 adapter-event runtime 架构。
 > 目标：构建最小自举版本的 Test Harness，让 Harness 可以开始验证它自己的 promises。
 
 ## 一、目的
@@ -9,7 +9,7 @@
 
 MVP 应该是一个 **seed Harness**：一个最小的、基于文件的、protocol-first 系统，用来描述、运行和报告这套 Harness 项目自身的 promises。
 
-稳定层是语言无关的 YAML。当前 TypeScript package 和 Vitest integration 是参考实现和 adapter，不是 Harness 本身的定义。
+稳定层是语言无关的 YAML。当前 Rust crates 提供 core/CLI 参考实现，TypeScript Vitest package 是薄 adapter，不是 Harness 本身的定义。
 
 Seed Harness 的目的，是建立第一个自举循环：
 
@@ -39,7 +39,7 @@ Seed Harness 的目的，是建立第一个自举循环：
    检查 canonical promise metadata 和 scenario bindings 是否存在、可读，并且足够完整。
 
 4. **Basic evidence mapper**
-   跟踪哪些 tests 和 assertions 声称证明了哪个 promise。为 Evidence Drift v1 捕获 assertion fingerprints。
+   跟踪哪些 adapter results 声称证明了哪个 promise。完整 assertion fingerprints 和 Evidence Drift v1 仍是后续工作。
 
 5. **Result collector**
    运行或读取 adapter results，并按 promise id 归一化成 `.harness/results.yaml`。
@@ -57,7 +57,7 @@ Seed 阶段不做：
 - 组织级权限
 - 外部项目 onboarding
 
-Seed 阶段仍然通过 assertion fingerprints 记录 deterministic evidence drift。完整 AI-based drift classification 不在 seed 范围内。
+当前 seed 阶段不包含通过 assertion fingerprints 记录 deterministic evidence drift，也不包含完整 AI-based drift classification。
 
 ## 三、数据模型
 
@@ -66,10 +66,10 @@ Seed 可以先从文件开始。
 Canonical source 决策：
 
 ```text
-apiVersion: 1 .promise.yaml files
+apiVersion: 1 grouped .promises.yaml files
   -> canonical reviewed promise meaning
 
-scenario({ id })
+adapter-side bindings such as scenarioTest(promiseId, ...)
   -> 测试侧绑定到 canonical promise
 ```
 
@@ -80,7 +80,7 @@ Seed review 机制：
 ```text
 Human review 基于 PR。
 
-修改 .promise.yaml files 需要正常 code review。
+修改 .promises.yaml files 需要正常 code review。
 review metadata 记录批准 promise 的 PR 或 commit。
 ```
 
@@ -92,73 +92,75 @@ review metadata 记录批准 promise 的 PR 或 commit。
 M2 被接受之后，required metadata failures 变成 blocking。
 ```
 
-建议结构：
+当前结构：
 
 ```text
+crates/
+  harness-protocol/
+  harness-core/
+  harness-cli/
+  harness-adapter-runtime/
+  harness-adapter-rust/
+
+packages/
+  adapter-vitest/
+
 promises/
   protocol/
-    promise-files-are-versioned.promise.yaml
+    protocol.promises.yaml
   adapters/
     vitest/
-      scenario-helper-binds-tests.promise.yaml
-      result-collector-maps-results.promise.yaml
+      vitest.promises.yaml
   promise-registry/
-    load-canonical-yaml-promises.promise.yaml
+    promise-registry.promises.yaml
   validation/
-    readability.promise.yaml
+    validation.promises.yaml
 
 protocol/
   v1/
     promise.schema.yaml
+    promises-file.schema.yaml
+    adapter-event.schema.yaml
     results.schema.yaml
     report.schema.yaml
     cli.yaml
-
-src/
-  scenario.ts
-  collect-results.ts
-  check-quality.ts
-  evidence-map.ts
-
-reports/
-  harness-report.json
-  harness-report.md
 ```
 
 Promise file 形态：
 
-canonical file 使用 YAML，并声明 `apiVersion: 1`。Protocol shape 记录在 `protocol/v1/` 下。TypeScript 实现定义与之匹配的 Effect Schemas，并从这些 schemas 推导类型。自然语言字段使用 `LocalizedText`：普通字符串是合法的，并被视为默认英文；也可以展开成 `en` / `zh-CN` 这样的语言 map。
+canonical file 使用 YAML，并声明 `apiVersion: 1`。Protocol shape 记录在 `protocol/v1/` 下。Rust protocol crate 实现与之匹配的运行时校验和类型。自然语言字段使用 `LocalizedText`：普通字符串是合法的，并被视为默认英文；也可以展开成 `en` / `zh-CN` 这样的语言 map。
 
 ```yaml
 apiVersion: 1
-id: harness.promise_registry.load_canonical_yaml_promises
-feature: Seed Harness / Promise Registry
-title:
-  en: Accepted promises are loaded from canonical YAML files
-  zh-CN: 已接受的承诺会从 canonical YAML 文件中加载
-purpose:
-  en: Protect the seed Harness's reviewed behavior promises.
-  zh-CN: 保护 seed Harness 能读取自己已批准的行为承诺。
-priority: P0
-boundary: unit
-lifecycle: accepted
-given:
-  - en: A promise file exists under the promises root
-    zh-CN: promises/ 目录下存在一个 promise 文件
-when:
-  - en: The seed Harness loads promise records
-    zh-CN: seed Harness 加载 promise records
-then:
-  - en: The promise is decoded into a PromiseRecord
-    zh-CN: 该 promise 会被解码成 PromiseRecord
-observes:
-  - promises/**/*.promise.yaml
-failureMeaning:
-  en: The Harness cannot trust its own reviewed behavior promises.
-  zh-CN: Harness 无法信任自己已经 review 过的行为承诺。
-review:
-  approvedBy: xinyao
-  approvedAt: "2026-05-24"
+promises:
+  - id: harness.promise_registry.load_canonical_yaml_promises
+    feature: Seed Harness / Promise Registry
+    title:
+      en: Accepted promises are loaded from canonical YAML files
+      zh-CN: 已接受的承诺会从 canonical YAML 文件中加载
+    purpose:
+      en: Protect the seed Harness's reviewed behavior promises.
+      zh-CN: 保护 seed Harness 能读取自己已批准的行为承诺。
+    priority: P0
+    boundary: unit
+    lifecycle: accepted
+    given:
+      - en: A promise file exists under the promises root
+        zh-CN: promises/ 目录下存在一个 promise 文件
+    when:
+      - en: The seed Harness loads promise records
+        zh-CN: seed Harness 加载 promise records
+    then:
+      - en: The promise is decoded into a PromiseRecord
+        zh-CN: 该 promise 会被解码成 PromiseRecord
+    observes:
+      - promises/**/*.promises.yaml
+    failureMeaning:
+      en: The Harness cannot trust its own reviewed behavior promises.
+      zh-CN: Harness 无法信任自己已经 review 过的行为承诺。
+    review:
+      approvedBy: xinyao
+      approvedAt: "2026-05-24"
 ```
 
 Run status 不持久化在 promise file 里。它由 collector 计算：
@@ -173,16 +175,19 @@ type PromiseRunStatus =
   | "evidence_drifted";
 ```
 
-Scenario metadata 形态：
+Adapter-side binding 形态：
 
 ```ts
-scenario({
-  id: "harness.promise_registry.persist_accepted_promises",
-  evidence: ["promise file loaded", "lifecycle field preserved"],
-});
+scenarioTest(
+  "harness.promise_registry.load_canonical_yaml_promises",
+  "loads canonical YAML promises",
+  () => {
+    // executable evidence
+  },
+);
 ```
 
-Assertion fingerprint 形态：
+后续 assertion fingerprint 形态：
 
 ```ts
 const AssertionFingerprintSchema = Schema.Struct({
@@ -292,17 +297,17 @@ harness check
   验证 promise files、scenario bindings、review metadata 和 quality rules。
 
 harness test
-  运行配置好的 adapter，按 promise id 收集结果，并捕获 assertion fingerprints。
+  运行配置好的 adapter/runtime command，并按 promise id 收集结果。
 
 harness report
-  生成 reports/harness-report.json 和 reports/harness-report.md。
+  渲染当前 promise report；如果存在 .harness/results.yaml，则读取它。
 ```
 
-第一版也可以先合并成一个命令：
+第一版也保留一个 verification alias：
 
 ```text
 harness verify
-  check -> test -> report
+  渲染和 harness report 相同的 report path。
 ```
 
 ## 六、Seed Report
@@ -339,13 +344,13 @@ P0  Unreadable canonical metadata or scenario bindings are rejected
    添加 promise files，把它们设为 canonical，选择 PR-based review metadata，并决定 reports 写到哪里。
 
 2. **M1: Scenario helper**
-   实现 `scenario({ id })` bindings，并在 adapter 执行期间保存 binding metadata。Seed adapter 是 Vitest。
+   实现 `scenarioTest(promiseId, ...)` 这类 adapter bindings，并在 adapter 执行期间保存 binding metadata。Seed adapter 是 Vitest。
 
 3. **M2: Quality checker**
    验证 required metadata 和基础可读性规则。在这个 milestone 被接受之前，checker failures 可以是 warnings；接受之后 required metadata failures 变成 blocking。
 
 4. **M3: Result collector**
-   按 promise id 归一化 adapter results。
+   按 promise id 归一化 adapter events/results。
 
 5. **M4: Evidence mapper**
    跟踪 promise-to-test 和 promise-to-evidence mappings，并捕获 assertion fingerprints。
@@ -364,7 +369,7 @@ MVP 成功的标志是：
 2. Adapter tests 可以声明 scenario binding。
 3. Seed checker 可以拒绝不完整或不可读的 metadata。
 4. Adapter results 可以按 promise id 分组。
-5. Assertion fingerprints 会被捕获，并且可以报告 evidence deltas。
+5. Assertion fingerprints 和 evidence deltas 有清晰的后续 protocol 路径。
 6. 人类可以阅读 seed report，并理解每个 Harness promise 的 lifecycle、run status 和 evidence status。
 7. 下一个 Harness feature 可以作为 promises 被规划，并被 seed Harness 验证。
 8. 一个完整 self-hosted feature 已经被端到端演示。

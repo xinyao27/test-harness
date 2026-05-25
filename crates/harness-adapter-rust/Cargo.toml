@@ -1,0 +1,14 @@
+[package]
+name = "harness-adapter-rust"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+harness-adapter-runtime = { path = "../harness-adapter-runtime" }
+harness-core = { path = "../harness-core" }
+harness-protocol = { path = "../harness-protocol" }
+
+[dev-dependencies]
+tempfile.workspace = true

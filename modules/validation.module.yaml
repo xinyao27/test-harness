@@ -17,4 +17,5 @@ promises:
   - harness.validation.rejects_unreadable_promises
   - harness.validation.warns_when_default_language_missing
 covers:
-  - packages/core/src/validation.ts
+  - crates/harness-core/src/module_registry.rs
+  - crates/harness-core/src/validation.rs

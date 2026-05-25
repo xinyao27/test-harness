@@ -1,4 +1,4 @@
-import { test, type TestFunction, type TestOptions } from "vite-plus/test";
+import { test, type TestFunction, type TestOptions } from "vitest";
 
 type ScenarioTestOptions = Omit<TestOptions, "meta"> & {
   readonly meta?: Record<string, unknown>;

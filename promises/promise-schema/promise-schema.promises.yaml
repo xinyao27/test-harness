@@ -11,7 +11,6 @@ promises:
     priority: P1
     boundary: unit
     lifecycle: accepted
-
     given:
       - en: A promise YAML file optionally includes an `examples` field
         zh-CN: 一份 promise YAML 文件可选地包含 `examples` 字段
@@ -29,16 +28,15 @@ promises:
         zh-CN: 行内其余键名是任意 string→string 条目，由 reviewer 自行选取（例如 `input`、`expected`、`note`）
     observes:
       - protocol/v1/promise.schema.yaml
-      - packages/core/src/schema.ts
+      - crates/harness-protocol/src/lib.rs
       - promises/**/*.promises.yaml
-
     failureMeaning:
       en: Either the new optional field silently breaks loading of existing promise files, or the schema accepts table shapes that reviewers cannot scan as a table — defeating the whole reason for adding the field.
       zh-CN: 要么新的可选字段悄悄破坏已有 promise 文件的加载，要么 schema 接受了 reviewer 无法按表格扫读的形状 —— 让新增字段本身失去意义。
-
     review:
       approvedBy: xinyao
       approvedAt: "2026-05-25"
+
   - id: harness.promise.canonical_file_is_grouped
     feature: Seed Harness / Promise Schema
     title:
@@ -50,7 +48,6 @@ promises:
     priority: P0
     boundary: unit
     lifecycle: accepted
-
     given:
       - en: A YAML file exists somewhere under the promises root
         zh-CN: promises 根目录下某处存在一个 YAML 文件
@@ -71,16 +68,15 @@ promises:
     observes:
       - protocol/v1/promise.schema.yaml
       - protocol/v1/promises-file.schema.yaml
-      - packages/core/src/schema.ts
+      - crates/harness-protocol/src/lib.rs
       - promises/**/*.promises.yaml
-
     failureMeaning:
       en: Either the loader silently accepts malformed shapes (reviewers approve records they cannot actually read), or it keeps loading legacy single-file promises behind the project's back so the "one canonical shape" rule rots immediately.
       zh-CN: 要么 loader 悄悄接受畸形形状（reviewer 批准了他们其实读不通的记录），要么继续在项目背后加载旧的单文件 promises，"一种 canonical 形状"的规则当场失效。
-
     review:
       approvedBy: xinyao
       approvedAt: "2026-05-25"
+
   - id: harness.promise.schema_defines_required_fields
     feature: Seed Harness / Promise Schema
     title:
@@ -92,7 +88,6 @@ promises:
     priority: P0
     boundary: unit
     lifecycle: accepted
-
     given:
       - en: A canonical promise YAML file is parsed as unknown data
         zh-CN: 一个 canonical promise YAML 文件被解析成 unknown data
@@ -110,13 +105,11 @@ promises:
         zh-CN: apiVersion 是 wrapper 文件级别字段，per-record 不接受
     observes:
       - protocol/v1/promise.schema.yaml
-      - packages/core/src/schema.ts
+      - crates/harness-protocol/src/lib.rs
       - promises/**/*.promises.yaml
-
     failureMeaning:
       en: The Harness may treat malformed or ambiguous promise files as reviewed behavior commitments.
       zh-CN: Harness 可能会把格式错误或含义模糊的 promise 文件当成已 review 的行为承诺。
-
     review:
       approvedBy: xinyao
       approvedAt: "2026-05-24"

@@ -1,12 +1,14 @@
 # Vitest Result Collector Slice Plan
 
+> Status: Historical plan, implemented with adapter event shards and the shared Rust adapter runtime.
+
 ## Summary
 
-The next slice should turn `Run Status: unknown` into real `passing`, `failing`, or `skipped` statuses by collecting Vitest results and mapping them back to canonical promise ids.
+This slice turned `Run Status: unknown` into real `passing`, `failing`, or `skipped` statuses by collecting Vitest results and mapping them back to canonical promise ids.
 
 Claude reviewed the first draft of this plan and found two architecture issues:
 
-- `scenario({ id })` currently writes to an in-memory registry, but Vitest test files run in isolated workers. A reporter in the main process cannot read that worker-local registry.
+- The earlier same-process scenario registry was in-memory, but Vitest test files run in isolated workers. A reporter in the main process cannot read that worker-local registry.
 - `harness verify` needs a durable result source. In-process reporter state disappears after Vitest exits.
 
 So this slice must use a cross-process mechanism:
@@ -15,7 +17,8 @@ So this slice must use a cross-process mechanism:
 scenarioTest(...)
   -> sets Vitest task.meta.promiseId
   -> Vitest reporter reads task.meta and test status
-  -> reporter writes .harness/results.yaml
+  -> reporter writes .harness/runs/<run-id>/events/*.ndjson
+  -> Rust adapter runtime merges events into .harness/results.yaml
   -> harness verify reads promises + results
   -> report shows promise run status
 ```
@@ -81,21 +84,14 @@ Those belong after the basic promise-to-test result loop works.
 
 ## Data Shape
 
-Use YAML parsing plus Effect Schema decoding for the result file.
+Current implementation uses the language-agnostic schemas under `protocol/v1/`, with Rust protocol decoding as the reference implementation. The Vitest reporter emits adapter event records, and the adapter runtime merges those events into the canonical result file.
 
-```ts
-const TestResultSchema = Schema.Struct({
-  failureMessage: Schema.optionalKey(Schema.String),
-  file: Schema.String,
-  promiseId: Schema.String,
-  status: Schema.Literals(["passing", "failing", "skipped"]),
-  testName: Schema.String,
-});
-
-const TestResultsFileSchema = Schema.Struct({
-  generatedAt: Schema.String,
-  results: Schema.Array(TestResultSchema),
-});
+```text
+protocol/v1/adapter-event.schema.yaml
+  -> .harness/runs/<run-id>/events/*.ndjson
+  -> harness-adapter-runtime
+  -> protocol/v1/results.schema.yaml
+  -> .harness/results.yaml
 ```
 
 Report generation can derive `PromiseRunStatus` from these results:
@@ -107,20 +103,21 @@ Report generation can derive `PromiseRunStatus` from these results:
 
 ## Implementation Steps
 
-1. Add a new self-promise:
+1. Add self-promises for Vitest result collection and shared runtime merging:
 
 ```text
-promises/result-collector/maps-results.promise.yaml
+promises/adapters/vitest/vitest.promises.yaml
+promises/adapter-runtime/adapter-runtime.promises.yaml
 ```
 
-It should describe the Harness promise that Vitest results can be mapped back to canonical promise ids.
+They describe the promises that Vitest results can be mapped back to canonical promise ids and that adapter event shards can become protocol results.
 
-2. Add result schemas and types in `packages/core`.
+2. Add result schemas and types in the Rust core/protocol crates.
 
 Suggested module:
 
 ```text
-packages/core/src/results.ts
+crates/harness-core/src/results.rs
 ```
 
 3. Add a Vitest-specific helper.
@@ -141,7 +138,7 @@ Suggested module:
 packages/adapter-vitest/src/reporter.ts
 ```
 
-The reporter should collect `promiseId`, file, test name, status, and failure message, then write `.harness/results.yaml`.
+The reporter should collect `promiseId`, file, test name, status, and failure message, then write adapter event shards. The shared Rust runtime merges those shards into `.harness/results.yaml`.
 
 5. Update report generation.
 
@@ -151,7 +148,7 @@ The reporter should collect `promiseId`, file, test name, status, and failure me
 
 - `harness verify` reads `.harness/results.yaml` if it exists.
 - `harness report` can share the same behavior.
-- `harness test` can remain a stub or become the orchestrator only after the reporter path is stable.
+- `harness test` runs the configured command from `harness.yaml`; in this repo, that command uses `harness-adapter-runtime` to wrap `vp test`.
 
 7. Add tests.
 
@@ -163,7 +160,8 @@ Minimum tests:
 - report status is `passing` for passing promise results
 - report status is `failing` when any bound result fails
 - report status is `skipped` when all bound results are skipped
-- reporter maps Vitest metadata to persisted result records
+- reporter maps Vitest metadata to persisted adapter event records
+- adapter runtime merges persisted adapter event records into result records
 
 ## Open Questions Before Coding
 

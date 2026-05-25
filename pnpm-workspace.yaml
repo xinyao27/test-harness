@@ -1,9 +1,5 @@
 packages:
-  - apps/*
   - packages/*
-  - tools/*
-  - core
-  - cli
 
 catalogMode: prefer
 
@@ -13,9 +9,6 @@ catalog:
   vite: npm:@voidzero-dev/vite-plus-core@latest
   vitest: npm:@voidzero-dev/vite-plus-test@latest
   vite-plus: latest
-  effect: 4.0.0-beta.70
-  yaml: ^2.9.0
-  ajv: ^8.20.0
 overrides:
   vite: "catalog:"
   vitest: "catalog:"

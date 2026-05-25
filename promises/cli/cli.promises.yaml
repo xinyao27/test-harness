@@ -11,7 +11,6 @@ promises:
     priority: P0
     boundary: integration
     lifecycle: accepted
-
     given:
       - en: Canonical promise files exist in the workspace
         zh-CN: workspace 中存在 canonical promise files
@@ -27,14 +26,13 @@ promises:
       - harness check
       - harness.yaml
       - promises/**/*.promises.yaml
-
     failureMeaning:
       en: Humans and Agents cannot quickly tell whether reviewed promise files are structurally valid.
       zh-CN: 人类和 Agent 无法快速判断已 review 的 promise files 是否结构有效。
-
     review:
       approvedBy: xinyao
       approvedAt: "2026-05-24"
+
   - id: harness.cli.report_summary_lists_promises_compactly
     feature: Seed Harness / CLI
     title:
@@ -46,7 +44,6 @@ promises:
     priority: P0
     boundary: integration
     lifecycle: accepted
-
     given:
       - en: Canonical promises and optional test results exist in the workspace
         zh-CN: workspace 中存在 canonical promises 和可选的 test results
@@ -62,18 +59,16 @@ promises:
         zh-CN: 每条 promise 占一行，包含 priority、lifecycle、run status 和 title
       - en: No Given, When, Then, Evidence, Purpose, or Failure meaning details are expanded in summary mode
         zh-CN: summary 模式下不展开 Given、When、Then、Evidence、Purpose 或 Failure meaning 细节
-
     observes:
       - harness report --summary
       - harness verify --summary
-
     failureMeaning:
       en: A human cannot quickly review the project's full set of reviewed behavior promises, making promise review an expensive action and weakening the core value of the Harness.
       zh-CN: 人类无法快速 review 项目全部已 review 行为承诺，promise review 变成高成本动作，削弱 Harness 的核心价值。
-
     review:
       approvedBy: xinyao
       approvedAt: "2026-05-24"
+
   - id: harness.cli.report_renders_promise_status
     feature: Seed Harness / CLI
     title:
@@ -85,7 +80,6 @@ promises:
     priority: P0
     boundary: integration
     lifecycle: accepted
-
     given:
       - en: Canonical promises and optional test results exist in the workspace
         zh-CN: workspace 中存在 canonical promises 和可选的 test results
@@ -101,14 +95,13 @@ promises:
       - harness report
       - harness verify
       - .harness/results.yaml
-
     failureMeaning:
       en: Humans cannot inspect the current promise status without reading implementation or test files.
       zh-CN: 人类无法在不阅读实现或测试文件的情况下检查当前 promise status。
-
     review:
       approvedBy: xinyao
       approvedAt: "2026-05-24"
+
   - id: harness.cli.rejects_invalid_arguments_with_usage_hint
     feature: Seed Harness / CLI
     title:
@@ -120,7 +113,6 @@ promises:
     priority: P1
     boundary: integration
     lifecycle: accepted
-
     given:
       - en: The harness CLI is invoked with an invalid argument (for example a flag that requires a value but receives none)
         zh-CN: harness CLI 被传入非法参数（例如某个 flag 需要 value 但没有提供）
@@ -135,27 +127,25 @@ promises:
       - en: "stderr contains a `Usage: harness ...` hint showing the correct command shape"
         zh-CN: "stderr 包含 `Usage: harness ...` 提示，展示正确的命令形态"
     observes:
-      - apps/cli/src/index.ts
-
+      - crates/harness-cli/src/lib.rs
     failureMeaning:
       en: Users mis-invoking the CLI may face cryptic errors or silent failures, slowing down adoption and weakening trust in the harness.
       zh-CN: 误用 CLI 的人可能遇到难懂的错误或静默失败，影响 harness 的采用率和信任度。
-
     review:
       approvedBy: xinyao
       approvedAt: "2026-05-25"
+
   - id: harness.cli.test_reads_runner_config
     feature: Seed Harness / CLI
     title:
       en: The test command reads its runner from Harness config
       zh-CN: test 命令会从 Harness config 读取 runner
     purpose:
-      en: Protect the Rust rewrite boundary by making the adapter runner an external command declared in harness.yaml rather than a Vitest-specific CLI assumption.
-      zh-CN: 通过让 adapter runner 成为 harness.yaml 中声明的外部命令，而不是 CLI 内部对 Vitest 的假设，保护 Rust 重写边界。
+      en: Protect the CLI boundary by making the adapter runner an external command declared in harness.yaml rather than a Vitest-specific CLI assumption.
+      zh-CN: 通过让 adapter runner 成为 harness.yaml 中声明的外部命令，而不是 CLI 内部对 Vitest 的假设，保护 CLI 边界。
     priority: P0
     boundary: integration
     lifecycle: accepted
-
     given:
       - en: The workspace contains a versioned harness.yaml file with test.runner.command and test.runner.args
         zh-CN: workspace 中存在带版本的 harness.yaml 文件，包含 test.runner.command 和 test.runner.args
@@ -171,16 +161,15 @@ promises:
         zh-CN: CLI 保持独立于 Vitest 特定 runner 细节
     observes:
       - harness.yaml
-      - apps/cli/src/index.ts
-      - packages/core/src/config.ts
-
+      - crates/harness-cli/src/lib.rs
+      - crates/harness-core/src/config.rs
     failureMeaning:
-      en: A Rust CLI rewrite would need to preserve hidden TypeScript runner assumptions instead of following a portable project config.
-      zh-CN: Rust CLI 重写将不得不保留隐藏的 TypeScript runner 假设，而不是遵循可移植的项目配置。
-
+      en: The CLI would need to preserve hidden runner assumptions instead of following a portable project config.
+      zh-CN: CLI 将不得不保留隐藏的 runner 假设，而不是遵循可移植的项目配置。
     review:
       approvedBy: xinyao
       approvedAt: "2026-05-25"
+
   - id: harness.cli.test_orchestrates_adapter_and_verify
     feature: Seed Harness / CLI
     title:
@@ -192,7 +181,6 @@ promises:
     priority: P0
     boundary: integration
     lifecycle: accepted
-
     given:
       - en: Canonical promises exist and a configured adapter can produce Harness result YAML
         zh-CN: canonical promises 存在，并且配置好的 adapter 可以产出 Harness result YAML
@@ -208,11 +196,9 @@ promises:
       - harness test
       - .harness/results.yaml
       - protocol/v1/results.schema.yaml
-
     failureMeaning:
       en: The Harness cannot provide a single command for the reviewed promise-to-test loop.
       zh-CN: Harness 无法为已 review 的 promise-to-test 闭环提供单一命令。
-
     review:
       approvedBy: xinyao
       approvedAt: "2026-05-24"

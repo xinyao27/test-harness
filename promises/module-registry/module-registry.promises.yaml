@@ -11,7 +11,6 @@ promises:
     priority: P0
     boundary: unit
     lifecycle: accepted
-
     given:
       - en: A project root contains `modules/*.module.yaml` files
         zh-CN: 项目根目录下存在 `modules/*.module.yaml` 文件
@@ -26,13 +25,11 @@ promises:
       - en: Successfully loaded modules expose `id`, `title`, `summary`, `purpose`, `promises[]`, and `covers[]` to the rest of the Harness
         zh-CN: 加载成功的 modules 把 `id`、`title`、`summary`、`purpose`、`promises[]` 和 `covers[]` 暴露给 Harness 其它部分
     observes:
-      - packages/core/src/module-registry.ts
+      - crates/harness-core/src/module_registry.rs
       - modules/*.module.yaml
-
     failureMeaning:
       en: Coverage validation and any future module-aware feature has no stable input — modules become inert YAML files.
       zh-CN: 覆盖率校验和未来所有 module-aware 功能都失去稳定输入 —— modules 退化为惰性 YAML 文件。
-
     review:
       approvedBy: xinyao
       approvedAt: "2026-05-25"

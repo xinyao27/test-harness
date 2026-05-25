@@ -1,10 +1,12 @@
 # Rust Rewrite Plan
 
+> Status: Completed implementation plan
+
 ## Goal
 
-Rewrite the seed Harness core in Rust while preserving the protocol-first contract already exercised by the TypeScript reference implementation.
+Rewrite the seed Harness core in Rust while preserving the protocol-first contract.
 
-The Rust rewrite should replace the Harness core and CLI, not the Vitest adapter. The adapter remains in TypeScript because it lives at the Vitest/Node test-runtime boundary.
+The Rust rewrite replaces the Harness core and CLI, not the Vitest adapter. The adapter remains in TypeScript because it lives at the Vitest/Node test-runtime boundary.
 
 ## Target Shape
 
@@ -13,20 +15,22 @@ crates/
   harness-protocol/
   harness-core/
   harness-cli/
+  harness-adapter-runtime/
+  harness-adapter-rust/
 
 packages/
   adapter-vitest/
 ```
 
-During migration, the existing TypeScript core and CLI stay available as the reference implementation. Rust and TypeScript should run against the same protocol schemas, fixtures, and CLI golden outputs until Rust is ready to become the default.
+The TypeScript core and CLI were removed after the Rust implementation matched the protocol schemas, fixtures, CLI golden outputs, and seed Harness promises.
 
 ## Boundaries
 
 - `harness.yaml` owns the external test runner command.
 - `harness test` runs `test.runner.command` with `test.runner.args` and injects `HARNESS_ROOT_DIR`.
 - Rust core must not know Vitest-specific details.
-- The Vitest adapter must not depend on the Rust core or TypeScript core.
-- The Vitest adapter writes `.harness/results.yaml` directly according to `protocol/v1/results.schema.yaml`.
+- The Vitest adapter must not depend on the Rust core.
+- The Vitest adapter writes adapter event shards; the Rust adapter runtime merges them into `.harness/results.yaml`.
 - Result `file` values should be relative to the Harness root whenever possible.
 
 ## Migration Steps
@@ -35,6 +39,8 @@ During migration, the existing TypeScript core and CLI stay available as the ref
 2. Implement Rust loaders for `harness.yaml`, promises, modules, and results.
 3. Implement Rust report generation against the golden report fixtures.
 4. Implement Rust CLI commands: `check`, `report`, `verify`, and `test`.
-5. Update the Vitest adapter to own result YAML writing directly.
-6. Run TypeScript and Rust implementations side by side in CI.
-7. Switch the default `harness` command to Rust after matching protocol fixtures, golden outputs, and seed Harness promises.
+5. Add a shared Rust adapter runtime that can wrap arbitrary test commands and merge adapter event shards into `.harness/results.yaml`.
+6. Add the Rust adapter helper/runner so Rust tests can bind directly to canonical promises.
+7. Update the Vitest adapter to emit adapter event shards.
+8. Run Rust implementation checks and the thin TypeScript Vitest adapter tests in CI.
+9. Keep the default `harness` behavior on the Rust CLI after matching protocol fixtures, golden outputs, and seed Harness promises.

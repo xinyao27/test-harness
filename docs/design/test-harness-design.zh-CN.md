@@ -18,7 +18,7 @@ test-harness-design.zh-CN.md
 
 这个项目是一套围绕 versioned YAML protocol 构建的 **承诺驱动 Test Harness**。
 
-它不绑定某一种语言或测试框架。当前实现使用 TypeScript 和 Vitest 作为参考实现与第一个 adapter，因为它们已经很好地解决了 test discovery、test running、failure display、reporters、projects、Browser Mode、coverage 和 Node API。
+它不绑定某一种语言或测试框架。当前实现使用 Rust 编写 core/CLI，并在 Node test-runtime 边界保留一个薄 TypeScript Vitest adapter。
 
 这套 Harness 增加的是普通测试框架没有提供的那一层：
 
@@ -219,15 +219,18 @@ type PromiseRunStatus =
 
 **Scenario** 是测试侧 metadata，用来把可执行测试连接回 promises。
 
-`scenario(...)` 不是 canonical promise definition。它应该把 adapter test 绑定到已有 `promiseId`。如果本地 metadata 和 canonical promise file 冲突，Harness 应该报告 drift 或 invalid metadata。
+Adapter-side bindings 不是 canonical promise definition。它们应该把 adapter test 绑定到已有 `promiseId`。如果本地 metadata 和 canonical promise file 冲突，Harness 应该报告 drift 或 invalid metadata。
 
 最小 adapter-side 形态：
 
 ```ts
-scenario({
-  id: "checkout.payment.success_marks_order_paid",
-  evidence: ["orders.status", "success page UI"],
-});
+scenarioTest(
+  "checkout.payment.success_marks_order_paid",
+  "marks the order paid after successful payment",
+  () => {
+    // executable evidence
+  },
+);
 ```
 
 完整 title、priority、boundary、Given / When / Then 和 review lifecycle 都存在 promise file 里。
@@ -498,13 +501,13 @@ Right
    创建最小自托管循环：promise storage、按 promise id 收集 adapter results，以及针对这套 Harness 项目自身的可读报告。
 
 2. **Agent authoring skills**
-   教 Agent 如何起草 Harness-friendly promises、modules 和 tests。Skill 按场景切分 —— [../../skills/harness-add-feature/SKILL.md](../../skills/harness-add-feature/SKILL.md) 用于日常功能开发，[../../skills/harness-onboard-project/SKILL.md](../../skills/harness-onboard-project/SKILL.md) 用于首次接入，[../../skills/harness-troubleshoot/SKILL.md](../../skills/harness-troubleshoot/SKILL.md) 用于诊断命令失败。字段级别的规则放在 AGENTS.md 以及现有 `.promise.yaml` / `.module.yaml` 文件中作为模板，skill 本身专注于工作流。整体保持在 Harness runtime data model 之外。
+   教 Agent 如何起草 Harness-friendly promises、modules 和 tests。Skill 按场景切分 —— [../../skills/harness-add-feature/SKILL.md](../../skills/harness-add-feature/SKILL.md) 用于日常功能开发，[../../skills/harness-onboard-project/SKILL.md](../../skills/harness-onboard-project/SKILL.md) 用于首次接入，[../../skills/harness-troubleshoot/SKILL.md](../../skills/harness-troubleshoot/SKILL.md) 用于诊断命令失败。字段级别的规则放在 AGENTS.md 以及现有 `.promises.yaml` / `.module.yaml` 文件中作为模板，skill 本身专注于工作流。整体保持在 Harness runtime data model 之外。
 
 3. **Promise registry**
    存储 promises、生命周期状态、review 状态、历史和 drift records。
 
 4. **Vitest adapter**
-   提供 `scenarioTest(...)` metadata 和写出 Harness result YAML 的 reporter。
+   提供 `scenarioTest(...)` metadata 和写出 adapter event shards 的 reporter，再由共享 runtime 合并成 Harness result YAML。
 
 5. **Quality and drift checker**
    检查 canonical metadata、scenario bindings、可读结构、中文测试目的、boundary、可观察断言、promise drift、evidence drift 和 assertion fingerprint changes。
