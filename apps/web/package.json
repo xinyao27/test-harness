@@ -1,0 +1,66 @@
+{
+  "name": "@test-harness/web",
+  "version": "0.0.0",
+  "private": true,
+  "homepage": "https://github.com/xinyao27/test-harness#readme",
+  "bugs": {
+    "url": "https://github.com/xinyao27/test-harness/issues"
+  },
+  "license": "MIT",
+  "author": {
+    "name": "xinyao",
+    "email": "hi@xinyao.me"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xinyao27/test-harness.git",
+    "directory": "apps/web"
+  },
+  "funding": "https://github.com/sponsors/xinyao27",
+  "type": "module",
+  "scripts": {
+    "predev": "pnpm --filter @test-harness/i18n generate",
+    "dev": "vp dev",
+    "prebuild": "pnpm --filter @test-harness/i18n generate",
+    "build": "vp build",
+    "check": "vp check --fix",
+    "lint": "vp lint --fix",
+    "fmt": "vp fmt",
+    "test": "vp test",
+    "preview": "vp preview",
+    "up": "taze major -Ir",
+    "prepare": "vp config"
+  },
+  "dependencies": {
+    "@base-ui/react": "catalog:",
+    "@fontsource-variable/lora": "catalog:",
+    "@fontsource-variable/noto-sans": "catalog:",
+    "@remixicon/react": "catalog:",
+    "@tanstack/react-query": "catalog:",
+    "@tanstack/react-router": "catalog:",
+    "@test-harness/i18n": "workspace:*",
+    "@xyflow/react": "catalog:",
+    "class-variance-authority": "catalog:",
+    "clsx": "catalog:",
+    "elkjs": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "shadcn": "catalog:",
+    "tailwind-merge": "catalog:",
+    "tw-animate-css": "catalog:",
+    "zustand": "catalog:"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "catalog:",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "tailwindcss": "catalog:",
+    "taze": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  },
+  "packageManager": "pnpm@11.2.2"
+}

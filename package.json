@@ -19,7 +19,7 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm run build && pnpm -r --parallel run dev",
-    "build": "vp run --filter './packages/*' build",
+    "build": "vp run --filter './packages/*' build && pnpm --filter './apps/*' run build",
     "check": "vp check --fix",
     "lint": "vp lint --fix",
     "fmt": "vp fmt",
@@ -30,7 +30,7 @@
   },
   "devDependencies": {
     "@test-harness/adapter-vitest": "workspace:*",
-    "taze": "latest",
+    "taze": "catalog:",
     "vite-plus": "catalog:"
   },
   "engines": {
