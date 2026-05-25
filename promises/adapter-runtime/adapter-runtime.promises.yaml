@@ -76,8 +76,8 @@ promises:
       en: Runtime results preserve framework-independent evidence
       zh-CN: Runtime results 会保留框架无关的证据
     purpose:
-      en: Protect future adapters by keeping the canonical result model focused on promise id, source file, test name, status, and failure message rather than framework-specific task objects.
-      zh-CN: 通过让 canonical result model 聚焦 promise id、source file、test name、status 和 failure message，而不是框架特定 task object，保护未来 adapters。
+      en: Protect future adapters by keeping the canonical result model focused on promise id, source file, test name, status, optional labels, and failure message rather than framework-specific task objects.
+      zh-CN: 通过让 canonical result model 聚焦 promise id、source file、test name、status、可选 labels 和 failure message，而不是框架特定 task object，保护未来 adapters。
     priority: P0
     boundary: unit
     lifecycle: accepted
@@ -88,8 +88,8 @@ promises:
       - en: The runtime converts the event into a Harness TestResult
         zh-CN: runtime 把该 event 转成 Harness TestResult
     then:
-      - en: The promise id, file, test name, status, and failure message are preserved exactly
-        zh-CN: promise id、file、test name、status 和 failure message 会被原样保留
+      - en: The promise id, file, test name, status, labels, and failure message are preserved exactly
+        zh-CN: promise id、file、test name、status、labels 和 failure message 会被原样保留
       - en: Framework-specific fields are not required for the canonical result file
         zh-CN: canonical result file 不要求框架特定字段
     observes:

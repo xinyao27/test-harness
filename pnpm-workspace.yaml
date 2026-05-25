@@ -5,6 +5,7 @@ packages:
   - examples/todo-backend/client/*
   - examples/todo-backend/contract-tests
   - examples/todo-backend/implementations/*
+  - examples/todo-backend/showcase-tests
 
 catalogMode: prefer
 

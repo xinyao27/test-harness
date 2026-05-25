@@ -55,6 +55,7 @@ describe("Vitest adapter", () => {
       const testCase = {
         fullName: "result collector > maps metadata",
         meta: () => ({
+          implementation: "fixture-implementation",
           promiseId: "harness.adapters.vitest.result_collector.maps_results_to_promises",
         }),
         module: { moduleId: "/workspace/packages/adapter-vitest/tests/index.test.ts" },
@@ -86,6 +87,9 @@ describe("Vitest adapter", () => {
           kind: "testResult",
           payload: {
             file: "/workspace/packages/adapter-vitest/tests/index.test.ts",
+            labels: {
+              implementation: "fixture-implementation",
+            },
             promiseId: "harness.adapters.vitest.result_collector.maps_results_to_promises",
             status: "passing",
             testName: "result collector > maps metadata",

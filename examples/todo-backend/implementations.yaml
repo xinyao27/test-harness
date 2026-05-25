@@ -1,0 +1,14 @@
+apiVersion: 1
+kind: TodoBackendImplementations
+implementations:
+  - id: typescript-hono
+    name: TypeScript Hono
+    promiseIds:
+      - todo_backend.typescript_hono.native_tests_are_promise_bound
+      - todo_backend.typescript_hono.server_implements_contract
+
+  - id: rust-axum
+    name: Rust Axum
+    promiseIds:
+      - todo_backend.rust_axum.native_tests_are_promise_bound
+      - todo_backend.rust_axum.server_implements_contract

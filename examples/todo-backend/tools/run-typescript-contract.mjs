@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   assertExamplePromiseIds,
+  buildWorkspacePackages,
   exampleRoot,
   runProcess,
   runWithAdapterRuntime,
@@ -23,6 +24,7 @@ const useRuntime = !process.argv.includes("--no-runtime");
 const implementationPromiseId = "todo_backend.typescript_hono.server_implements_contract";
 
 export const runTypeScriptContract = async () => {
+  await buildWorkspacePackages();
   await assertExamplePromiseIds([
     implementationPromiseId,
     "todo_backend.typescript_hono.native_tests_are_promise_bound",
@@ -39,17 +41,19 @@ export const runTypeScriptContract = async () => {
 
   try {
     await waitForProcessHttpOk(backend, backendUrl);
-    await runProcess(
-      "sh",
-      ["-c", `pnpm --dir "${backendRoot}" test && pnpm --dir "${contractRoot}" test`],
-      {
-        env: {
-          HARNESS_ROOT_DIR: exampleRoot,
-          TODO_BACKEND_IMPLEMENTATION_PROMISE_ID: implementationPromiseId,
-          TODO_BACKEND_URL: backendUrl,
-        },
+    await runProcess("pnpm", ["--dir", backendRoot, "test"], {
+      env: {
+        HARNESS_ROOT_DIR: exampleRoot,
       },
-    );
+    });
+    await runProcess("pnpm", ["--dir", contractRoot, "test"], {
+      env: {
+        HARNESS_ROOT_DIR: exampleRoot,
+        TODO_BACKEND_IMPLEMENTATION_LABEL: "typescript-hono",
+        TODO_BACKEND_IMPLEMENTATION_PROMISE_ID: implementationPromiseId,
+        TODO_BACKEND_URL: backendUrl,
+      },
+    });
   } finally {
     await stopProcess(backend);
   }

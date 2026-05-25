@@ -125,6 +125,7 @@ promises:
         TestResult {
             failure_message: None,
             file: "crates/harness-core/src/lib.rs".to_string(),
+            labels: Default::default(),
             promise_id: promise_id.to_string(),
             status,
             test_name: "core evidence".to_string(),

@@ -121,8 +121,8 @@ promises:
     then:
       - en: Each event declares apiVersion 1, kind, runId, timestamp, adapter, and payload
         zh-CN: 每条 event 都声明 apiVersion 1、kind、runId、timestamp、adapter 和 payload
-      - en: Test result events carry promiseId, file, testName, status, and optional failureMessage without depending on the source programming language
-        zh-CN: 测试结果 event 会携带 promiseId、file、testName、status，以及可选 failureMessage，并且不依赖来源编程语言
+      - en: Test result events carry promiseId, file, testName, status, optional labels, and optional failureMessage without depending on the source programming language
+        zh-CN: 测试结果 event 会携带 promiseId、file、testName、status、可选 labels，以及可选 failureMessage，并且不依赖来源编程语言
       - en: Valid and invalid adapter event fixtures are accepted or rejected consistently with the protocol schema
         zh-CN: 有效和无效 adapter event fixtures 会与 protocol schema 保持一致地被接受或拒绝
     observes:

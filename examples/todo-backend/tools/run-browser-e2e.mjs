@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   assertExamplePromiseIds,
+  buildWorkspacePackages,
   exampleRoot,
   repoRoot,
   runProcess,
@@ -32,6 +33,7 @@ const backendName = (() => {
 
 const backendConfigs = {
   rust: {
+    implementationLabel: "rust-axum",
     port: process.env.TODO_BACKEND_RUST_PORT ?? "3102",
     start: async (backendUrl) => {
       await runProcess("cargo", ["build", "--quiet", "-p", "todo-backend-rust-axum"]);
@@ -45,6 +47,7 @@ const backendConfigs = {
     },
   },
   typescript: {
+    implementationLabel: "typescript-hono",
     port: process.env.TODO_BACKEND_TYPESCRIPT_PORT ?? "3101",
     start: async (backendUrl) =>
       spawnProcess(tsxBin, ["src/server.ts"], {
@@ -69,6 +72,7 @@ if (!backendConfig) {
 const backendUrl = `http://${host}:${backendConfig.port}/todos`;
 
 export const runBrowserE2e = async () => {
+  await buildWorkspacePackages();
   await assertExamplePromiseIds([
     "todo_backend.api.cors_allows_todomvc_client",
     "todo_backend.client.uses_real_backend_api",
@@ -91,6 +95,7 @@ export const runBrowserE2e = async () => {
     await runProcess("pnpm", ["--dir", browserTestsRoot, "test"], {
       env: {
         HARNESS_ROOT_DIR: exampleRoot,
+        TODO_BACKEND_IMPLEMENTATION_LABEL: backendConfig.implementationLabel,
         TODO_BACKEND_URL: backendUrl,
         TODO_BROWSER_E2E_REQUIRED: "1",
         TODO_CLIENT_URL: clientUrl,

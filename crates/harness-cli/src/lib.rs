@@ -546,6 +546,7 @@ promises:
                 let results = harness_core::create_test_results_file(
                     vec![TestResult {
                         file: "crates/harness-cli/src/lib.rs".to_string(),
+                        labels: Default::default(),
                         promise_id: "harness.promise_registry.load_canonical_yaml_promises"
                             .to_string(),
                         status: harness_core::TestResultStatus::Passing,

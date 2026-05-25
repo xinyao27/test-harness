@@ -5,8 +5,8 @@ source:
   promisesDirectory: promises
 coverage:
   target: canonical-harness-modules-and-promises
-  expectedModuleCount: 11
-  expectedHarnessPromiseCount: 42
+  expectedModuleCount: 12
+  expectedHarnessPromiseCount: 43
   description:
     en: Every canonical TestHarness module and module-owned promise must have an explicit application path in the Todo-Backend showcase.
     zh-CN: 每个 canonical TestHarness module 及其拥有的 promise，都必须在 Todo-Backend showcase 中拥有明确应用路径。
@@ -23,14 +23,18 @@ features:
     currentArtifacts:
       - examples/todo-backend/harness-feature-map.yaml
       - examples/todo-backend/harness.yaml
+      - examples/todo-backend/implementations.yaml
       - examples/todo-backend/promises/showcase.promises.yaml
       - examples/todo-backend/tools/check-feature-map.mjs
+      - examples/todo-backend/tools/build-matrix.mjs
       - examples/todo-backend/tools/lib/processes.mjs
       - examples/todo-backend/tools/run-browser-e2e.mjs
       - examples/todo-backend/tools/run-harness-cli.mjs
       - examples/todo-backend/tools/run-rust-contract.mjs
+      - examples/todo-backend/tools/run-showcase-tests.mjs
       - examples/todo-backend/tools/run-todo-backend-suite.mjs
       - examples/todo-backend/tools/run-typescript-contract.mjs
+      - examples/todo-backend/showcase-tests
       - examples/todo-backend/implementations/rust-axum
       - examples/todo-backend/implementations/typescript-hono
     plannedArtifacts:
@@ -41,6 +45,7 @@ features:
       - pnpm example:todo:test
       - pnpm example:todo:test:browser:rust
       - pnpm example:todo:test:browser:typescript
+      - pnpm example:todo:test:showcase
       - pnpm example:todo:test:rust
       - pnpm example:todo:test:typescript
     plannedCommands: []
@@ -61,11 +66,13 @@ features:
       - examples/todo-backend/harness.yaml
       - examples/todo-backend/README.md
       - examples/todo-backend/README.zh-CN.md
+      - examples/todo-backend/showcase-tests
     plannedArtifacts: []
     implementedCommands:
       - pnpm example:todo:check
       - pnpm example:todo:test
       - pnpm example:todo:report
+      - pnpm example:todo:report:full
     plannedCommands: []
 
   - moduleId: module-registry
@@ -163,15 +170,19 @@ features:
       - examples/todo-backend/promises/showcase.promises.yaml
       - examples/todo-backend/README.md
       - examples/todo-backend/README.zh-CN.md
+      - examples/todo-backend/implementations.yaml
+      - examples/todo-backend/tools/build-matrix.mjs
+      - examples/todo-backend/showcase-tests
     plannedArtifacts:
       - examples/todo-backend/.harness/results.yaml
       - examples/todo-backend/matrix.yaml
     implementedCommands:
       - pnpm example:todo-feature-map:check
+      - pnpm example:todo:matrix
       - pnpm example:todo:test
       - pnpm example:todo:report
-    plannedCommands:
       - pnpm example:todo:report:full
+    plannedCommands: []
 
   - moduleId: results-schema
     harnessPromiseIds:
@@ -258,4 +269,22 @@ features:
       - pnpm example:todo:test:browser:typescript
       - pnpm example:todo:test:contract
       - pnpm example:todo:test:typescript
+    plannedCommands: []
+
+  - moduleId: web-dashboard
+    harnessPromiseIds:
+      - harness.web_dashboard.i18n_switches_chrome_and_snapshot_text
+    showcasePromiseIds:
+      - todo_backend.client.uses_real_backend_api
+      - todo_backend.showcase.one_command_runs_full_demo
+    currentArtifacts:
+      - examples/todo-backend/browser-tests
+      - examples/todo-backend/client/todomvc-react
+      - examples/todo-backend/harness-feature-map.yaml
+    plannedArtifacts: []
+    implementedCommands:
+      - pnpm example:todo-client
+      - pnpm example:todo:test
+      - pnpm example:todo:test:browser:rust
+      - pnpm example:todo:test:browser:typescript
     plannedCommands: []

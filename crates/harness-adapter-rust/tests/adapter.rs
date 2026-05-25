@@ -315,6 +315,7 @@ fn write_synthetic_event(
         TestResult {
             failure_message: failure_message.map(str::to_string),
             file: "crates/harness-adapter-rust/tests/adapter.rs".to_string(),
+            labels: Default::default(),
             promise_id: promise_id.to_string(),
             status,
             test_name: test_name.to_string(),

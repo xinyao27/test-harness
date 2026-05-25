@@ -43,6 +43,13 @@ export const runProcess = async (command, args, options = {}) => {
   }
 };
 
+export const buildWorkspacePackages = async () => {
+  if (process.env.TODO_BACKEND_WORKSPACE_PACKAGES_BUILT === "1") return;
+
+  await runProcess("pnpm", ["build"]);
+  process.env.TODO_BACKEND_WORKSPACE_PACKAGES_BUILT = "1";
+};
+
 const hasExited = (child) => child.exitCode !== null || child.signalCode !== null;
 
 export const stopProcess = async (child) => {
@@ -110,6 +117,21 @@ export const runWithAdapterRuntime = async (scriptPath, args = [], env = {}) => 
       env: {
         HARNESS_ROOT_DIR: exampleRoot,
         ...env,
+      },
+    },
+  );
+};
+
+export const mergeCurrentAdapterEvents = async () => {
+  const runId = process.env.HARNESS_RUN_ID;
+  if (!runId) return;
+
+  await runProcess(
+    "cargo",
+    ["run", "--quiet", "-p", "harness-adapter-runtime", "--", "merge", runId],
+    {
+      env: {
+        HARNESS_ROOT_DIR: exampleRoot,
       },
     },
   );

@@ -58,7 +58,7 @@ http://127.0.0.1:3102/todos
 
 ## Harness Run
 
-Run the full showcase: TypeScript contract/native tests, Rust contract/native tests, and browser E2E against the TodoMVC client for both backends. The command collects adapter events, merges them into `.harness/results.yaml`, and renders a Harness summary:
+Run the full showcase: TypeScript contract/native tests, Rust contract/native tests, browser E2E against the TodoMVC client for both backends, and the showcase self-checks for reports, matrix output, spec coverage, and feature coverage. The command collects adapter events, writes `matrix.yaml`, merges results into `.harness/results.yaml`, and renders a Harness summary:
 
 ```bash
 pnpm example:todo:test
@@ -71,13 +71,19 @@ pnpm example:todo:test:typescript
 pnpm example:todo:test:rust
 pnpm example:todo:test:browser:typescript
 pnpm example:todo:test:browser:rust
+pnpm example:todo:matrix
 ```
+
+The showcase self-checks run inside the full `pnpm example:todo:test` command because they verify the active run's adapter events.
 
 Render the latest Todo-Backend Harness report:
 
 ```bash
 pnpm example:todo:report
+pnpm example:todo:report:full
 ```
+
+The summary report is compact. The full report includes Given/When/Then, evidence references, and localized promise text.
 
 ## Spec Coverage
 

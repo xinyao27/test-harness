@@ -4,6 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect } from "vitest";
 
 const clientUrl = process.env.TODO_CLIENT_URL;
 const apiRoot = process.env.TODO_BACKEND_URL;
+const implementationLabel = process.env.TODO_BACKEND_IMPLEMENTATION_LABEL;
 const isRequiredRun = process.env.TODO_BROWSER_E2E_REQUIRED === "1";
 
 const jsonHeaders = {
@@ -32,6 +33,20 @@ const waitForTodos = async (predicate) => {
   }
 
   throw new Error(`Timed out waiting for backend todos: ${JSON.stringify(latest)}`);
+};
+
+const caseName = (name) => (implementationLabel ? `${implementationLabel} > ${name}` : name);
+
+const scenarioOptions = implementationLabel
+  ? {
+      meta: {
+        implementation: implementationLabel,
+      },
+    }
+  : {};
+
+const scenario = (promiseId, name, fn) => {
+  scenarioTest(promiseId, caseName(name), fn, scenarioOptions);
 };
 
 if (!clientUrl || !apiRoot) {
@@ -66,7 +81,7 @@ if (!clientUrl || !apiRoot) {
       await closeBrowser(browser);
     });
 
-    scenarioTest(
+    scenario(
       "todo_backend.client.uses_real_backend_api",
       "TodoMVC browser actions persist through the configured backend API",
       async () => {
@@ -74,7 +89,7 @@ if (!clientUrl || !apiRoot) {
       },
     );
 
-    scenarioTest(
+    scenario(
       "todo_backend.api.cors_allows_todomvc_client",
       "backend CORS headers allow the TodoMVC browser origin",
       async () => {

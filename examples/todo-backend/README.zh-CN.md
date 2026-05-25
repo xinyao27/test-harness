@@ -58,7 +58,7 @@ http://127.0.0.1:3102/todos
 
 ## Harness Run
 
-运行完整 showcase：TypeScript contract/native tests、Rust contract/native tests，以及同一个 TodoMVC client 分别连接两个 backend 的 browser E2E。命令会收集 adapter events、合并到 `.harness/results.yaml`，并渲染 Harness summary：
+运行完整 showcase：TypeScript contract/native tests、Rust contract/native tests、同一个 TodoMVC client 分别连接两个 backend 的 browser E2E，以及 report、matrix、spec coverage、feature coverage 的 showcase 自检。命令会收集 adapter events、写入 `matrix.yaml`、合并到 `.harness/results.yaml`，并渲染 Harness summary：
 
 ```bash
 pnpm example:todo:test
@@ -71,13 +71,19 @@ pnpm example:todo:test:typescript
 pnpm example:todo:test:rust
 pnpm example:todo:test:browser:typescript
 pnpm example:todo:test:browser:rust
+pnpm example:todo:matrix
 ```
+
+showcase 自检会在完整的 `pnpm example:todo:test` 命令里运行，因为它们验证的是当前 active run 的 adapter events。
 
 渲染最近一次 Todo-Backend Harness report：
 
 ```bash
 pnpm example:todo:report
+pnpm example:todo:report:full
 ```
+
+summary report 更紧凑；full report 会包含 Given/When/Then、evidence references，以及本地化后的 promise text。
 
 ## Spec Coverage
 

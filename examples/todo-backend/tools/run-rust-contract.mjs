@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   assertExamplePromiseIds,
+  buildWorkspacePackages,
   exampleRoot,
   repoRoot,
   runProcess,
@@ -23,6 +24,7 @@ const useRuntime = !process.argv.includes("--no-runtime");
 const implementationPromiseId = "todo_backend.rust_axum.server_implements_contract";
 
 export const runRustContract = async () => {
+  await buildWorkspacePackages();
   await assertExamplePromiseIds([
     implementationPromiseId,
     "todo_backend.rust_axum.native_tests_are_promise_bound",
@@ -40,20 +42,20 @@ export const runRustContract = async () => {
 
   try {
     await waitForProcessHttpOk(backend, backendUrl);
-    await runProcess(
-      "sh",
-      [
-        "-c",
-        `TODO_BACKEND_RUST_NATIVE_TESTS=1 cargo test --quiet -p todo-backend-rust-axum && pnpm --dir "${contractRoot}" test`,
-      ],
-      {
-        env: {
-          HARNESS_ROOT_DIR: exampleRoot,
-          TODO_BACKEND_IMPLEMENTATION_PROMISE_ID: implementationPromiseId,
-          TODO_BACKEND_URL: backendUrl,
-        },
+    await runProcess("cargo", ["test", "--quiet", "-p", "todo-backend-rust-axum"], {
+      env: {
+        HARNESS_ROOT_DIR: exampleRoot,
+        TODO_BACKEND_RUST_NATIVE_TESTS: "1",
       },
-    );
+    });
+    await runProcess("pnpm", ["--dir", contractRoot, "test"], {
+      env: {
+        HARNESS_ROOT_DIR: exampleRoot,
+        TODO_BACKEND_IMPLEMENTATION_LABEL: "rust-axum",
+        TODO_BACKEND_IMPLEMENTATION_PROMISE_ID: implementationPromiseId,
+        TODO_BACKEND_URL: backendUrl,
+      },
+    });
   } finally {
     await stopProcess(backend);
   }

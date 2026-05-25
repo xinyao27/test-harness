@@ -10,6 +10,7 @@ type Todo = {
 
 const configuredApiRoot = process.env.TODO_BACKEND_URL;
 const apiRoot = configuredApiRoot ?? "http://127.0.0.1:3101/todos";
+const implementationLabel = process.env.TODO_BACKEND_IMPLEMENTATION_LABEL;
 const implementationPromiseId = process.env.TODO_BACKEND_IMPLEMENTATION_PROMISE_ID;
 
 const jsonHeaders = {
@@ -51,6 +52,25 @@ const resetTodos = async (): Promise<void> => {
   await deleteUrl(apiRoot);
 };
 
+const caseName = (name: string): string =>
+  implementationLabel ? `${implementationLabel} > ${name}` : name;
+
+const scenarioOptions = implementationLabel
+  ? {
+      meta: {
+        implementation: implementationLabel,
+      },
+    }
+  : {};
+
+const scenario = (
+  promiseId: string,
+  name: string,
+  fn: Parameters<typeof scenarioTest>[2],
+): void => {
+  scenarioTest(promiseId, caseName(name), fn, scenarioOptions);
+};
+
 if (!configuredApiRoot) {
   describe.skip("Todo-Backend official contract", () => undefined);
 } else {
@@ -59,7 +79,7 @@ if (!configuredApiRoot) {
       await resetTodos();
     });
 
-    scenarioTest(
+    scenario(
       "todo_backend.api.list_returns_current_collection",
       "official.prerequisite.root_get_succeeds",
       async () => {
@@ -68,7 +88,7 @@ if (!configuredApiRoot) {
       },
     );
 
-    scenarioTest(
+    scenario(
       "todo_backend.api.create_returns_persisted_todo",
       "official.prerequisite.root_post_echoes_title",
       async () => {
@@ -76,7 +96,7 @@ if (!configuredApiRoot) {
       },
     );
 
-    scenarioTest(
+    scenario(
       "todo_backend.api.delete_all_clears_collection",
       "official.prerequisite.root_delete_succeeds",
       async () => {
@@ -86,7 +106,7 @@ if (!configuredApiRoot) {
       },
     );
 
-    scenarioTest(
+    scenario(
       "todo_backend.api.delete_all_clears_collection",
       "official.prerequisite.root_delete_then_get_empty_array",
       async () => {
@@ -96,7 +116,7 @@ if (!configuredApiRoot) {
       },
     );
 
-    scenarioTest(
+    scenario(
       "todo_backend.api.create_returns_persisted_todo",
       "official.create.adds_new_todo_to_root_list",
       async () => {
@@ -105,7 +125,7 @@ if (!configuredApiRoot) {
       },
     );
 
-    scenarioTest(
+    scenario(
       "todo_backend.api.create_returns_persisted_todo",
       "official.create.new_todo_initially_not_completed",
       async () => {
@@ -115,7 +135,7 @@ if (!configuredApiRoot) {
       },
     );
 
-    scenarioTest(
+    scenario(
       "todo_backend.api.create_returns_persisted_todo",
       "official.create.new_todo_has_url",
       async () => {
@@ -125,7 +145,7 @@ if (!configuredApiRoot) {
       },
     );
 
-    scenarioTest(
+    scenario(
       "todo_backend.api.todo_urls_are_dereferenceable",
       "official.create.todo_url_returns_todo",
       async () => {
@@ -134,7 +154,7 @@ if (!configuredApiRoot) {
       },
     );
 
-    scenarioTest(
+    scenario(
       "todo_backend.api.todo_urls_are_dereferenceable",
       "official.existing.list_url_navigates_to_individual_todo",
       async () => {
@@ -146,7 +166,7 @@ if (!configuredApiRoot) {
       },
     );
 
-    scenarioTest(
+    scenario(
       "todo_backend.api.update_changes_title_and_completed",
       "official.existing.patch_title",
       async () => {
@@ -157,7 +177,7 @@ if (!configuredApiRoot) {
       },
     );
 
-    scenarioTest(
+    scenario(
       "todo_backend.api.update_changes_title_and_completed",
       "official.existing.patch_completed",
       async () => {
@@ -168,7 +188,7 @@ if (!configuredApiRoot) {
       },
     );
 
-    scenarioTest(
+    scenario(
       "todo_backend.api.update_changes_title_and_completed",
       "official.existing.patch_persists_to_item_and_list",
       async () => {
@@ -191,7 +211,7 @@ if (!configuredApiRoot) {
       },
     );
 
-    scenarioTest(
+    scenario(
       "todo_backend.api.delete_one_removes_only_that_todo",
       "official.existing.delete_todo_by_url",
       async () => {
@@ -201,7 +221,7 @@ if (!configuredApiRoot) {
       },
     );
 
-    scenarioTest(
+    scenario(
       "todo_backend.api.order_is_preserved_and_updateable",
       "official.order.create_with_order",
       async () => {
@@ -211,7 +231,7 @@ if (!configuredApiRoot) {
       },
     );
 
-    scenarioTest(
+    scenario(
       "todo_backend.api.order_is_preserved_and_updateable",
       "official.order.patch_order",
       async () => {
@@ -220,7 +240,7 @@ if (!configuredApiRoot) {
       },
     );
 
-    scenarioTest(
+    scenario(
       "todo_backend.api.order_is_preserved_and_updateable",
       "official.order.refetch_remembers_order",
       async () => {
@@ -231,7 +251,7 @@ if (!configuredApiRoot) {
     );
 
     if (implementationPromiseId) {
-      scenarioTest(
+      scenario(
         implementationPromiseId,
         "configured implementation satisfies the official Todo-Backend contract",
         async () => {

@@ -1,0 +1,15 @@
+{
+  "name": "@test-harness/example-todo-backend-showcase-tests",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vp test run --config vitest.config.mjs"
+  },
+  "devDependencies": {
+    "@test-harness/adapter-vitest": "workspace:*",
+    "vite-plus": "catalog:",
+    "vitest": "catalog:",
+    "yaml": "^2.9.0"
+  }
+}
