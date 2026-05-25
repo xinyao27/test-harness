@@ -3,13 +3,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+  assertExamplePromiseIds,
   exampleRoot,
   repoRoot,
   runProcess,
   runWithAdapterRuntime,
   spawnProcess,
   stopProcess,
-  waitForHttpOk,
+  waitForProcessHttpOk,
 } from "./lib/processes.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
@@ -19,8 +20,14 @@ const port = process.env.TODO_BACKEND_RUST_PORT ?? "3102";
 const backendUrl = `http://${host}:${port}/todos`;
 const binaryPath = path.join(repoRoot, "target", "debug", "todo-backend-rust-axum");
 const useRuntime = !process.argv.includes("--no-runtime");
+const implementationPromiseId = "todo_backend.rust_axum.server_implements_contract";
 
 export const runRustContract = async () => {
+  await assertExamplePromiseIds([
+    implementationPromiseId,
+    "todo_backend.rust_axum.native_tests_are_promise_bound",
+  ]);
+
   await runProcess("cargo", ["build", "--quiet", "-p", "todo-backend-rust-axum"]);
 
   const backend = spawnProcess(binaryPath, [], {
@@ -32,7 +39,7 @@ export const runRustContract = async () => {
   });
 
   try {
-    await waitForHttpOk(backendUrl);
+    await waitForProcessHttpOk(backend, backendUrl);
     await runProcess(
       "sh",
       [
@@ -42,8 +49,7 @@ export const runRustContract = async () => {
       {
         env: {
           HARNESS_ROOT_DIR: exampleRoot,
-          TODO_BACKEND_IMPLEMENTATION_PROMISE_ID:
-            "todo_backend.rust_axum.server_implements_contract",
+          TODO_BACKEND_IMPLEMENTATION_PROMISE_ID: implementationPromiseId,
           TODO_BACKEND_URL: backendUrl,
         },
       },

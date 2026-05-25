@@ -3,12 +3,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+  assertExamplePromiseIds,
   exampleRoot,
   runProcess,
   runWithAdapterRuntime,
   spawnProcess,
   stopProcess,
-  waitForHttpOk,
+  waitForProcessHttpOk,
 } from "./lib/processes.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
@@ -19,8 +20,14 @@ const host = "127.0.0.1";
 const port = process.env.TODO_BACKEND_TYPESCRIPT_PORT ?? "3101";
 const backendUrl = `http://${host}:${port}/todos`;
 const useRuntime = !process.argv.includes("--no-runtime");
+const implementationPromiseId = "todo_backend.typescript_hono.server_implements_contract";
 
 export const runTypeScriptContract = async () => {
+  await assertExamplePromiseIds([
+    implementationPromiseId,
+    "todo_backend.typescript_hono.native_tests_are_promise_bound",
+  ]);
+
   const backend = spawnProcess(tsxBin, ["src/server.ts"], {
     cwd: backendRoot,
     env: {
@@ -31,15 +38,14 @@ export const runTypeScriptContract = async () => {
   });
 
   try {
-    await waitForHttpOk(backendUrl);
+    await waitForProcessHttpOk(backend, backendUrl);
     await runProcess(
       "sh",
       ["-c", `pnpm --dir "${backendRoot}" test && pnpm --dir "${contractRoot}" test`],
       {
         env: {
           HARNESS_ROOT_DIR: exampleRoot,
-          TODO_BACKEND_IMPLEMENTATION_PROMISE_ID:
-            "todo_backend.typescript_hono.server_implements_contract",
+          TODO_BACKEND_IMPLEMENTATION_PROMISE_ID: implementationPromiseId,
           TODO_BACKEND_URL: backendUrl,
         },
       },

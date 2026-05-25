@@ -4,7 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect } from "vitest";
 
 const clientUrl = process.env.TODO_CLIENT_URL;
 const apiRoot = process.env.TODO_BACKEND_URL;
-const implementationPromiseId = process.env.TODO_BACKEND_IMPLEMENTATION_PROMISE_ID;
+const isRequiredRun = process.env.TODO_BROWSER_E2E_REQUIRED === "1";
 
 const jsonHeaders = {
   "Content-Type": "application/json",
@@ -35,7 +35,21 @@ const waitForTodos = async (predicate) => {
 };
 
 if (!clientUrl || !apiRoot) {
-  describe.skip("TodoMVC browser E2E", () => undefined);
+  if (isRequiredRun) {
+    describe("TodoMVC browser E2E", () => {
+      scenarioTest(
+        "todo_backend.client.uses_real_backend_api",
+        "browser runner requires a client URL and backend URL",
+        () => {
+          throw new Error(
+            "TODO_CLIENT_URL and TODO_BACKEND_URL are required for TodoMVC browser E2E.",
+          );
+        },
+      );
+    });
+  } else {
+    describe.skip("TodoMVC browser E2E", () => undefined);
+  }
 } else {
   describe("TodoMVC browser E2E", () => {
     let browser;
@@ -56,42 +70,60 @@ if (!clientUrl || !apiRoot) {
       "todo_backend.client.uses_real_backend_api",
       "TodoMVC browser actions persist through the configured backend API",
       async () => {
-        await runTodoMvcWorkflow(browser, "browser creates a real todo");
+        await runRealBackendWorkflow(browser, "browser creates a real todo");
       },
     );
 
     scenarioTest(
       "todo_backend.api.cors_allows_todomvc_client",
-      "TodoMVC browser actions can cross from the Vite origin to the backend origin",
+      "backend CORS headers allow the TodoMVC browser origin",
       async () => {
-        await runTodoMvcWorkflow(browser, "browser proves cors");
+        await assertCorsPreflight();
+        await runCreateTodoWorkflow(browser, "browser proves cors");
       },
     );
-
-    if (implementationPromiseId) {
-      scenarioTest(
-        implementationPromiseId,
-        "TodoMVC client works with the configured backend implementation",
-        async () => {
-          await runTodoMvcWorkflow(browser, "browser proves implementation");
-        },
-      );
-    }
   });
 }
 
-const runTodoMvcWorkflow = async (browser, title) => {
-  const page = await browser.newPage();
-  page.setDefaultNavigationTimeout(5_000);
-  page.setDefaultTimeout(5_000);
+const assertCorsPreflight = async () => {
+  const response = await fetch(apiRoot, {
+    headers: {
+      "Access-Control-Request-Headers": "Content-Type",
+      "Access-Control-Request-Method": "PATCH",
+      Origin: new URL(clientUrl).origin,
+    },
+    method: "OPTIONS",
+  });
+  expect(response.ok).toBe(true);
+
+  const allowOrigin = response.headers.get("access-control-allow-origin");
+  expect([new URL(clientUrl).origin, "*"]).toContain(allowOrigin);
+
+  const allowMethods = response.headers.get("access-control-allow-methods")?.toLowerCase() ?? "";
+  expect(allowMethods === "*" || allowMethods.includes("patch")).toBe(true);
+
+  const allowHeaders = response.headers.get("access-control-allow-headers")?.toLowerCase() ?? "";
+  expect(allowHeaders === "*" || allowHeaders.includes("content-type")).toBe(true);
+};
+
+const runCreateTodoWorkflow = async (browser, title) => {
+  const page = await openTodoMvcPage(browser);
 
   try {
-    await page.goto(clientUrl, { waitUntil: "domcontentloaded" });
-    await page.getByLabel("New Todo Input").fill(title);
-    await page.getByLabel("New Todo Input").press("Enter");
+    await createTodoFromBrowser(page, title);
+    await waitForTodos(
+      (todos) => todos.length === 1 && todos[0]?.title === title && todos[0]?.completed === false,
+    );
+  } finally {
+    await closePage(page);
+  }
+};
 
-    const item = page.getByTestId("todo-item").filter({ hasText: title });
-    await item.waitFor({ state: "visible" });
+const runRealBackendWorkflow = async (browser, title) => {
+  const page = await openTodoMvcPage(browser);
+
+  try {
+    const item = await createTodoFromBrowser(page, title);
     await waitForTodos(
       (todos) => todos.length === 1 && todos[0]?.title === title && todos[0]?.completed === false,
     );
@@ -123,6 +155,23 @@ const runTodoMvcWorkflow = async (browser, title) => {
   } finally {
     await closePage(page);
   }
+};
+
+const openTodoMvcPage = async (browser) => {
+  const page = await browser.newPage();
+  page.setDefaultNavigationTimeout(5_000);
+  page.setDefaultTimeout(5_000);
+  await page.goto(clientUrl, { waitUntil: "domcontentloaded" });
+  return page;
+};
+
+const createTodoFromBrowser = async (page, title) => {
+  await page.getByLabel("New Todo Input").fill(title);
+  await page.getByLabel("New Todo Input").press("Enter");
+
+  const item = page.getByTestId("todo-item").filter({ hasText: title });
+  await item.waitFor({ state: "visible" });
+  return item;
 };
 
 const closePage = async (page) => {

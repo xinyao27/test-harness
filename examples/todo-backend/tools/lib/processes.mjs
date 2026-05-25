@@ -1,6 +1,9 @@
 import { spawn } from "node:child_process";
+import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { parse } from "yaml";
 
 const libraryPath = fileURLToPath(import.meta.url);
 
@@ -40,15 +43,17 @@ export const runProcess = async (command, args, options = {}) => {
   }
 };
 
+const hasExited = (child) => child.exitCode !== null || child.signalCode !== null;
+
 export const stopProcess = async (child) => {
-  if (child.exitCode !== null || child.signalCode !== null) return;
+  if (hasExited(child)) return;
 
   child.kill("SIGTERM");
   await Promise.race([
     waitForExit(child),
     new Promise((resolve) => {
       setTimeout(() => {
-        if (child.exitCode === null && child.signalCode === null) {
+        if (!hasExited(child)) {
           child.kill("SIGKILL");
         }
         resolve(undefined);
@@ -57,14 +62,24 @@ export const stopProcess = async (child) => {
   ]);
 };
 
-export const waitForHttpOk = async (url, options = {}) => {
+export const waitForProcessHttpOk = async (child, url, options = {}) => {
   const deadline = Date.now() + (options.timeoutMs ?? 15_000);
   let lastError;
 
   while (Date.now() < deadline) {
+    if (hasExited(child)) {
+      throw new Error(`Process exited before ${url} became ready.`);
+    }
+
     try {
       const response = await fetch(url);
-      if (response.ok) return;
+      if (response.ok) {
+        await new Promise((resolve) => setTimeout(resolve, options.stabilityWindowMs ?? 50));
+        if (hasExited(child)) {
+          throw new Error(`Process exited after ${url} responded once.`);
+        }
+        return;
+      }
       lastError = new Error(`GET ${url} returned ${response.status}`);
     } catch (error) {
       lastError = error;
@@ -98,4 +113,48 @@ export const runWithAdapterRuntime = async (scriptPath, args = [], env = {}) => 
       },
     },
   );
+};
+
+const collectPromiseFiles = async (directory) => {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const files = [];
+
+  for (const entry of entries) {
+    const entryPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...(await collectPromiseFiles(entryPath)));
+    } else if (
+      entry.isFile() &&
+      (entry.name.endsWith(".promise.yaml") || entry.name.endsWith(".promises.yaml"))
+    ) {
+      files.push(entryPath);
+    }
+  }
+
+  return files;
+};
+
+export const assertExamplePromiseIds = async (promiseIds) => {
+  const examplePromiseIds = new Set();
+  const promiseFiles = await collectPromiseFiles(path.join(exampleRoot, "promises"));
+
+  for (const promiseFile of promiseFiles) {
+    const relativePromiseFile = path.relative(exampleRoot, promiseFile);
+    const document = parse(await readFile(promiseFile, "utf8"));
+    if (document?.apiVersion !== 1) {
+      throw new Error(`${relativePromiseFile} must use apiVersion: 1`);
+    }
+
+    for (const [index, promise] of (document.promises ?? []).entries()) {
+      if (typeof promise?.id !== "string" || promise.id.trim() === "") {
+        throw new Error(`${relativePromiseFile}.promises[${String(index)}].id must be present`);
+      }
+      examplePromiseIds.add(promise.id);
+    }
+  }
+
+  const missingPromiseIds = promiseIds.filter((promiseId) => !examplePromiseIds.has(promiseId));
+  if (missingPromiseIds.length > 0) {
+    throw new Error(`Unknown Todo-Backend promise id(s): ${missingPromiseIds.join(", ")}`);
+  }
 };

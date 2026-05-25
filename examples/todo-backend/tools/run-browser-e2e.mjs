@@ -3,13 +3,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+  assertExamplePromiseIds,
   exampleRoot,
   repoRoot,
   runProcess,
   runWithAdapterRuntime,
   spawnProcess,
   stopProcess,
-  waitForHttpOk,
+  waitForProcessHttpOk,
 } from "./lib/processes.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
@@ -32,7 +33,6 @@ const backendName = (() => {
 const backendConfigs = {
   rust: {
     port: process.env.TODO_BACKEND_RUST_PORT ?? "3102",
-    promiseId: "todo_backend.rust_axum.server_implements_contract",
     start: async (backendUrl) => {
       await runProcess("cargo", ["build", "--quiet", "-p", "todo-backend-rust-axum"]);
       return spawnProcess(rustBinaryPath, [], {
@@ -46,7 +46,6 @@ const backendConfigs = {
   },
   typescript: {
     port: process.env.TODO_BACKEND_TYPESCRIPT_PORT ?? "3101",
-    promiseId: "todo_backend.typescript_hono.server_implements_contract",
     start: async (backendUrl) =>
       spawnProcess(tsxBin, ["src/server.ts"], {
         cwd: typescriptRoot,
@@ -70,11 +69,16 @@ if (!backendConfig) {
 const backendUrl = `http://${host}:${backendConfig.port}/todos`;
 
 export const runBrowserE2e = async () => {
+  await assertExamplePromiseIds([
+    "todo_backend.api.cors_allows_todomvc_client",
+    "todo_backend.client.uses_real_backend_api",
+  ]);
+
   const backend = await backendConfig.start(backendUrl);
   let client;
 
   try {
-    await waitForHttpOk(backendUrl);
+    await waitForProcessHttpOk(backend, backendUrl);
     client = spawnProcess(viteBin, ["--host", host, "--port", clientPort, "--strictPort"], {
       cwd: clientRoot,
       env: {
@@ -82,13 +86,13 @@ export const runBrowserE2e = async () => {
       },
       stdio: ["ignore", "inherit", "inherit"],
     });
-    await waitForHttpOk(clientUrl);
+    await waitForProcessHttpOk(client, clientUrl);
 
     await runProcess("pnpm", ["--dir", browserTestsRoot, "test"], {
       env: {
         HARNESS_ROOT_DIR: exampleRoot,
-        TODO_BACKEND_IMPLEMENTATION_PROMISE_ID: backendConfig.promiseId,
         TODO_BACKEND_URL: backendUrl,
+        TODO_BROWSER_E2E_REQUIRED: "1",
         TODO_CLIENT_URL: clientUrl,
       },
     });
