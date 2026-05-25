@@ -12,6 +12,7 @@ type CommandResult = {
 
 const rootDir = process.cwd();
 let rustWorkspaceTestRun: Promise<CommandResult> | undefined;
+const rustCoreEvidenceTimeoutMs = 60_000;
 
 const rustCoreEvidenceMarkers = {
   "harness.cli.check_validates_promises": ["tests::check_succeeds_for_valid_promises"],
@@ -124,14 +125,19 @@ const cargoTestPassed = (output: string, marker: string): boolean =>
 
 describe("Rust core evidence bridge", () => {
   for (const [promiseId, markers] of Object.entries(rustCoreEvidenceMarkers)) {
-    scenarioTest(promiseId, `Rust implementation satisfies ${promiseId}`, async () => {
-      const result = await runRustWorkspaceTests();
-      const output = `${result.stdout}\n${result.stderr}`;
+    scenarioTest(
+      promiseId,
+      `Rust implementation satisfies ${promiseId}`,
+      async () => {
+        const result = await runRustWorkspaceTests();
+        const output = `${result.stdout}\n${result.stderr}`;
 
-      expect(result.exitCode, result.stderr).toBe(0);
-      for (const marker of markers) {
-        expect(cargoTestPassed(output, marker), `missing cargo pass marker ${marker}`).toBe(true);
-      }
-    });
+        expect(result.exitCode, result.stderr).toBe(0);
+        for (const marker of markers) {
+          expect(cargoTestPassed(output, marker), `missing cargo pass marker ${marker}`).toBe(true);
+        }
+      },
+      { timeout: rustCoreEvidenceTimeoutMs },
+    );
   }
 });
