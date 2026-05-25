@@ -59,7 +59,8 @@ When updating documentation, keep the English and Chinese versions aligned.
 ## Agent Working Notes
 
 - Treat promises as first-class project artifacts.
-- Treat `.promise.yaml` files as the canonical source of reviewed behavior promise meaning. `scenario(...)` in tests should bind to a promise id, not redefine the promise.
+- Treat modules as the first visible layer of project architecture. A module is a reviewable architecture boundary, not a loose tag, folder mirror, or UI grouping. Agent-authored modules must start from the project's architecture and ownership model.
+- Treat `.promises.yaml` files as the canonical source of reviewed behavior promise meaning. `scenario(...)` in tests should bind to a promise id, not redefine the promise.
 - Treat `protocol/v1/` as the cross-language contract. TypeScript Effect Schemas should match the protocol; they should not become the only source of truth.
 - Prefer YAML for Harness-owned artifacts, including result files such as `.harness/results.yaml`. Use JSON only when an external tool or protocol makes it necessary.
 - Persist `apiVersion: 1` in Harness-owned protocol YAML artifacts.

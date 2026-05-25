@@ -45,7 +45,7 @@ In scope:
    Run or read adapter results and normalize them by promise id into `.harness/results.yaml`.
 
 6. **Seed report**
-   Output a human-readable report grouped by feature and promise.
+   Output a human-readable report grouped by architecture module and promise.
 
 Out of scope for the seed:
 

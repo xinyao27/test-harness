@@ -45,7 +45,7 @@ Seed Harness 的目的，是建立第一个自举循环：
    运行或读取 adapter results，并按 promise id 归一化成 `.harness/results.yaml`。
 
 6. **Seed report**
-   按 feature 和 promise 输出人类可读报告。
+   按 architecture module 和 promise 输出人类可读报告。
 
 Seed 阶段不做：
 

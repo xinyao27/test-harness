@@ -4,16 +4,17 @@ title:
   en: Validation — readability and evidence-coverage checks
   zh-CN: Validation — 可读性与证据覆盖检查
 summary:
-  en: Runs human-facing checks against loaded promises and collected adapter results. Flags promise metadata that is too thin or malformed for a human to review reliably, and flags implemented promises that have no test result evidence after a run.
-  zh-CN: 对加载到的 promises 和已收集的 adapter results 运行面向人类的检查。标记 metadata 过于稀薄或畸形、人类无法可靠 review 的 promise，标记运行后没有 test result 证据的 implemented promises。
+  en: Runs human-facing checks against loaded modules, promises, and collected adapter results. Flags architecture modules and promise metadata that are too thin or malformed for a human to review reliably, and flags implemented promises that have no test result evidence after a run.
+  zh-CN: 对加载到的 modules、promises 和已收集的 adapter results 运行面向人类的检查。标记过于稀薄或畸形、人类无法可靠 review 的 architecture modules 与 promise metadata，并标记运行后没有 test result 证据的 implemented promises。
 purpose:
-  en: Promise-first authoring depends on the reviewer being able to trust the metadata and on unproven implemented promises being visible — both rely on this module.
-  zh-CN: Promise-first authoring 依赖 reviewer 能信任 metadata，也依赖未被证明的 implemented promises 是可见的 — 两者都靠这个模块。
+  en: Architecture-first, promise-first authoring depends on reviewers being able to trust module boundaries, promise metadata, and visible unproven implementation work — all rely on this module.
+  zh-CN: Architecture-first、promise-first authoring 依赖 reviewer 能信任 module boundaries、promise metadata，并看到未被证明的 implementation work —— 这些都靠这个模块。
 promises:
   - harness.validation.checks_examples_table_shape
   - harness.validation.flags_promises_without_test_results
   - harness.validation.flags_uncovered_source_files
   - harness.validation.flags_unknown_scenario_bindings
+  - harness.validation.rejects_unreadable_modules
   - harness.validation.rejects_unreadable_promises
   - harness.validation.warns_when_default_language_missing
 covers:

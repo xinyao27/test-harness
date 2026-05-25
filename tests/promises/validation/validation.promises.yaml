@@ -96,6 +96,36 @@ promises:
       approvedBy: xinyao
       approvedAt: "2026-05-24"
 
+  - id: harness.validation.rejects_unreadable_modules
+    feature: Seed Harness / Validation
+    title:
+      en: Unreadable canonical modules are reported as validation issues
+      zh-CN: 不可读的 canonical modules 会被报告为 validation issues
+    purpose:
+      en: Protect the architecture-first Harness model by warning when modules look like generic buckets instead of reviewable architecture boundaries.
+      zh-CN: 通过在 module 看起来像 generic bucket 而不是可 review architecture boundary 时发出警告，保护 architecture-first 的 Harness 模型。
+    priority: P0
+    boundary: unit
+    lifecycle: proposed
+    given:
+      - en: Canonical module records have been decoded
+        zh-CN: canonical module records 已经被解码
+    when:
+      - en: The seed Harness validates module readability and architecture ownership
+        zh-CN: seed Harness 校验 module 的可读性与架构归属
+    then:
+      - en: Duplicate module ids, invalid ids, and blank required fields are errors
+        zh-CN: duplicate module ids、invalid ids 和 blank required fields 会成为 errors
+      - en: Modules without default English text or with generic bucket names are warnings
+        zh-CN: 缺少默认英文文本或使用 generic bucket 名称的 modules 会成为 warnings
+    observes:
+      - crates/harness-core/src/validation.rs
+      - tests/modules/*.module.yaml
+    failureMeaning:
+      en: Agents could create modules as arbitrary labels, hiding the real project architecture from reviewers.
+      zh-CN: Agent 可能把 module 创建成任意标签，从而向 reviewer 隐藏真实项目架构。
+    review: {}
+
   - id: harness.validation.flags_unknown_scenario_bindings
     feature: Seed Harness / Validation
     title:
@@ -132,8 +162,8 @@ promises:
       en: Source files not covered by any module are flagged
       zh-CN: 没有被任何 module 覆盖的源文件会被标记
     purpose:
-      en: Protect the project's promise-first review surface by mechanically detecting code that has no module owner.
-      zh-CN: 通过机械化检测没有 module owner 的代码，保护项目"以 promise 为先"的 review 表面。
+      en: Protect the project's architecture-first review surface by mechanically detecting code that has no module owner.
+      zh-CN: 通过机械化检测没有 module owner 的代码，保护项目"以 architecture 为先"的 review 表面。
     priority: P0
     boundary: unit
     lifecycle: accepted
@@ -155,8 +185,8 @@ promises:
       - crates/harness-core/src/module_registry.rs
       - tests/modules/*.module.yaml
     failureMeaning:
-      en: New code can land without any module taking review ownership, so reviewers cannot tell which area is responsible for it.
-      zh-CN: 新代码可能在没有任何 module 接手 review 的情况下落地，reviewer 无法判断它归哪个区域负责。
+      en: New code can land without any architecture module taking review ownership, so reviewers cannot tell which system part is responsible for it.
+      zh-CN: 新代码可能在没有任何 architecture module 接手 review 的情况下落地，reviewer 无法判断它归哪个系统部分负责。
     review:
       approvedBy: xinyao
       approvedAt: "2026-05-25"

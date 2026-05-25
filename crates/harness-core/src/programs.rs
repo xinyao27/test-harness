@@ -5,7 +5,8 @@ use crate::promise_registry::load_promise_records;
 use crate::report::generate_seed_report;
 use crate::results::load_test_results;
 use crate::validation::{
-    validate_module_coverage, validate_promise_records, validate_test_results,
+    validate_module_coverage, validate_module_records, validate_promise_records,
+    validate_test_results,
 };
 use harness_protocol::{ModuleRecord, PromiseRecord, SeedReport, TestResult, ValidationIssue};
 use std::path::Path;
@@ -24,6 +25,7 @@ pub fn check_seed_harness(root_dir: impl AsRef<Path>) -> Result<SeedCheckResult,
     let modules = load_module_records(root_dir)?;
     let source_files = find_source_files(root_dir)?;
     let mut issues = validate_promise_records(&records);
+    issues.extend(validate_module_records(&modules));
     issues.extend(validate_module_coverage(&modules, &source_files));
     Ok(SeedCheckResult {
         issues,

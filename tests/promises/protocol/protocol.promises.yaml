@@ -141,14 +141,14 @@ promises:
       en: Module schema is portable across implementations
       zh-CN: Module schema 可以跨实现移植
     purpose:
-      en: Protect future implementations from reverse-engineering module records by making module ownership metadata a protocol fixture-backed contract.
-      zh-CN: 通过把 module ownership metadata 固定成带 fixtures 的 protocol contract，避免未来实现反向理解 module records。
+      en: Protect future implementations from reverse-engineering module records by making architecture-boundary metadata a protocol fixture-backed contract.
+      zh-CN: 通过把 architecture-boundary metadata 固定成带 fixtures 的 protocol contract，避免未来实现反向理解 module records。
     priority: P0
     boundary: unit
     lifecycle: accepted
     given:
-      - en: A canonical module YAML file describes a reviewable source area
-        zh-CN: 一个 canonical module YAML file 描述可 review 的 source area
+      - en: A canonical module YAML file describes a reviewable architecture boundary
+        zh-CN: 一个 canonical module YAML file 描述可 review 的 architecture boundary
     when:
       - en: A Harness implementation decodes the module file
         zh-CN: Harness 实现解码这个 module file

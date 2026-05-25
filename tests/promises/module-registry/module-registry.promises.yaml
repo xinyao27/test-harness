@@ -6,14 +6,16 @@ promises:
       en: Canonical modules are loaded from YAML files
       zh-CN: Canonical modules 会从 YAML 文件加载
     purpose:
-      en: Protect the seed Harness's module layer so coverage validation and any module-aware tooling have stable inputs.
-      zh-CN: 保护 seed Harness 的 module 层，让覆盖率校验和未来所有 module-aware 工具都有稳定的输入。
+      en: Protect the seed Harness's architecture layer so coverage validation and any module-aware tooling have stable inputs.
+      zh-CN: 保护 seed Harness 的 architecture layer，让覆盖率校验和未来所有 module-aware 工具都有稳定输入。
     priority: P0
     boundary: unit
     lifecycle: accepted
     given:
       - en: A project root contains `tests/modules/*.module.yaml` files
         zh-CN: 项目根目录下存在 `tests/modules/*.module.yaml` 文件
+      - en: Those module files represent reviewable architecture boundaries, not loose labels
+        zh-CN: 这些 module files 表示可 review 的 architecture boundaries，而不是松散标签
     when:
       - en: The seed Harness loads modules during a check or report run
         zh-CN: seed Harness 在 check 或 report 运行时加载 modules
@@ -22,14 +24,14 @@ promises:
         zh-CN: 每个 module 文件都通过版本化的 ModuleRecord schema 解码
       - en: Files with malformed shape are rejected as load errors aggregated into ModuleRecordLoadErrors
         zh-CN: 形态不合法的文件会被拒绝，错误会聚合到 ModuleRecordLoadErrors 中
-      - en: Successfully loaded modules expose `id`, `title`, `summary`, `purpose`, `promises[]`, and `covers[]` to the rest of the Harness
-        zh-CN: 加载成功的 modules 把 `id`、`title`、`summary`、`purpose`、`promises[]` 和 `covers[]` 暴露给 Harness 其它部分
+      - en: Successfully loaded modules expose `id`, `title`, `summary`, `purpose`, `promises[]`, and `covers[]` as the project's architecture map
+        zh-CN: 加载成功的 modules 以项目 architecture map 的形式暴露 `id`、`title`、`summary`、`purpose`、`promises[]` 和 `covers[]`
     observes:
       - crates/harness-core/src/module_registry.rs
       - tests/modules/*.module.yaml
     failureMeaning:
-      en: Coverage validation and any future module-aware feature has no stable input — modules become inert YAML files.
-      zh-CN: 覆盖率校验和未来所有 module-aware 功能都失去稳定输入 —— modules 退化为惰性 YAML 文件。
+      en: Coverage validation and any future module-aware feature has no stable architecture input — modules become inert YAML files.
+      zh-CN: 覆盖率校验和未来所有 module-aware 功能都失去稳定 architecture input —— modules 退化为惰性 YAML 文件。
     review:
       approvedBy: xinyao
       approvedAt: "2026-05-25"

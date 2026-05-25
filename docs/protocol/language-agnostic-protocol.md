@@ -30,7 +30,7 @@ Protocol contracts live under `protocol/v1/`:
 - `promise.schema.yaml`: canonical promise file shape.
 - `harness-config.schema.yaml`: project-level runner config shape.
 - `promises-file.schema.yaml`: canonical grouped promises wrapper shape.
-- `module.schema.yaml`: canonical module ownership file shape.
+- `module.schema.yaml`: canonical architecture-boundary ownership file shape.
 - `adapter-event.schema.yaml`: stream record shape emitted by adapters and merged by the runtime.
 - `results.schema.yaml`: adapter-produced result file shape.
 - `report.schema.yaml`: structured report shape.
@@ -54,7 +54,7 @@ The protocol must not require Vitest task metadata, TypeScript imports, or Node 
 A replacement implementation is successful when it can satisfy the same protocol promises and conformance fixtures:
 
 1. Load the same `.promises.yaml` files.
-2. Load the same module ownership files.
+2. Load the same architecture-boundary module files.
 3. Load the same `tests/harness.yaml` runner config shape.
 4. Reject the same invalid config, module, promise, result, and report fixtures.
 5. Emit the same adapter event records or read/write the same `.harness/results.yaml` shape.

@@ -22,7 +22,10 @@ pub use results::{
     create_test_results_file, get_promise_run_status, load_test_results, load_test_results_file,
     write_test_results_file, HARNESS_RESULTS_PATH, HARNESS_ROOT_ENV_VAR,
 };
-pub use validation::{validate_module_coverage, validate_promise_records, validate_test_results};
+pub use validation::{
+    validate_module_coverage, validate_module_records, validate_promise_records,
+    validate_test_results,
+};
 
 pub use harness_protocol::{
     FeatureReport, HarnessConfig, LocalizedText, ModuleRecord, PromiseLifecycle, PromiseRecord,
@@ -124,6 +127,20 @@ promises:
         }
     }
 
+    fn valid_module(id: &str) -> ModuleRecord {
+        ModuleRecord {
+            api_version: ProtocolVersion,
+            covers: vec!["crates/harness-core/src/validation.rs".to_string()],
+            id: id.to_string(),
+            promises: vec!["harness.validation.rejects_unreadable_modules".to_string()],
+            purpose: LocalizedText::Text(
+                "Preserve a concrete architecture boundary for review.".to_string(),
+            ),
+            summary: LocalizedText::Text("Owns validation behavior.".to_string()),
+            title: LocalizedText::Text("Validation".to_string()),
+        }
+    }
+
     fn result_for(promise_id: &str, status: TestResultStatus) -> TestResult {
         TestResult {
             failure_message: None,
@@ -155,7 +172,8 @@ promises:
         fs::write(temp.path().join(HARNESS_CONFIG_PATH), VALID_HARNESS_CONFIG).unwrap();
         fs::create_dir_all(temp.path().join("tests/promises/grouped")).unwrap();
         fs::write(
-            temp.path().join("tests/promises/grouped/grouped.promises.yaml"),
+            temp.path()
+                .join("tests/promises/grouped/grouped.promises.yaml"),
             r#"apiVersion: 1
 promises:
   - id: harness.promise_registry.load_canonical_yaml_promises
@@ -315,6 +333,28 @@ covers:
 
         assert!(codes.contains(&"inconsistent_example_columns".to_string()));
         assert!(codes.contains(&"blank_example_row_name".to_string()));
+    }
+
+    #[test]
+    fn validation_rejects_unreadable_modules() {
+        let mut first = valid_module("utils");
+        first.title = LocalizedText::Text("Utils".to_string());
+        let mut second = valid_module("utils");
+        second.summary = LocalizedText::Text(" ".to_string());
+        second.purpose = LocalizedText::Localized(BTreeMap::from([(
+            "zh-CN".to_string(),
+            "缺少默认语言".to_string(),
+        )]));
+
+        let codes = validate_module_records(&[first, second])
+            .into_iter()
+            .map(|issue| issue.code)
+            .collect::<Vec<_>>();
+
+        assert!(codes.contains(&"duplicate_module_id".to_string()));
+        assert!(codes.contains(&"blank_required_field".to_string()));
+        assert!(codes.contains(&"missing_default_language".to_string()));
+        assert!(codes.contains(&"vague_architecture_module".to_string()));
     }
 
     #[test]

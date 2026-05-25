@@ -6,7 +6,7 @@ source:
 coverage:
   target: canonical-harness-modules-and-promises
   expectedModuleCount: 12
-  expectedHarnessPromiseCount: 43
+  expectedHarnessPromiseCount: 44
   description:
     en: Every canonical TestHarness module and module-owned promise must have an explicit application path in the Todo-Backend showcase.
     zh-CN: 每个 canonical TestHarness module 及其拥有的 promise，都必须在 Todo-Backend showcase 中拥有明确应用路径。
@@ -228,6 +228,7 @@ features:
       - harness.validation.flags_promises_without_test_results
       - harness.validation.flags_uncovered_source_files
       - harness.validation.flags_unknown_scenario_bindings
+      - harness.validation.rejects_unreadable_modules
       - harness.validation.rejects_unreadable_promises
       - harness.validation.warns_when_default_language_missing
     showcasePromiseIds:

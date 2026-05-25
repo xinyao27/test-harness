@@ -13,22 +13,23 @@ You do not implement new behavior here. You **describe what is already there** i
 
 ```text
 Harness config     ← runner entrypoint — tests/harness.yaml
-  Architecture      ← project-wide overview (not yet implemented)
-    Module          ← one reviewable area a human could own — tests/modules/*.module.yaml
-      Promise group ← related behavior commitments — tests/promises/**/*.promises.yaml
-        Promise     ← one behavior commitment inside the file's `promises:` list
-          Evidence  ← adapter test results
+  Module            ← architecture boundary — tests/modules/*.module.yaml
+    Promise group   ← related behavior commitments — tests/promises/**/*.promises.yaml
+      Promise       ← one behavior commitment inside the file's `promises:` list
+        Evidence    ← adapter test results
 ```
 
 Onboarding is top-down: **architecture → module → promise → evidence**. Each step is a separate review event. Do not skip ahead.
+
+A Module is the project's first visible architecture layer. It is not a tag, folder mirror, or convenience grouping. When you propose modules, a human should be able to read the list and understand what the project is made of.
 
 ## Workflow — Three Phases, Hand to Human Between Each
 
 ### Phase 1 — Propose the module list
 
-1. Scan top-level project documentation (`README.md`, `AGENTS.md`, `CLAUDE.md`, `docs/`) and the top-level code layout (`packages/`, `apps/`, `src/`, etc.). List the candidate reviewable areas.
+1. Scan top-level project documentation (`README.md`, `AGENTS.md`, `CLAUDE.md`, `docs/`) and the top-level code layout (`packages/`, `apps/`, `src/`, etc.). Infer the project's architecture boundaries first; use folders as clues, not as the answer.
 2. If any `*.promises.yaml` files already exist, collect their promise ids and `feature:` strings.
-3. Propose a candidate module list. For each candidate, write one sentence: what area it covers, roughly how many promises it would hold, what the review audience looks like.
+3. Propose a candidate module list as an architecture map. For each candidate, write one sentence: what architectural responsibility it owns, roughly how many promises it would hold, what the review audience looks like.
 4. Call out boundary calls you are unsure about, e.g. "this area could be one module or two because…".
 5. **Stop. Hand to the human for review.** Do not write any `.module.yaml` files yet.
 
@@ -60,6 +61,7 @@ Only after the promise list is approved:
 - **Inventing promises that no code currently proves** — onboarding describes existing behavior. New behavior runs through `harness-add-feature` afterwards.
 - **Creating one file per promise by habit** — prefer grouped `*.promises.yaml` files so related review units stay readable together.
 - **Over-fine module split with single-sentence summaries** — if you find yourself writing the same `summary` twice, those are one module.
+- **Mirroring folders instead of architecture** — folders may be implementation detail. Modules should describe reviewable system parts and ownership boundaries.
 - **Copy-pasting promise titles into module `summary`** — a module's summary should add navigation context, not duplicate what promise titles already say.
 - **Setting `lifecycle: accepted` on the promises you draft** — only the human can do that. Default to `proposed`; the human fills in `review.approvedBy` / `approvedAt`.
 

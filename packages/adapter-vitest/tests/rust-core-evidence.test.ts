@@ -85,6 +85,7 @@ const rustCoreEvidenceMarkers = {
   "harness.validation.flags_unknown_scenario_bindings": [
     "tests::validation_flags_unknown_scenario_bindings",
   ],
+  "harness.validation.rejects_unreadable_modules": ["tests::validation_rejects_unreadable_modules"],
   "harness.validation.rejects_unreadable_promises": [
     "tests::validation_rejects_unreadable_promises",
   ],

@@ -263,6 +263,88 @@ fn example_keys(row: &PromiseExampleRow) -> HashSet<String> {
     keys
 }
 
+pub fn validate_module_records(modules: &[ModuleRecord]) -> Vec<ValidationIssue> {
+    let mut issues = Vec::new();
+    let mut seen = HashSet::new();
+
+    for module in modules {
+        if !seen.insert(module.id.clone()) {
+            issues.push(issue(
+                ValidationSeverity::Error,
+                "duplicate_module_id",
+                format!("Duplicate module id \"{}\".", module.id),
+                None,
+                None,
+            ));
+        }
+
+        if !ID_PATTERN.is_match(&module.id) {
+            issues.push(issue(
+                ValidationSeverity::Error,
+                "invalid_module_id",
+                format!(
+                    "Module id \"{}\" must be stable, lowercase, and dot/underscore/hyphen separated.",
+                    module.id
+                ),
+                None,
+                None,
+            ));
+        }
+
+        for (field, value) in [
+            ("title", &module.title),
+            ("summary", &module.summary),
+            ("purpose", &module.purpose),
+        ] {
+            if is_localized_text_blank(value) {
+                issues.push(issue(
+                    ValidationSeverity::Error,
+                    "blank_required_field",
+                    format!("Module \"{}\" has a blank {field}.", module.id),
+                    None,
+                    None,
+                ));
+            }
+            if !has_default_language_text(value) {
+                issues.push(issue(
+                    ValidationSeverity::Warning,
+                    "missing_default_language",
+                    format!(
+                        "Module \"{}\" should include non-blank en text for {field}.",
+                        module.id
+                    ),
+                    None,
+                    None,
+                ));
+            }
+        }
+
+        if is_vague_module_name(&module.id)
+            || is_vague_module_name(&resolve_localized_text(&module.title, None))
+        {
+            issues.push(issue(
+                ValidationSeverity::Warning,
+                "vague_architecture_module",
+                format!(
+                    "Module \"{}\" should name a concrete architecture boundary, not a generic bucket.",
+                    module.id
+                ),
+                None,
+                None,
+            ));
+        }
+    }
+
+    issues
+}
+
+fn is_vague_module_name(value: &str) -> bool {
+    matches!(
+        value.trim().to_ascii_lowercase().as_str(),
+        "common" | "general" | "helpers" | "misc" | "miscellaneous" | "stuff" | "utils"
+    )
+}
+
 pub fn validate_module_coverage(
     modules: &[ModuleRecord],
     source_files: &[String],
