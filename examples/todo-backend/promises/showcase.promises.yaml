@@ -9,7 +9,7 @@ promises:
       en: Protect the external demo from becoming a partial sample by requiring every canonical Harness module and promise to have an explicit Todo-Backend application path.
       zh-CN: 防止对外 demo 变成局部样例；要求每个 canonical Harness module 和 promise 都有明确的 Todo-Backend 应用路径。
     priority: P0
-    boundary: validation
+    boundary: unit
     lifecycle: proposed
     given:
       - en: The repository defines canonical Harness modules and promises
@@ -114,7 +114,7 @@ promises:
       en: Protect the human-facing story of the demo by showing English and Chinese reviewers the same Todo-Backend promise status without reading source code.
       zh-CN: 保护 demo 面向人的叙事：英文和中文 reviewer 都可以不读源码，看到同一套 Todo-Backend promise status。
     priority: P1
-    boundary: report
+    boundary: e2e
     lifecycle: proposed
     given:
       - en: Todo-Backend promises use LocalizedText fields
@@ -149,7 +149,7 @@ promises:
       en: Protect the showcase from drifting as files are added by requiring validation to catch unreadable promises, missing evidence, unknown bindings, and unmapped example areas.
       zh-CN: 防止 showcase 随文件增加而漂移；要求 validation 捕获不可读 promise、缺失 evidence、未知 binding 和未映射 example 区域。
     priority: P1
-    boundary: validation
+    boundary: unit
     lifecycle: proposed
     given:
       - en: The Todo-Backend example has modules, promises, contract tests, native tests, and result files

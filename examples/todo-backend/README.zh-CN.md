@@ -24,6 +24,40 @@ http://127.0.0.1:3101/todos
 
 在这个 URL 启动一个 Todo-Backend-compatible server，然后打开命令打印出的 Vite URL。
 
+## TypeScript Hono Backend
+
+单独运行 TypeScript implementation：
+
+```bash
+pnpm example:todo:serve:typescript
+```
+
+它会在这个地址提供 Todo-Backend API：
+
+```text
+http://127.0.0.1:3101/todos
+```
+
+运行它的 native Vitest coverage：
+
+```bash
+pnpm example:todo:test:typescript:native
+```
+
+## Harness Run
+
+启动 TypeScript backend、运行官方 Todo-Backend contract tests、收集 adapter events、合并到 `.harness/results.yaml`，并渲染 Harness summary：
+
+```bash
+pnpm example:todo:test
+```
+
+渲染最近一次 Todo-Backend Harness report：
+
+```bash
+pnpm example:todo:report
+```
+
 ## Spec Coverage
 
 这个 example 把官方 Todo-Backend JavaScript spec 作为第一阶段覆盖基准：

@@ -22,16 +22,19 @@ features:
       - todo_backend.showcase.one_command_runs_full_demo
     currentArtifacts:
       - examples/todo-backend/harness-feature-map.yaml
+      - examples/todo-backend/harness.yaml
       - examples/todo-backend/promises/showcase.promises.yaml
       - examples/todo-backend/tools/check-feature-map.mjs
+      - examples/todo-backend/tools/run-harness-cli.mjs
+      - examples/todo-backend/tools/run-typescript-contract.mjs
     plannedArtifacts:
       - examples/todo-backend/.harness/runs/*/events/*.ndjson
       - examples/todo-backend/.harness/results.yaml
       - examples/todo-backend/implementations/*/**
     implementedCommands:
       - pnpm example:todo:check
-    plannedCommands:
       - pnpm example:todo:test
+    plannedCommands: []
 
   - moduleId: cli
     harnessPromiseIds:
@@ -46,15 +49,15 @@ features:
       - todo_backend.showcase.cli_reports_bilingual_promise_status
     currentArtifacts:
       - package.json
+      - examples/todo-backend/harness.yaml
       - examples/todo-backend/README.md
       - examples/todo-backend/README.zh-CN.md
-    plannedArtifacts:
-      - examples/todo-backend/harness.yaml
+    plannedArtifacts: []
     implementedCommands:
       - pnpm example:todo:check
-    plannedCommands:
       - pnpm example:todo:test
       - pnpm example:todo:report
+    plannedCommands: []
 
   - moduleId: module-registry
     harnessPromiseIds:
@@ -127,16 +130,16 @@ features:
       - todo_backend.spec.official_spec_map_is_complete
     currentArtifacts:
       - examples/todo-backend/harness-feature-map.yaml
+      - examples/todo-backend/harness.yaml
       - examples/todo-backend/spec-map.yaml
       - examples/todo-backend/promises/contract.promises.yaml
       - examples/todo-backend/modules/api-contract.module.yaml
     plannedArtifacts:
-      - examples/todo-backend/harness.yaml
       - examples/todo-backend/.harness/results.yaml
     implementedCommands:
       - pnpm example:todo:check
-    plannedCommands:
       - pnpm example:todo:test
+    plannedCommands: []
 
   - moduleId: report
     harnessPromiseIds:
@@ -156,8 +159,10 @@ features:
       - examples/todo-backend/matrix.yaml
     implementedCommands:
       - pnpm example:todo-feature-map:check
-    plannedCommands:
+      - pnpm example:todo:test
       - pnpm example:todo:report
+    plannedCommands:
+      - pnpm example:todo:report:full
 
   - moduleId: results-schema
     harnessPromiseIds:
@@ -172,8 +177,8 @@ features:
       - examples/todo-backend/.harness/results.yaml
     implementedCommands:
       - pnpm example:todo-feature-map:check
-    plannedCommands:
       - pnpm example:todo:test
+    plannedCommands: []
 
   - moduleId: rust-adapter
     harnessPromiseIds:
@@ -229,12 +234,13 @@ features:
     currentArtifacts:
       - examples/todo-backend/modules/typescript-hono.module.yaml
       - examples/todo-backend/promises/typescript-hono.promises.yaml
+      - examples/todo-backend/contract-tests
+      - examples/todo-backend/implementations/typescript-hono
+      - examples/todo-backend/tools/run-typescript-contract.mjs
     plannedArtifacts:
-      - examples/todo-backend/contract-tests/**
-      - examples/todo-backend/implementations/typescript-hono/**
       - examples/todo-backend/.harness/runs/*/events/*.ndjson
     implementedCommands:
       - pnpm example:todo-feature-map:check
+      - pnpm example:todo:test:typescript
     plannedCommands:
       - pnpm example:todo:test:contract
-      - pnpm example:todo:test:typescript

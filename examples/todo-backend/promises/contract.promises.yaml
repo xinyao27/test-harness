@@ -335,7 +335,7 @@ promises:
       en: Protect the meaning of "100% covered" by making every official Todo-Backend JavaScript spec case traceable to reviewed Harness promises.
       zh-CN: 保护“100% 覆盖”的含义：让官方 Todo-Backend JavaScript spec 的每个 case 都可以追溯到已 review 的 Harness promises。
     priority: P0
-    boundary: validation
+    boundary: unit
     lifecycle: proposed
     given:
       - en: The Todo-Backend example contains a spec-to-promise coverage map

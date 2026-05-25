@@ -2,6 +2,8 @@ packages:
   - apps/*
   - packages/*
   - examples/todo-backend/client/*
+  - examples/todo-backend/contract-tests
+  - examples/todo-backend/implementations/*
 
 catalogMode: prefer
 
