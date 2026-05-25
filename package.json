@@ -24,6 +24,11 @@
     "lint": "vp lint --fix",
     "fmt": "vp fmt",
     "test": "vp test",
+    "example:todo:check": "pnpm example:todo-spec-map:check && pnpm example:todo-feature-map:check",
+    "example:todo-client": "pnpm --dir examples/todo-backend/client/todomvc-react dev",
+    "example:todo-client:build": "pnpm --dir examples/todo-backend/client/todomvc-react build",
+    "example:todo-feature-map:check": "node examples/todo-backend/tools/check-feature-map.mjs",
+    "example:todo-spec-map:check": "node examples/todo-backend/tools/check-spec-map.mjs",
     "ready": "vp check && vp run -r test && vp run -r build",
     "up": "taze major -Ir",
     "prepare": "vp config"
@@ -31,7 +36,8 @@
   "devDependencies": {
     "@test-harness/adapter-vitest": "workspace:*",
     "taze": "catalog:",
-    "vite-plus": "catalog:"
+    "vite-plus": "catalog:",
+    "yaml": "^2.9.0"
   },
   "engines": {
     "node": ">=22.12.0"

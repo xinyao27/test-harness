@@ -1,0 +1,16 @@
+apiVersion: 1
+id: todo-backend-typescript-hono
+title:
+  en: TypeScript Hono Implementation
+  zh-CN: TypeScript Hono Implementation
+summary:
+  en: A real TypeScript backend implementation and native Vitest tests that prove the shared Todo-Backend promises through the Vitest adapter.
+  zh-CN: 一个真实 TypeScript backend implementation，以及通过 Vitest adapter 证明共享 Todo-Backend promises 的 native Vitest tests。
+purpose:
+  en: This module demonstrates the reference TypeScript adapter path while keeping core promise meaning in shared YAML.
+  zh-CN: 这个 module 展示参考 TypeScript adapter 路径，同时把核心 promise meaning 保持在共享 YAML 中。
+promises:
+  - todo_backend.typescript_hono.server_implements_contract
+  - todo_backend.typescript_hono.native_tests_are_promise_bound
+covers:
+  - examples/todo-backend/implementations/typescript-hono/**
