@@ -1,22 +1,26 @@
 # Harness Test Orchestrator Plan
 
+> Status: Historical plan, implemented as a generic configured-runner path in the Rust CLI.
+
 ## Summary
 
-The next slice should turn the current two-command loop into one command:
+This slice turned the earlier two-command loop into one command:
 
 ```bash
 harness test
 ```
 
-The command should run Vite+/Vitest from the workspace root, pass that root to the Harness reporter through `HARNESS_ROOT_DIR`, let the reporter write `.harness/results.yaml`, then render the same verification report that `harness verify` already produces.
+The command runs the configured test runner from `harness.yaml`, passes the workspace root through `HARNESS_ROOT_DIR`, requires a Harness result file, then renders the same verification report that `harness verify` already produces. In this repository, the configured command uses the Rust adapter runtime to wrap `vp test` and merge adapter event shards into `.harness/results.yaml`.
 
 This is still not AI-generated implementation. It is the smallest practical self-bootstrapping loop:
 
 ```text
-canonical .promise.yaml files
+canonical .promises.yaml files
   -> scenarioTest(...) bindings
   -> harness test
-  -> Vitest execution
+  -> configured runner execution
+  -> adapter event shards
+  -> adapter runtime merge
   -> .harness/results.yaml
   -> promise verification report
 ```
@@ -25,7 +29,7 @@ canonical .promise.yaml files
 
 After this slice, a human can:
 
-1. Write or review `.promise.yaml` files.
+1. Write or review `.promises.yaml` files.
 2. Bind executable tests to promise ids with `scenarioTest(...)`.
 3. Run one command to see which reviewed promises are currently passing, failing, skipped, or unknown.
 
@@ -54,11 +58,11 @@ Out of scope:
 
 1. Resolve the workspace root.
 2. Remove or overwrite stale `.harness/results.yaml`.
-3. Run the configured Vite+/Vitest command.
+3. Run the configured command from `harness.yaml`.
 4. If the test command exits non-zero, fail; if it still wrote results, render them so the failing promises remain visible.
 5. If the test command exits non-zero without results, report only the test command failure instead of also reporting a missing result file.
 6. Fail if `.harness/results.yaml` is missing after a successful test command.
-7. Read `.harness/results.yaml` through the existing Effect Schema decoder.
+7. Read `.harness/results.yaml` through the Rust protocol decoder.
 8. Render the same report as `harness verify`.
 9. Return non-zero if tests fail, result YAML is missing or invalid, or verification contains errors.
 
@@ -77,13 +81,13 @@ This keeps the first implementation simple and predictable while avoiding accide
 
 ## Test Command
 
-For the first implementation, use the repo's existing command:
+For this repository's development self-bootstrap, the configured command currently wraps:
 
 ```bash
 vp test
 ```
 
-The command should be centralized in one small helper so it can later become configurable without changing report logic.
+Packaged users should invoke the installed Harness binary or adapter entrypoint instead of Cargo. The CLI itself only knows the configured runner contract; Vitest-specific details stay in the adapter/runtime boundary.
 
 ## Done Looks Like
 
@@ -112,5 +116,5 @@ should:
 vp check
 vp run -r test
 vp run -r build
-vp exec harness test --lang zh-CN
+cargo run -q -p harness-cli -- test --lang zh-CN
 ```

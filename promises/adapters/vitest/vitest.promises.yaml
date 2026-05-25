@@ -3,72 +3,71 @@ promises:
   - id: harness.adapters.vitest.result_collector.writes_results_to_explicit_harness_root
     feature: Adapters / Vitest / Result Collector
     title:
-      en: The result collector writes results under the explicit Harness root
-      zh-CN: result collector 会把结果写到明确的 Harness root 下
+      en: The result collector writes adapter events under the explicit Harness root
+      zh-CN: result collector 会把 adapter events 写到明确的 Harness root 下
     purpose:
-      en: Protect workspace-level protocol results from being written into package subdirectories.
-      zh-CN: 保护 workspace-level protocol results，避免 result files 被写进 package 子目录。
+      en: Protect workspace-level adapter events from being written into package subdirectories before the shared runtime merges them.
+      zh-CN: 保护 workspace-level adapter events，避免它们在共享 runtime 合并之前被写进 package 子目录。
     priority: P0
     boundary: integration
     lifecycle: accepted
-
     given:
       - en: The Harness root is provided through HARNESS_ROOT_DIR
         zh-CN: Harness root 通过 HARNESS_ROOT_DIR 提供
     when:
-      - en: The Vitest reporter persists collected promise results
-        zh-CN: Vitest reporter 持久化收集到的 promise results
+      - en: The Vitest reporter persists collected promise events
+        zh-CN: Vitest reporter 持久化收集到的 promise events
     then:
-      - en: The result file is written relative to the explicit Harness root
-        zh-CN: result file 会相对明确的 Harness root 写入
+      - en: Adapter event shards are written relative to the explicit Harness root
+        zh-CN: adapter event shards 会相对明确的 Harness root 写入
       - en: The reporter falls back to the test process cwd only when no explicit root is provided
         zh-CN: 只有没有提供明确 root 时，reporter 才 fallback 到 test process cwd
     observes:
-      - .harness/results.yaml
+      - .harness/runs/*/events/*.ndjson
       - HARNESS_ROOT_DIR
+      - HARNESS_RUN_ID
+      - HARNESS_ADAPTER_EVENTS_DIR
       - packages/adapter-vitest/src/reporter.ts
-
     failureMeaning:
-      en: The CLI may read one result file while Vitest writes another, making the self-report untrustworthy.
-      zh-CN: CLI 可能读取一个 result file，而 Vitest 写入另一个，导致 self-report 不可信。
-
+      en: The runtime may merge one event directory while Vitest writes another, making the self-report untrustworthy.
+      zh-CN: runtime 可能合并一个 event directory，而 Vitest 写入另一个，导致 self-report 不可信。
     review:
       approvedBy: xinyao
       approvedAt: "2026-05-24"
+
   - id: harness.adapters.vitest.result_collector.maps_results_to_promises
     feature: Adapters / Vitest / Result Collector
     title:
-      en: Vitest results are mapped into Harness protocol results
-      zh-CN: Vitest 结果会映射成 Harness protocol results
+      en: Vitest results are mapped into Harness adapter events
+      zh-CN: Vitest 结果会映射成 Harness adapter events
     purpose:
-      en: Protect the adapter contract so executable Vitest outcomes can update reviewed promise status through the stable result protocol.
-      zh-CN: 保护 adapter contract，让可执行 Vitest 结果可以通过稳定的 result protocol 更新已 review promise 的状态。
+      en: Protect the adapter contract so executable Vitest outcomes can flow through the shared adapter event runtime before updating reviewed promise status.
+      zh-CN: 保护 adapter contract，让可执行 Vitest 结果可以先通过共享 adapter event runtime，再更新已 review promise 的状态。
     priority: P0
     boundary: unit
     lifecycle: accepted
-
     given:
       - en: A Vitest test is bound to a canonical promise id
         zh-CN: 一个 Vitest 测试绑定到 canonical promise id
     when:
-      - en: The Harness result collector reads Vitest task metadata
-        zh-CN: Harness result collector 读取 Vitest task metadata
+      - en: The Vitest reporter reads Vitest task metadata
+        zh-CN: Vitest reporter 读取 Vitest task metadata
     then:
-      - en: The collected result is persisted to .harness/results.yaml
-        zh-CN: 收集到的结果会持久化到 .harness/results.yaml
-      - en: The report uses that result to derive the promise run status
-        zh-CN: report 会使用该结果推导 promise run status
+      - en: The collected result is emitted as a protocol-valid adapter event
+        zh-CN: 收集到的结果会被输出为 protocol-valid adapter event
+      - en: The shared runtime can merge that event into .harness/results.yaml
+        zh-CN: 共享 runtime 可以把该 event 合并进 .harness/results.yaml
     observes:
-      - .harness/results.yaml
+      - protocol/v1/adapter-event.schema.yaml
       - packages/adapter-vitest/src/reporter.ts
-
+      - crates/harness-adapter-runtime/src/**
     failureMeaning:
       en: The Harness cannot show whether reviewed promises are currently backed by passing tests.
       zh-CN: Harness 无法展示已 review 的 promises 当前是否由通过的测试支撑。
-
     review:
       approvedBy: xinyao
       approvedAt: "2026-05-24"
+
   - id: harness.adapters.vitest.scenario_helper.binds_tests_to_canonical_promises
     feature: Adapters / Vitest / Scenario Helper
     title:
@@ -80,7 +79,6 @@ promises:
     priority: P0
     boundary: unit
     lifecycle: accepted
-
     given:
       - en: A canonical promise exists under the promises root
         zh-CN: promises/ 目录下存在一条 canonical promise
@@ -88,18 +86,15 @@ promises:
       - en: A Vitest test calls scenario with that promise id
         zh-CN: Vitest 测试使用这个 promise id 调用 scenario
     then:
-      - en: The scenario helper returns a ScenarioBinding
-        zh-CN: scenario helper 返回一个 ScenarioBinding
-      - en: The binding keeps the promise id stable
-        zh-CN: 该 binding 会保持 promise id 稳定
+      - en: The Vitest test metadata carries that promise id
+        zh-CN: Vitest test metadata 会携带该 promise id
+      - en: Blank promise ids are rejected before the test is registered
+        zh-CN: 空白 promise id 会在测试注册前被拒绝
     observes:
       - packages/adapter-vitest/src/index.ts
-      - packages/core/src/scenario.ts
-
     failureMeaning:
       en: The Harness cannot connect executable tests back to reviewed promises.
       zh-CN: Harness 无法把可执行测试连接回已 review 的 promises。
-
     review:
       approvedBy: xinyao
       approvedAt: "2026-05-24"

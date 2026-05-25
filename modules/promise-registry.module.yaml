@@ -13,6 +13,7 @@ promises:
   - harness.promise_registry.load_canonical_yaml_promises
   - harness.promise_registry.surfaces_per_record_decode_errors
 covers:
-  - packages/core/src/promise-registry.ts
-  - packages/core/src/errors.ts
-  - packages/core/src/index.ts
+  - crates/harness-core/Cargo.toml
+  - crates/harness-core/src/errors.rs
+  - crates/harness-core/src/lib.rs
+  - crates/harness-core/src/promise_registry.rs

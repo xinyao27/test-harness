@@ -18,7 +18,7 @@ test-harness-design.zh-CN.md
 
 This project is a **promise-driven Test Harness** built around a versioned YAML protocol.
 
-It is not tied to a single language or test framework. The current implementation uses TypeScript and Vitest as the reference implementation and first adapter because they already provide test discovery, execution, assertions, reporters, projects, Browser Mode, coverage, and Node API support.
+It is not tied to a single language or test framework. The current implementation uses Rust for the core/CLI and a thin TypeScript Vitest adapter at the Node test-runtime boundary.
 
 This Harness adds the layer normal test frameworks do not provide:
 
@@ -219,15 +219,18 @@ type PromiseRunStatus =
 
 A **scenario** is the test-side metadata that connects executable tests back to promises.
 
-`scenario(...)` is not the canonical promise definition. It should bind an adapter test to an existing `promiseId`. If local metadata conflicts with the canonical promise file, the Harness should report drift or invalid metadata.
+Adapter-side bindings are not canonical promise definitions. They should bind an adapter test to an existing `promiseId`. If local metadata conflicts with the canonical promise file, the Harness should report drift or invalid metadata.
 
 Minimal adapter-side shape:
 
 ```ts
-scenario({
-  id: "checkout.payment.success_marks_order_paid",
-  evidence: ["orders.status", "success page UI"],
-});
+scenarioTest(
+  "checkout.payment.success_marks_order_paid",
+  "marks the order paid after successful payment",
+  () => {
+    // executable evidence
+  },
+);
 ```
 
 The full title, priority, boundary, Given / When / Then, and review lifecycle live in the promise file.
@@ -498,13 +501,13 @@ Build the smallest version that preserves the core model. The detailed seed plan
    Create the smallest self-hosting loop: promise storage, adapter result collection by promise id, and a readable report for this Harness project itself.
 
 2. **Agent authoring skills**
-   Teach Agents how to draft Harness-friendly promises, modules, and tests. The skills are scenario-shaped — [../../skills/harness-add-feature/SKILL.md](../../skills/harness-add-feature/SKILL.md) for routine feature work, [../../skills/harness-onboard-project/SKILL.md](../../skills/harness-onboard-project/SKILL.md) for first-time onboarding, [../../skills/harness-troubleshoot/SKILL.md](../../skills/harness-troubleshoot/SKILL.md) for diagnosing command failures. Field-level rules live in AGENTS.md and in existing `.promise.yaml` / `.module.yaml` files as templates; the skills stay workflow-focused. All of this stays outside the Harness runtime data model.
+   Teach Agents how to draft Harness-friendly promises, modules, and tests. The skills are scenario-shaped — [../../skills/harness-add-feature/SKILL.md](../../skills/harness-add-feature/SKILL.md) for routine feature work, [../../skills/harness-onboard-project/SKILL.md](../../skills/harness-onboard-project/SKILL.md) for first-time onboarding, [../../skills/harness-troubleshoot/SKILL.md](../../skills/harness-troubleshoot/SKILL.md) for diagnosing command failures. Field-level rules live in AGENTS.md and in existing `.promises.yaml` / `.module.yaml` files as templates; the skills stay workflow-focused. All of this stays outside the Harness runtime data model.
 
 3. **Promise registry**
    Store promises, lifecycle state, review state, history, and drift records.
 
 4. **Vitest adapter**
-   Provide `scenarioTest(...)` metadata and a reporter that writes Harness result YAML.
+   Provide `scenarioTest(...)` metadata and a reporter that writes adapter event shards for the shared runtime to merge into Harness result YAML.
 
 5. **Quality and drift checker**
    Check canonical metadata, scenario bindings, readable structure, Chinese test purpose, boundaries, observable assertions, promise drift, evidence drift, and assertion fingerprint changes.

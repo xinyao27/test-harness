@@ -4,8 +4,8 @@ title:
   en: Vitest Adapter — binding tests and collecting results for Vitest
   zh-CN: Vitest Adapter — 在 Vitest 中绑定测试并收集结果
 summary:
-  en: The reference adapter for the current TypeScript implementation. Provides scenarioTest(promiseId, ...) so a Vitest test can stay attached to a canonical promise id, and a result collector that turns Vitest outcomes into Harness protocol result YAML written to an explicit harness root. Future adapters (other test frameworks, other languages) should follow the same shape.
-  zh-CN: 当前 TypeScript 实现的参考 adapter。提供 scenarioTest(promiseId, ...) 让 Vitest 测试稳定绑定到 canonical promise id，并提供 result collector 把 Vitest 结果转换成 Harness protocol result YAML，写到明确的 harness root 下。未来的 adapters（其它测试框架、其它语言）应遵循同一形态。
+  en: The reference adapter for Vitest. Provides scenarioTest(promiseId, ...) so a Vitest test can stay attached to a canonical promise id, and a thin reporter that turns Vitest outcomes into language-neutral adapter events for the shared runtime to merge.
+  zh-CN: Vitest 的参考 adapter。提供 scenarioTest(promiseId, ...) 让 Vitest 测试稳定绑定到 canonical promise id，并提供薄 reporter，把 Vitest 结果转换成语言无关的 adapter events，交给共享 runtime 合并。
 purpose:
   en: Without an adapter, the harness has reviewed promises but no executable evidence — adapters are how runtime test outcomes become protocol-shaped results the rest of the harness can read.
   zh-CN: 没有 adapter，harness 就只有已 review 的 promises，没有可执行证据 — adapter 把运行时测试结果转成 harness 其它部分能读的 protocol 形态结果。
@@ -15,4 +15,3 @@ promises:
   - harness.adapters.vitest.scenario_helper.binds_tests_to_canonical_promises
 covers:
   - packages/adapter-vitest/src/**
-  - packages/core/src/scenario.ts

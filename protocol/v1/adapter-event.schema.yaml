@@ -1,0 +1,61 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://test-harness.local/protocol/v1/adapter-event.schema.yaml
+title: Harness Adapter Event v1
+type: object
+additionalProperties: false
+required:
+  - apiVersion
+  - kind
+  - runId
+  - timestamp
+  - adapter
+  - payload
+properties:
+  apiVersion:
+    const: 1
+  kind:
+    const: testResult
+  runId:
+    type: string
+    minLength: 1
+  timestamp:
+    type: string
+    minLength: 1
+  adapter:
+    type: object
+    additionalProperties: false
+    required:
+      - name
+      - version
+    properties:
+      name:
+        type: string
+        minLength: 1
+      version:
+        type: string
+        minLength: 1
+      framework:
+        type: string
+        minLength: 1
+  payload:
+    type: object
+    additionalProperties: false
+    required:
+      - file
+      - promiseId
+      - status
+      - testName
+    properties:
+      file:
+        type: string
+        minLength: 1
+      promiseId:
+        type: string
+        minLength: 1
+      status:
+        enum: [passing, failing, skipped]
+      testName:
+        type: string
+        minLength: 1
+      failureMessage:
+        type: string

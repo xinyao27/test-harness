@@ -14,5 +14,5 @@ promises:
   - harness.report.falls_back_through_language_chain
   - harness.report.renders_in_requested_language
 covers:
-  - packages/core/src/report.ts
-  - packages/core/src/localized-text.ts
+  - crates/harness-core/src/localized_text.rs
+  - crates/harness-core/src/report.rs

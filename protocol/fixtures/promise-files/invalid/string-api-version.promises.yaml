@@ -1,0 +1,24 @@
+apiVersion: "1"
+promises:
+  - id: harness.fixture.invalid_promises_file_version
+    feature: Harness Fixtures / Promise Files
+    title:
+      en: Invalid promise files are rejected by protocol v1
+    purpose:
+      en: Provide an invalid promises-file wrapper sample for conformance tests.
+    priority: P1
+    boundary: unit
+    lifecycle: accepted
+    given:
+      - en: A promises file declares apiVersion as a string
+    when:
+      - en: A Harness implementation decodes the fixture
+    then:
+      - en: The fixture is rejected by protocol v1
+    observes:
+      - protocol/fixtures/promise-files/invalid/string-api-version.promises.yaml
+    failureMeaning:
+      en: Implementations may accept a non-canonical apiVersion type.
+    review:
+      approvedBy: xinyao
+      approvedAt: "2026-05-24"

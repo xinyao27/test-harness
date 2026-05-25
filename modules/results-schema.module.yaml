@@ -12,4 +12,5 @@ purpose:
 promises:
   - harness.results.schema_defines_required_fields
 covers:
-  - packages/core/src/results.ts
+  - crates/harness-core/src/results.rs
+  - protocol/v1/results.schema.yaml

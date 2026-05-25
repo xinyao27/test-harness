@@ -17,11 +17,11 @@ properties:
     required: [promises, errors, warnings]
     properties:
       promises:
-        type: number
+        type: integer
       errors:
-        type: number
+        type: integer
       warnings:
-        type: number
+        type: integer
   features:
     type: array
     items:

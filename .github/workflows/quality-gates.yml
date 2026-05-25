@@ -1,0 +1,77 @@
+name: Harness Quality Gates
+run-name: Quality Gates / ${{ github.event_name }} / ${{ github.ref_name }}
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: quality-gates-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  node:
+    name: Node + Vite+ / format, types, tests, build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository for Node checks
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm 11.2.2
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11.2.2
+
+      - name: Setup Node 24 with pnpm cache
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate i18n artifacts
+        run: pnpm --filter @test-harness/i18n generate
+
+      - name: Check formatting, lint, and types
+        run: pnpm exec vp check
+
+      - name: Run workspace tests
+        run: pnpm test
+
+      - name: Run web tests
+        run: pnpm --filter @test-harness/web test
+
+      - name: Build workspace
+        run: pnpm run build
+
+  rust:
+    name: Rust / fmt, clippy, tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository for Rust checks
+        uses: actions/checkout@v6
+
+      - name: Setup latest stable Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Check Rust formatting
+        run: cargo fmt --all --check
+
+      - name: Run Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Run Rust tests
+        run: cargo test --workspace

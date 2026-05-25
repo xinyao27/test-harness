@@ -1,22 +1,26 @@
 # Harness Test Orchestrator 计划
 
+> 状态：历史计划；当前已在 Rust CLI 中实现为通用 configured-runner 路径。
+
 ## Summary
 
-下一个切片要把当前的两步命令变成一个命令：
+这个切片把早期的两步命令变成一个命令：
 
 ```bash
 harness test
 ```
 
-这个命令会从 workspace root 运行 Vite+/Vitest，并通过 `HARNESS_ROOT_DIR` 把这个 root 传给 Harness reporter，让 reporter 写入 `.harness/results.yaml`，然后渲染 `harness verify` 已经在使用的同一份 verification report。
+这个命令会运行 `harness.yaml` 中配置的 test runner，通过 `HARNESS_ROOT_DIR` 把 workspace root 传下去，要求产生 Harness result file，然后渲染 `harness verify` 已经在使用的同一份 verification report。在这个仓库里，配置好的 command 使用 Rust adapter runtime 包装 `vp test`，并把 adapter event shards 合并到 `.harness/results.yaml`。
 
 这一步仍然不是 AI-generated implementation。它只是最小可用的自举闭环：
 
 ```text
-canonical .promise.yaml files
+canonical .promises.yaml files
   -> scenarioTest(...) bindings
   -> harness test
-  -> Vitest execution
+  -> configured runner execution
+  -> adapter event shards
+  -> adapter runtime merge
   -> .harness/results.yaml
   -> promise verification report
 ```
@@ -25,7 +29,7 @@ canonical .promise.yaml files
 
 这个切片完成后，人可以：
 
-1. 编写或 review `.promise.yaml` 文件。
+1. 编写或 review `.promises.yaml` 文件。
 2. 用 `scenarioTest(...)` 把可执行测试绑定到 promise ids。
 3. 运行一个命令，看到已 review 的 promises 当前是 passing、failing、skipped 还是 unknown。
 
@@ -54,11 +58,11 @@ harness test --lang zh-CN
 
 1. 解析 workspace root。
 2. 删除或覆盖旧的 `.harness/results.yaml`。
-3. 运行配置好的 Vite+/Vitest 命令。
+3. 运行 `harness.yaml` 中配置的 command。
 4. 如果 test command 非 0，就失败；如果它仍然写出了 results，就继续渲染 results，让失败的 promises 仍然可见。
 5. 如果 test command 非 0 且没有 results，只报告 test command failure，不再额外报告 result file missing。
 6. 如果 test command 成功后仍然缺少 `.harness/results.yaml`，就失败。
-7. 通过已有 Effect Schema decoder 读取 `.harness/results.yaml`。
+7. 通过 Rust protocol decoder 读取 `.harness/results.yaml`。
 8. 渲染和 `harness verify` 一样的 report。
 9. 如果测试失败、result YAML 缺失或无效，或 verification 有 errors，就返回非 0。
 
@@ -77,13 +81,13 @@ Orchestrator 需要明确 root handling：
 
 ## Test Command
 
-第一版使用当前 repo 已经存在的命令：
+这个仓库的开发态自举目前包装：
 
 ```bash
 vp test
 ```
 
-这个命令应该集中在一个小 helper 里，方便以后变成 configurable，而不影响 report logic。
+打包后的用户应调用已安装的 Harness binary 或 adapter entrypoint，而不是 Cargo。CLI 自身只理解 configured runner contract；Vitest 细节留在 adapter/runtime 边界。
 
 ## Done Looks Like
 
@@ -112,5 +116,5 @@ harness test --lang zh-CN
 vp check
 vp run -r test
 vp run -r build
-vp exec harness test --lang zh-CN
+cargo run -q -p harness-cli -- test --lang zh-CN
 ```

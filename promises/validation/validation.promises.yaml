@@ -11,7 +11,6 @@ promises:
     priority: P1
     boundary: unit
     lifecycle: accepted
-
     given:
       - en: A promise record has been decoded with localized text fields
         zh-CN: 已解码出带本地化文本字段的 promise record
@@ -22,16 +21,15 @@ promises:
       - en: Fields that are non-blank but lack default-language (en) text produce a `missing_default_language` warning
         zh-CN: 不为空但缺少默认语言（en）文本的字段会产生 `missing_default_language` warning
     observes:
-      - packages/core/src/validation.ts
-      - packages/core/src/localized-text.ts
-
+      - crates/harness-core/src/validation.rs
+      - crates/harness-core/src/localized_text.rs
     failureMeaning:
       en: Reviewers without the localized variant may see blank promise text when default-language fallback is missing.
       zh-CN: 没有本地化变体的 reviewer 在 default-language fallback 缺失时可能看到空白 promise 文本。
-
     review:
       approvedBy: xinyao
       approvedAt: "2026-05-25"
+
   - id: harness.validation.checks_examples_table_shape
     feature: Seed Harness / Validation
     title:
@@ -43,7 +41,6 @@ promises:
     priority: P1
     boundary: unit
     lifecycle: accepted
-
     given:
       - en: A promise record has been decoded with a non-empty `examples` array
         zh-CN: 一条 promise record 解码后带有非空的 `examples` 数组
@@ -58,16 +55,15 @@ promises:
       - en: Two rows that share the same `name` within one promise produce a `duplicate_example_row_name` error
         zh-CN: 同一 promise 内两行 `name` 相同会产生 `duplicate_example_row_name` error
     observes:
-      - packages/core/src/validation.ts
+      - crates/harness-core/src/validation.rs
       - promises/**/*.promises.yaml
-
     failureMeaning:
       en: Reviewers may approve an examples table they cannot actually read as a table — unnamed rows, divergent columns, or duplicate labels make the table no better than a paragraph of prose.
       zh-CN: reviewer 可能会批准他们其实读不成表格的 examples 表 —— 行没有名字、列不一致或者标签重复，这种表跟一段散文没区别。
-
     review:
       approvedBy: xinyao
       approvedAt: "2026-05-25"
+
   - id: harness.validation.rejects_unreadable_promises
     feature: Seed Harness / Validation
     title:
@@ -79,7 +75,6 @@ promises:
     priority: P0
     boundary: unit
     lifecycle: accepted
-
     given:
       - en: Canonical promise records have been decoded
         zh-CN: canonical promise records 已经被解码
@@ -92,16 +87,15 @@ promises:
       - en: Accepted promises without review approval metadata are warnings
         zh-CN: 缺少 review approval metadata 的 accepted promises 会成为 warnings
     observes:
-      - packages/core/src/validation.ts
+      - crates/harness-core/src/validation.rs
       - promises/**/*.promises.yaml
-
     failureMeaning:
       en: Humans may be asked to approve promises that are hard to read, unstable, or not reviewable.
       zh-CN: 人类可能会被要求批准难以阅读、不稳定或无法 review 的 promises。
-
     review:
       approvedBy: xinyao
       approvedAt: "2026-05-24"
+
   - id: harness.validation.flags_unknown_scenario_bindings
     feature: Seed Harness / Validation
     title:
@@ -113,7 +107,6 @@ promises:
     priority: P0
     boundary: unit
     lifecycle: accepted
-
     given:
       - en: Canonical promise records and scenario bindings have been collected
         zh-CN: Canonical promise records 和 scenario bindings 已经收集完毕
@@ -124,16 +117,15 @@ promises:
       - en: Each scenario binding whose id does not match any canonical promise is reported as an error
         zh-CN: 每个 id 不匹配任何 canonical promise 的 scenario binding 都会被报告为 error
     observes:
-      - packages/core/src/validation.ts
-      - packages/core/src/scenario.ts
-
+      - crates/harness-core/src/validation.rs
+      - packages/adapter-vitest/src/index.ts
     failureMeaning:
       en: A test bound to a non-existent promise id can pass without ever proving any reviewed behavior.
       zh-CN: 绑定到不存在 promise id 的测试可以通过，但从未真正证明任何已 review 的行为。
-
     review:
       approvedBy: xinyao
       approvedAt: "2026-05-25"
+
   - id: harness.validation.flags_uncovered_source_files
     feature: Seed Harness / Validation
     title:
@@ -145,7 +137,6 @@ promises:
     priority: P0
     boundary: unit
     lifecycle: accepted
-
     given:
       - en: Module records have been loaded with their covers fields
         zh-CN: module records 已经加载，且 covers 字段已读取
@@ -160,17 +151,16 @@ promises:
       - en: Covers entries support exact paths and `<dir>/**` recursive globs
         zh-CN: covers entries 支持精确路径以及 `<dir>/**` 形式的递归 glob
     observes:
-      - packages/core/src/validation.ts
-      - packages/core/src/module-registry.ts
+      - crates/harness-core/src/validation.rs
+      - crates/harness-core/src/module_registry.rs
       - modules/*.module.yaml
-
     failureMeaning:
       en: New code can land without any module taking review ownership, so reviewers cannot tell which area is responsible for it.
       zh-CN: 新代码可能在没有任何 module 接手 review 的情况下落地，reviewer 无法判断它归哪个区域负责。
-
     review:
       approvedBy: xinyao
       approvedAt: "2026-05-25"
+
   - id: harness.validation.flags_promises_without_test_results
     feature: Seed Harness / Validation
     title:
@@ -182,7 +172,6 @@ promises:
     priority: P0
     boundary: unit
     lifecycle: accepted
-
     given:
       - en: Implemented canonical promises have been loaded
         zh-CN: implemented canonical promises 已经被加载
@@ -196,12 +185,10 @@ promises:
         zh-CN: unknown result promise ids 仍然会被报告为 errors
     observes:
       - .harness/results.yaml
-      - packages/core/src/validation.ts
-
+      - crates/harness-core/src/validation.rs
     failureMeaning:
       en: A promise can be marked implemented while no executable test result proves it.
       zh-CN: 一条 promise 可能已经 marked implemented，但没有任何可执行测试结果证明它。
-
     review:
       approvedBy: xinyao
       approvedAt: "2026-05-24"

@@ -4,14 +4,15 @@ title:
   en: Protocol — the language-agnostic Harness contract
   zh-CN: Protocol — 与语言无关的 Harness 契约
 summary:
-  en: Versioned YAML schemas under protocol/v1/ that define what project config, promise files, module files, result files, reports, and CLI commands must look like, independent of any one implementation. Conformance and golden fixtures keep this reference TypeScript implementation aligned with the schemas and human-facing output, so a future Rust rewrite can be judged against the same protocol.
-  zh-CN: 位于 protocol/v1/ 下的版本化 YAML schemas，独立于具体实现，定义 project config、promise files、module files、result files、reports 和 CLI commands 的形状。Conformance 与 golden fixtures 让当前 TypeScript 参考实现保持与 schemas 和面向人类的输出一致，未来的 Rust 重写也会用同一套 protocol 来判定是否合规。
+  en: Versioned YAML schemas under protocol/v1/ that define what project config, promise files, module files, result files, reports, adapter events, and CLI commands must look like, independent of any one implementation. Conformance and golden fixtures keep the Rust implementation and thin TypeScript Vitest adapter aligned with the schemas and human-facing output.
+  zh-CN: 位于 protocol/v1/ 下的版本化 YAML schemas，独立于具体实现，定义 project config、promise files、module files、result files、reports、adapter events 和 CLI commands 的形状。Conformance 与 golden fixtures 让 Rust 实现和薄 TypeScript Vitest adapter 保持与 schemas 和面向人类的输出一致。
 purpose:
-  en: Without this module the Harness is just a TypeScript library; with it, the Harness becomes a portable specification that other languages can implement.
-  zh-CN: 没有这个模块，Harness 只是个 TypeScript 库；有了它，Harness 才是其他语言可以实现的可移植规范。
+  en: Without this module the Harness is just one implementation; with it, the Harness becomes a portable specification that other languages can implement.
+  zh-CN: 没有这个模块，Harness 只是某一种实现；有了它，Harness 才是其他语言可以实现的可移植规范。
 promises:
   - harness.protocol.cli_contract_is_versioned_and_enforced
   - harness.protocol.cli_golden_outputs_lock_human_surface
+  - harness.protocol.adapter_events_are_versioned_stream_records
   - harness.protocol.conformance_fixtures_lock_reference_behavior
   - harness.protocol.module_schema_is_portable
   - harness.protocol.promise_files_are_versioned

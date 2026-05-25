@@ -1,13 +1,19 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { Effect } from "effect";
-import { describe, expect } from "vite-plus/test";
+import { describe, expect } from "vitest";
 
-import { harnessRootEnvVar, loadTestResults } from "../../core/src/index.ts";
 import { scenarioTest } from "../src/index.ts";
-import HarnessReporter, { collectTestResultsFromModules } from "../src/reporter.ts";
+import HarnessReporter, {
+  collectTestResultsFromModules,
+  createAdapterEvents,
+  harnessAdapterEventsDirEnvVar,
+  harnessRootEnvVar,
+  harnessRunIdEnvVar,
+  resolveAdapterEventsDir,
+  type AdapterEvent,
+} from "../src/reporter.ts";
 
 const withTempRoot = async () => {
   const root = await mkdtemp(join(tmpdir(), "harness-adapter-vitest-"));
@@ -17,6 +23,18 @@ const withTempRoot = async () => {
     },
     root,
   };
+};
+
+const readEvents = async (directory: string): Promise<readonly AdapterEvent[]> => {
+  const files = (await readdir(directory)).filter((file) => file.endsWith(".ndjson")).sort();
+  const events: AdapterEvent[] = [];
+  for (const file of files) {
+    const raw = await readFile(join(directory, file), "utf8");
+    for (const line of raw.split("\n").filter((line) => line.trim().length > 0)) {
+      events.push(JSON.parse(line) as AdapterEvent);
+    }
+  }
+  return events;
 };
 
 describe("Vitest adapter", () => {
@@ -32,7 +50,7 @@ describe("Vitest adapter", () => {
 
   scenarioTest(
     "harness.adapters.vitest.result_collector.maps_results_to_promises",
-    "maps Vitest task metadata to persisted result records",
+    "maps Vitest task metadata to portable adapter events",
     () => {
       const testCase = {
         fullName: "result collector > maps metadata",
@@ -52,12 +70,28 @@ describe("Vitest adapter", () => {
         },
       ]);
 
-      expect(results).toEqual([
+      expect(
+        createAdapterEvents(results, {
+          runId: "vitest-fixture-run",
+          timestamp: "2026-05-25T00:00:00.000Z",
+        }),
+      ).toEqual([
         {
-          file: "/workspace/packages/adapter-vitest/tests/index.test.ts",
-          promiseId: "harness.adapters.vitest.result_collector.maps_results_to_promises",
-          status: "passing",
-          testName: "result collector > maps metadata",
+          adapter: {
+            framework: "vitest",
+            name: "harness-adapter-vitest",
+            version: "0.0.0",
+          },
+          apiVersion: 1,
+          kind: "testResult",
+          payload: {
+            file: "/workspace/packages/adapter-vitest/tests/index.test.ts",
+            promiseId: "harness.adapters.vitest.result_collector.maps_results_to_promises",
+            status: "passing",
+            testName: "result collector > maps metadata",
+          },
+          runId: "vitest-fixture-run",
+          timestamp: "2026-05-25T00:00:00.000Z",
         },
       ]);
     },
@@ -65,11 +99,15 @@ describe("Vitest adapter", () => {
 
   scenarioTest(
     "harness.adapters.vitest.result_collector.writes_results_to_explicit_harness_root",
-    "reporter writes results under the explicit Harness root env var",
+    "reporter writes events under the explicit Harness root env var",
     async () => {
       const workspace = await withTempRoot();
       const previousRoot = process.env[harnessRootEnvVar];
+      const previousRunId = process.env[harnessRunIdEnvVar];
+      const previousEventsDir = process.env[harnessAdapterEventsDirEnvVar];
       process.env[harnessRootEnvVar] = workspace.root;
+      process.env[harnessRunIdEnvVar] = "vitest-explicit-root";
+      delete process.env[harnessAdapterEventsDirEnvVar];
 
       try {
         const reporter = new HarnessReporter();
@@ -92,19 +130,32 @@ describe("Vitest adapter", () => {
           },
         ] as unknown as Parameters<HarnessReporter["onTestRunEnd"]>[0]);
 
-        await expect(Effect.runPromise(loadTestResults(workspace.root))).resolves.toEqual([
-          {
-            file: "/workspace/packages/adapter-vitest/tests/index.test.ts",
-            promiseId: "harness.adapters.vitest.result_collector.maps_results_to_promises",
-            status: "passing",
-            testName: "result collector > writes to root",
-          },
-        ]);
+        const events = await readEvents(
+          resolveAdapterEventsDir(workspace.root, "vitest-explicit-root"),
+        );
+        expect(events).toHaveLength(1);
+        expect(events[0]?.runId).toBe("vitest-explicit-root");
+        expect(events[0]?.payload).toEqual({
+          file: "/workspace/packages/adapter-vitest/tests/index.test.ts",
+          promiseId: "harness.adapters.vitest.result_collector.maps_results_to_promises",
+          status: "passing",
+          testName: "result collector > writes to root",
+        });
       } finally {
         if (previousRoot === undefined) {
           delete process.env[harnessRootEnvVar];
         } else {
           process.env[harnessRootEnvVar] = previousRoot;
+        }
+        if (previousRunId === undefined) {
+          delete process.env[harnessRunIdEnvVar];
+        } else {
+          process.env[harnessRunIdEnvVar] = previousRunId;
+        }
+        if (previousEventsDir === undefined) {
+          delete process.env[harnessAdapterEventsDirEnvVar];
+        } else {
+          process.env[harnessAdapterEventsDirEnvVar] = previousEventsDir;
         }
         await workspace.cleanup();
       }

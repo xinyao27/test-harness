@@ -1,0 +1,19 @@
+apiVersion: 1
+id: rust-adapter
+title:
+  en: Rust Adapter - promise-bound Cargo tests
+  zh-CN: Rust Adapter - promise-bound Cargo tests
+summary:
+  en: Provides Rust scenario_test helpers, per-test adapter event shards, and a Cargo test runner that delegates merging to the shared adapter runtime.
+  zh-CN: 提供 Rust scenario_test helpers、per-test adapter event shards，以及一个把合并委托给共享 adapter runtime 的 Cargo test runner。
+purpose:
+  en: Without this adapter, the Rust core and CLI cannot self-bootstrap with Rust tests as first-class promise evidence.
+  zh-CN: 没有这个 adapter，Rust core 和 CLI 无法用 Rust 测试作为一等 promise evidence 来自举。
+promises:
+  - harness.adapters.rust.result_collector.maps_results_to_promises
+  - harness.adapters.rust.result_collector.writes_results_to_explicit_harness_root
+  - harness.adapters.rust.runner_merges_shards_after_cargo_test
+  - harness.adapters.rust.scenario_helper.binds_tests_to_canonical_promises
+covers:
+  - crates/harness-adapter-rust/Cargo.toml
+  - crates/harness-adapter-rust/src/**

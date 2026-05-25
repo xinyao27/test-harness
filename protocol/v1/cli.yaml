@@ -7,8 +7,8 @@ commands:
       - harness.yaml
       - promises/**/*.promises.yaml
       - modules/**/*.module.yaml
+      - crates/**
       - packages/**
-      - apps/**
       - protocol/**
     writes: []
   report:
@@ -17,8 +17,8 @@ commands:
       - harness.yaml
       - promises/**/*.promises.yaml
       - modules/**/*.module.yaml
+      - crates/**
       - packages/**
-      - apps/**
       - protocol/**
       - .harness/results.yaml
     writes: []
@@ -28,25 +28,28 @@ commands:
       - harness.yaml
       - promises/**/*.promises.yaml
       - modules/**/*.module.yaml
+      - crates/**
       - packages/**
-      - apps/**
       - protocol/**
       - .harness/results.yaml
     writes: []
   test:
-    purpose: Run a configured adapter command, require Harness result YAML when the adapter succeeds, and render the report.
+    purpose: Run a configured adapter/runtime command, require Harness result YAML when the command succeeds, and render the report.
     reads:
       - harness.yaml
       - promises/**/*.promises.yaml
       - modules/**/*.module.yaml
+      - crates/**
       - packages/**
-      - apps/**
       - protocol/**
       - .harness/results.yaml
     writes:
+      - .harness/runs/<run-id>/events/*.ndjson
       - .harness/results.yaml
 environment:
-  HARNESS_ROOT_DIR: The workspace root adapters should use when writing .harness/results.yaml.
+  HARNESS_ROOT_DIR: The workspace root adapters and runtimes should use when writing Harness artifacts.
+  HARNESS_RUN_ID: The run id adapters should attach to emitted adapter events.
+  HARNESS_ADAPTER_EVENTS_DIR: The event shard directory adapters should use for the active run.
 exitCodes:
   success: 0
   failure: 1
