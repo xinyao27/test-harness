@@ -1,5 +1,5 @@
-name: CI / Harness quality gates
-run-name: CI / ${{ github.event_name }} / ${{ github.ref_name }}
+name: Harness Quality Gates
+run-name: Quality Gates / ${{ github.event_name }} / ${{ github.ref_name }}
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
       - main
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: quality-gates-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   node:
-    name: CI / Node + Vite+ / format, types, tests, build
+    name: Node + Vite+ / format, types, tests, build
     runs-on: ubuntu-latest
 
     steps:
@@ -55,7 +55,7 @@ jobs:
         run: pnpm run build
 
   rust:
-    name: CI / Rust / fmt, clippy, tests
+    name: Rust / fmt, clippy, tests
     runs-on: ubuntu-latest
 
     steps:
