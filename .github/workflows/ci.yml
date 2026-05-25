@@ -15,6 +15,9 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   node:
     name: Node / Vite+
@@ -37,6 +40,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Generate i18n artifacts
+        run: pnpm --filter @test-harness/i18n generate
 
       - name: Check formatting and types
         run: pnpm exec vp check
