@@ -24,8 +24,8 @@ promises:
         zh-CN: 无效的 promise files 会产生 typed errors 和非 0 exit code
     observes:
       - harness check
-      - harness.yaml
-      - promises/**/*.promises.yaml
+      - tests/harness.yaml
+      - tests/promises/**/*.promises.yaml
     failureMeaning:
       en: Humans and Agents cannot quickly tell whether reviewed promise files are structurally valid.
       zh-CN: 人类和 Agent 无法快速判断已 review 的 promise files 是否结构有效。
@@ -141,14 +141,14 @@ promises:
       en: The test command reads its runner from Harness config
       zh-CN: test 命令会从 Harness config 读取 runner
     purpose:
-      en: Protect the CLI boundary by making the adapter runner an external command declared in harness.yaml rather than a Vitest-specific CLI assumption.
-      zh-CN: 通过让 adapter runner 成为 harness.yaml 中声明的外部命令，而不是 CLI 内部对 Vitest 的假设，保护 CLI 边界。
+      en: Protect the CLI boundary by making the adapter runner an external command declared in tests/harness.yaml rather than a Vitest-specific CLI assumption.
+      zh-CN: 通过让 adapter runner 成为 tests/harness.yaml 中声明的外部命令，而不是 CLI 内部对 Vitest 的假设，保护 CLI 边界。
     priority: P0
     boundary: integration
     lifecycle: accepted
     given:
-      - en: The workspace contains a versioned harness.yaml file with test.runner.command and test.runner.args
-        zh-CN: workspace 中存在带版本的 harness.yaml 文件，包含 test.runner.command 和 test.runner.args
+      - en: The workspace contains a versioned tests/harness.yaml file with test.runner.command and test.runner.args
+        zh-CN: workspace 中存在带版本的 tests/harness.yaml 文件，包含 test.runner.command 和 test.runner.args
     when:
       - en: A user runs harness test without injecting an in-process test runner
         zh-CN: 用户在没有注入进程内 test runner 的情况下运行 harness test
@@ -160,7 +160,7 @@ promises:
       - en: The CLI remains independent from Vitest-specific runner details
         zh-CN: CLI 保持独立于 Vitest 特定 runner 细节
     observes:
-      - harness.yaml
+      - tests/harness.yaml
       - crates/harness-cli/src/lib.rs
       - crates/harness-core/src/config.rs
     failureMeaning:

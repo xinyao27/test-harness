@@ -4,8 +4,8 @@ title:
   en: Promise Registry — load and index canonical promise files
   zh-CN: Promise Registry — 加载并索引 canonical promise files
 summary:
-  en: Walks the promises/ tree at startup, reads every .promises.yaml grouped wrapper file by exact suffix, decodes each record inside, and returns the indexed promise records the rest of the Harness reads from. Every CLI command, every report, every adapter result mapping starts here.
-  zh-CN: 启动时遍历 promises/ 目录，按精确后缀读取每个 .promises.yaml 容器文件并解码其中每条记录，返回 Harness 其它部分会用到的已索引 promise records。每条 CLI 命令、每份报告、每次 adapter result 映射都从这里开始。
+  en: Walks the tests/promises/ tree at startup, reads every .promises.yaml grouped wrapper file by exact suffix, decodes each record inside, and returns the indexed promise records the rest of the Harness reads from. Every CLI command, every report, every adapter result mapping starts here.
+  zh-CN: 启动时遍历 tests/promises/ 目录，按精确后缀读取每个 .promises.yaml 容器文件并解码其中每条记录，返回 Harness 其它部分会用到的已索引 promise records。每条 CLI 命令、每份报告、每次 adapter result 映射都从这里开始。
 purpose:
   en: Without this loader the rest of the Harness has no promises to validate, report on, or bind tests against — the seed loop cannot run.
   zh-CN: 没有这个 loader，Harness 其它部分就没有可校验、可报告、可被测试绑定的 promises — seed loop 跑不起来。

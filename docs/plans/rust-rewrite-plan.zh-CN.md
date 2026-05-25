@@ -26,7 +26,7 @@ Rust 实现匹配 protocol schemas、fixtures、CLI golden outputs 和 seed Harn
 
 ## 边界
 
-- `harness.yaml` 拥有外部 test runner command。
+- `tests/harness.yaml` 拥有外部 test runner command。
 - `harness test` 运行 `test.runner.command` 和 `test.runner.args`，并注入 `HARNESS_ROOT_DIR`。
 - Rust core 不能知道 Vitest 特定细节。
 - Vitest adapter 不能依赖 Rust core。
@@ -36,7 +36,7 @@ Rust 实现匹配 protocol schemas、fixtures、CLI golden outputs 和 seed Harn
 ## 迁移步骤
 
 1. 新增 Rust crates，用于 protocol types 和 fixture conformance。
-2. 用 Rust 实现 `harness.yaml`、promises、modules 和 results loaders。
+2. 用 Rust 实现 `tests/harness.yaml`、promises、modules 和 results loaders。
 3. 用 Rust 实现 report generation，并对齐 golden report fixtures。
 4. 用 Rust 实现 CLI commands：`check`、`report`、`verify` 和 `test`。
 5. 增加共享 Rust adapter runtime，用它包装任意 test command，并把 adapter event shards 合并到 `.harness/results.yaml`。

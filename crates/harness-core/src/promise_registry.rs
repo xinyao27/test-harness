@@ -4,8 +4,10 @@ use harness_protocol::{decode_promises_file_items, PromiseRecord, ProtocolDecode
 use std::fs;
 use std::path::{Path, PathBuf};
 
+pub const PROMISES_DIRECTORY: &str = "tests/promises";
+
 pub fn find_promise_files(root_dir: impl AsRef<Path>) -> Result<Vec<PathBuf>, HarnessError> {
-    let directory = root_dir.as_ref().join("promises");
+    let directory = root_dir.as_ref().join(PROMISES_DIRECTORY);
     collect_files(&directory, ".promises.yaml").map_err(|cause| {
         HarnessError::PromiseFileReadError {
             path: directory,

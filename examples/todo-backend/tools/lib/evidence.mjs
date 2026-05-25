@@ -82,7 +82,7 @@ export const readAdapterEvents = async (eventsDirectory) => {
 export const readResultsFile = async () => parse(await readFile(resultsPath, "utf8"));
 
 export const loadExamplePromiseRecords = async () => {
-  const files = await collectFiles(path.join(exampleRoot, "promises"), ".promises.yaml");
+  const files = await collectFiles(path.join(exampleRoot, "tests/promises"), ".promises.yaml");
   const records = new Map();
 
   for (const file of files) {
@@ -96,10 +96,10 @@ export const loadExamplePromiseRecords = async () => {
 };
 
 export const loadOfficialSpecPromiseIds = async () => {
-  const specMap = await loadYamlFile(path.join(exampleRoot, "spec-map.yaml"));
+  const specMap = await loadYamlFile(path.join(exampleRoot, "tests/spec-map.yaml"));
   const ids = new Set();
 
-  for (const specCase of requireArray(specMap?.cases, "spec-map.yaml.cases")) {
+  for (const specCase of requireArray(specMap?.cases, "tests/spec-map.yaml.cases")) {
     for (const promiseId of requireArray(specCase?.promiseIds, `${specCase.id}.promiseIds`)) {
       if (promiseId.startsWith("todo_backend.api.")) {
         ids.add(promiseId);

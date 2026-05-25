@@ -17,7 +17,7 @@ promises:
   - todo_backend.showcase.cli_reports_bilingual_promise_status
   - todo_backend.showcase.validation_guards_promise_and_module_coverage
 covers:
-  - examples/todo-backend/harness-feature-map.yaml
+  - examples/todo-backend/tests/harness-feature-map.yaml
   - examples/todo-backend/tools/**
   - examples/todo-backend/README.md
   - examples/todo-backend/README.zh-CN.md

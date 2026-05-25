@@ -96,7 +96,7 @@ https://github.com/TodoBackend/todo-backend-js-spec/blob/master/js/specs.js
 traceability map 位于：
 
 ```text
-examples/todo-backend/spec-map.yaml
+examples/todo-backend/tests/spec-map.yaml
 ```
 
 运行 coverage check：
@@ -112,7 +112,7 @@ pnpm example:todo-spec-map:check
 Todo-Backend showcase 也用于覆盖完整 TestHarness feature set。feature map 位于：
 
 ```text
-examples/todo-backend/harness-feature-map.yaml
+examples/todo-backend/tests/harness-feature-map.yaml
 ```
 
 运行两个 coverage checks：

@@ -10,7 +10,7 @@ This slice turned the earlier two-command loop into one command:
 harness test
 ```
 
-The command runs the configured test runner from `harness.yaml`, passes the workspace root through `HARNESS_ROOT_DIR`, requires a Harness result file, then renders the same verification report that `harness verify` already produces. In this repository, the configured command uses the Rust adapter runtime to wrap `vp test` and merge adapter event shards into `.harness/results.yaml`.
+The command runs the configured test runner from `tests/harness.yaml`, passes the workspace root through `HARNESS_ROOT_DIR`, requires a Harness result file, then renders the same verification report that `harness verify` already produces. In this repository, the configured command uses the Rust adapter runtime to wrap `vp test` and merge adapter event shards into `.harness/results.yaml`.
 
 This is still not AI-generated implementation. It is the smallest practical self-bootstrapping loop:
 
@@ -58,7 +58,7 @@ Out of scope:
 
 1. Resolve the workspace root.
 2. Remove or overwrite stale `.harness/results.yaml`.
-3. Run the configured command from `harness.yaml`.
+3. Run the configured command from `tests/harness.yaml`.
 4. If the test command exits non-zero, fail; if it still wrote results, render them so the failing promises remain visible.
 5. If the test command exits non-zero without results, report only the test command failure instead of also reporting a missing result file.
 6. Fail if `.harness/results.yaml` is missing after a successful test command.

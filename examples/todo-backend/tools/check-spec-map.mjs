@@ -13,8 +13,8 @@ import {
 
 const scriptPath = fileURLToPath(import.meta.url);
 const exampleRoot = path.resolve(path.dirname(scriptPath), "..");
-const specMapPath = path.join(exampleRoot, "spec-map.yaml");
-const promisesDir = path.join(exampleRoot, "promises");
+const specMapPath = path.join(exampleRoot, "tests/spec-map.yaml");
+const promisesDir = path.join(exampleRoot, "tests/promises");
 
 async function loadPromiseIds() {
   const files = await collectFiles(promisesDir, ".promises.yaml");
@@ -41,11 +41,11 @@ async function loadPromiseIds() {
 
 function validateSpecMap(specMap, promiseIds) {
   if (specMap?.apiVersion !== 1) {
-    fail("Todo-Backend spec map check failed: spec-map.yaml must use apiVersion: 1");
+    fail("Todo-Backend spec map check failed: tests/spec-map.yaml must use apiVersion: 1");
   }
 
   if (specMap?.kind !== "TodoBackendSpecMap") {
-    fail("Todo-Backend spec map check failed: spec-map.yaml kind must be TodoBackendSpecMap");
+    fail("Todo-Backend spec map check failed: tests/spec-map.yaml kind must be TodoBackendSpecMap");
   }
 
   requireString(specMap?.source?.url, "source.url");

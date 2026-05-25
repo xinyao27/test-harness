@@ -264,8 +264,8 @@ export const harnessSnapshot: HarnessSnapshot = {
       runStatus: "unknown",
       given: [
         {
-          "zh-CN": "项目根目录存在 promises/**/*.promises.yaml",
-          en: "The project root contains promises/**/*.promises.yaml.",
+          "zh-CN": "项目根目录存在 tests/promises/**/*.promises.yaml",
+          en: "The project root contains tests/promises/**/*.promises.yaml.",
         },
       ],
       when: [
@@ -280,7 +280,10 @@ export const harnessSnapshot: HarnessSnapshot = {
           en: "All promise records are loaded and decoded through the protocol.",
         },
       ],
-      observes: ["promises/**/*.promises.yaml", "crates/harness-core/src/promise_registry.rs"],
+      observes: [
+        "tests/promises/**/*.promises.yaml",
+        "crates/harness-core/src/promise_registry.rs",
+      ],
       failureMeaning: {
         "zh-CN": "Harness 无法信任自己的 Promise source。",
         en: "The Harness could not trust its own promise source.",
@@ -305,8 +308,8 @@ export const harnessSnapshot: HarnessSnapshot = {
       runStatus: "unknown",
       given: [
         {
-          "zh-CN": "项目根目录存在 modules/*.module.yaml",
-          en: "The project root contains modules/*.module.yaml.",
+          "zh-CN": "项目根目录存在 tests/modules/*.module.yaml",
+          en: "The project root contains tests/modules/*.module.yaml.",
         },
       ],
       when: [
@@ -321,7 +324,7 @@ export const harnessSnapshot: HarnessSnapshot = {
           en: "Each module exposes id, title, summary, purpose, promises, and covers.",
         },
       ],
-      observes: ["modules/*.module.yaml", "crates/harness-core/src/module_registry.rs"],
+      observes: ["tests/modules/*.module.yaml", "crates/harness-core/src/module_registry.rs"],
       failureMeaning: {
         "zh-CN": "Module 会退化成无法被工具理解的惰性 YAML。",
         en: "Modules would degrade into passive YAML that tooling cannot understand.",
@@ -362,7 +365,7 @@ export const harnessSnapshot: HarnessSnapshot = {
           en: "The adapter runs, results are collected, and the report is rendered.",
         },
       ],
-      observes: ["harness.yaml", "crates/harness-cli/src/main.rs"],
+      observes: ["tests/harness.yaml", "crates/harness-cli/src/main.rs"],
       failureMeaning: {
         "zh-CN": "人无法确认 test command 是否真的把 Promise 和 Evidence 连起来。",
         en: "Humans could not confirm whether the test command connects promises to evidence.",

@@ -29,7 +29,7 @@ promises:
     observes:
       - protocol/v1/promise.schema.yaml
       - crates/harness-protocol/src/lib.rs
-      - promises/**/*.promises.yaml
+      - tests/promises/**/*.promises.yaml
     failureMeaning:
       en: Either the new optional field silently breaks loading of existing promise files, or the schema accepts table shapes that reviewers cannot scan as a table — defeating the whole reason for adding the field.
       zh-CN: 要么新的可选字段悄悄破坏已有 promise 文件的加载，要么 schema 接受了 reviewer 无法按表格扫读的形状 —— 让新增字段本身失去意义。
@@ -43,13 +43,13 @@ promises:
       en: The canonical promise file is a grouped wrapper that holds many promise records
       zh-CN: canonical promise 文件是装着多条 promise records 的容器
     purpose:
-      en: Keep the promises/ tree manageable. The canonical and only supported promise file shape is a grouped wrapper — authors never write one promise per file. This protects reviewers from file-count sprawl as the project grows and forces related behaviors to live next to each other on disk.
-      zh-CN: 让 promises/ 目录长期可管理。canonical 也是唯一受支持的 promise 文件形状是一个容器 —— 作者不再写"一文件一 promise"。这样可以避免项目变大后 reviewer 被文件数量淹没，并强制相关行为在磁盘上挨在一起。
+      en: Keep the tests/promises/ tree manageable. The canonical and only supported promise file shape is a grouped wrapper — authors never write one promise per file. This protects reviewers from file-count sprawl as the project grows and forces related behaviors to live next to each other on disk.
+      zh-CN: 让 tests/promises/ 目录长期可管理。canonical 也是唯一受支持的 promise 文件形状是一个容器 —— 作者不再写"一文件一 promise"。这样可以避免项目变大后 reviewer 被文件数量淹没，并强制相关行为在磁盘上挨在一起。
     priority: P0
     boundary: unit
     lifecycle: accepted
     given:
-      - en: A YAML file exists somewhere under the promises root
+      - en: A YAML file exists somewhere under the tests/promises root
         zh-CN: promises 根目录下某处存在一个 YAML 文件
     when:
       - en: The seed Harness decodes that file through the versioned protocol schema
@@ -69,7 +69,7 @@ promises:
       - protocol/v1/promise.schema.yaml
       - protocol/v1/promises-file.schema.yaml
       - crates/harness-protocol/src/lib.rs
-      - promises/**/*.promises.yaml
+      - tests/promises/**/*.promises.yaml
     failureMeaning:
       en: Either the loader silently accepts malformed shapes (reviewers approve records they cannot actually read), or it keeps loading legacy single-file promises behind the project's back so the "one canonical shape" rule rots immediately.
       zh-CN: 要么 loader 悄悄接受畸形形状（reviewer 批准了他们其实读不通的记录），要么继续在项目背后加载旧的单文件 promises，"一种 canonical 形状"的规则当场失效。
@@ -106,7 +106,7 @@ promises:
     observes:
       - protocol/v1/promise.schema.yaml
       - crates/harness-protocol/src/lib.rs
-      - promises/**/*.promises.yaml
+      - tests/promises/**/*.promises.yaml
     failureMeaning:
       en: The Harness may treat malformed or ambiguous promise files as reviewed behavior commitments.
       zh-CN: Harness 可能会把格式错误或含义模糊的 promise 文件当成已 review 的行为承诺。

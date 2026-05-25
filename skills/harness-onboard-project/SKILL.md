@@ -5,18 +5,19 @@ description: Introduce this Test Harness to an existing codebase for the first t
 
 # Onboarding the Harness to an Existing Project
 
-This skill is for the **first time** a Harness lands in a project. The output is an initial layer of `modules/*.module.yaml` files, grouped `promises/**/*.promises.yaml` files, and adapter evidence bindings — enough that a human can review the project top-down without reading every line of code.
+This skill is for the **first time** a Harness lands in a project. The output is `tests/harness.yaml`, an initial layer of `tests/modules/*.module.yaml` files, grouped `tests/promises/**/*.promises.yaml` files, and adapter evidence bindings — enough that a human can review the project top-down without reading every line of code.
 
-You do not implement new behavior here. You **describe what is already there** in promise-shaped form, using existing files in `promises/` / `modules/` (if any) as shape templates. New behavior is a follow-up that runs through the `harness-add-feature` skill.
+You do not implement new behavior here. You **describe what is already there** in promise-shaped form, using existing files in `tests/promises/` / `tests/modules/` (if any) as shape templates. New behavior is a follow-up that runs through the `harness-add-feature` skill.
 
 ## The Mental Model
 
 ```text
-Architecture        ← project-wide overview (not yet implemented)
-  Module            ← one reviewable area a human could own — modules/*.module.yaml
-    Promise group   ← related behavior commitments — promises/**/*.promises.yaml
-      Promise       ← one behavior commitment inside the file's `promises:` list
-        Evidence    ← adapter test results
+Harness config     ← runner entrypoint — tests/harness.yaml
+  Architecture      ← project-wide overview (not yet implemented)
+    Module          ← one reviewable area a human could own — tests/modules/*.module.yaml
+      Promise group ← related behavior commitments — tests/promises/**/*.promises.yaml
+        Promise     ← one behavior commitment inside the file's `promises:` list
+          Evidence  ← adapter test results
 ```
 
 Onboarding is top-down: **architecture → module → promise → evidence**. Each step is a separate review event. Do not skip ahead.
@@ -46,11 +47,12 @@ Only after the module list is approved:
 
 Only after the promise list is approved:
 
-1. Write `modules/<id>.module.yaml` per approved module — bilingual `title` / `summary` / `purpose`, explicit `promises:` id list.
-2. Write `promises/<area>/<group>.promises.yaml` files with `apiVersion: 1` and a top-level `promises:` list. Keep related promises together when they share a review owner and split groups when the behavior area or implementation stack differs.
-3. Bind tests to canonical promise ids. For Vitest use `scenarioTest(promiseId, ...)`; for other adapters emit the same id in adapter result metadata. If an existing test already proves a promise, wrap it. If not, write one. Assert on what the promise's `observes` list names — DB state, UI text, files, events, exit codes. Prefer exact matchers over loose ones; `expect(mock).toHaveBeenCalled()` alone is weak evidence outside `boundary: adapter`.
-4. Run `harness check` and `harness test` — confirm every accepted promise lists `Run Status: passing`. (Invoke via your project's usual CLI wrapper if `harness` is not on PATH directly: `npx harness ...`, `pnpm harness ...`, etc.)
-5. Hand back at module level (see [Handoff](#handoff)).
+1. Write `tests/harness.yaml` with the project adapter runner.
+2. Write `tests/modules/<id>.module.yaml` per approved module — bilingual `title` / `summary` / `purpose`, explicit `promises:` id list.
+3. Write `tests/promises/<area>/<group>.promises.yaml` files with `apiVersion: 1` and a top-level `promises:` list. Keep related promises together when they share a review owner and split groups when the behavior area or implementation stack differs.
+4. Bind tests to canonical promise ids. For Vitest use `scenarioTest(promiseId, ...)`; for other adapters emit the same id in adapter result metadata. If an existing test already proves a promise, wrap it. If not, write one. Assert on what the promise's `observes` list names — DB state, UI text, files, events, exit codes. Prefer exact matchers over loose ones; `expect(mock).toHaveBeenCalled()` alone is weak evidence outside `boundary: adapter`.
+5. Run `harness check` and `harness test` — confirm every accepted promise lists `Run Status: passing`. (Invoke via your project's usual CLI wrapper if `harness` is not on PATH directly: `npx harness ...`, `pnpm harness ...`, etc.)
+6. Hand back at module level (see [Handoff](#handoff)).
 
 ## Common Pitfalls
 

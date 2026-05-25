@@ -15,7 +15,7 @@ import {
 const scriptPath = fileURLToPath(import.meta.url);
 const exampleRoot = path.resolve(path.dirname(scriptPath), "..");
 const repoRoot = path.resolve(exampleRoot, "../..");
-const featureMapPath = path.join(exampleRoot, "harness-feature-map.yaml");
+const featureMapPath = path.join(exampleRoot, "tests/harness-feature-map.yaml");
 const packageJsonPath = path.join(repoRoot, "package.json");
 
 function sameStringSet(left, right) {
@@ -75,7 +75,7 @@ function assertImplementedCommandExists(command, packageScripts) {
 }
 
 async function loadRootModules() {
-  const files = await collectFiles(path.join(repoRoot, "modules"), ".module.yaml");
+  const files = await collectFiles(path.join(repoRoot, "tests/modules"), ".module.yaml");
   const modules = new Map();
   const promiseIds = new Set();
 
@@ -107,7 +107,7 @@ async function loadRootModules() {
 }
 
 async function loadExamplePromiseIds() {
-  const files = await collectFiles(path.join(exampleRoot, "promises"), ".promises.yaml");
+  const files = await collectFiles(path.join(exampleRoot, "tests/promises"), ".promises.yaml");
   const ids = new Set();
 
   for (const file of files) {
@@ -128,7 +128,7 @@ async function loadExamplePromiseIds() {
 }
 
 async function validateExampleModules(examplePromiseIds) {
-  const files = await collectFiles(path.join(exampleRoot, "modules"), ".module.yaml");
+  const files = await collectFiles(path.join(exampleRoot, "tests/modules"), ".module.yaml");
   if (files.length === 0) {
     fail("Todo-Backend feature map check failed: expected example modules");
   }
@@ -156,11 +156,11 @@ async function validateFeatureMap(
   examplePromiseIds,
   packageScripts,
 ) {
-  requireApiVersionOne(featureMap, "harness-feature-map.yaml");
+  requireApiVersionOne(featureMap, "tests/harness-feature-map.yaml");
 
   if (featureMap?.kind !== "TodoBackendHarnessFeatureMap") {
     fail(
-      "Todo-Backend feature map check failed: harness-feature-map.yaml kind must be TodoBackendHarnessFeatureMap",
+      "Todo-Backend feature map check failed: tests/harness-feature-map.yaml kind must be TodoBackendHarnessFeatureMap",
     );
   }
 

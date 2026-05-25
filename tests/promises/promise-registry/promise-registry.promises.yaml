@@ -12,8 +12,8 @@ promises:
     boundary: unit
     lifecycle: accepted
     given:
-      - en: A promise file exists under the promises root
-        zh-CN: promises/ 目录下存在一个 promise 文件
+      - en: A promise file exists under the tests/promises root
+        zh-CN: tests/promises/ 目录下存在一个 promise 文件
     when:
       - en: The seed Harness loads promise records
         zh-CN: seed Harness 加载 promise records
@@ -23,7 +23,7 @@ promises:
       - en: The lifecycle and review metadata are preserved
         zh-CN: lifecycle 和 review metadata 会被保留
     observes:
-      - promises/**/*.promises.yaml
+      - tests/promises/**/*.promises.yaml
     failureMeaning:
       en: The Harness cannot trust its own reviewed behavior promises.
       zh-CN: Harness 无法信任自己已经 review 过的行为承诺。
@@ -57,7 +57,7 @@ promises:
         zh-CN: 跨文件的 `id` 冲突（无论哪个文件）仍然由现有 `duplicate_promise_id` 规则报告
     observes:
       - crates/harness-core/src/promise_registry.rs
-      - promises/**/*.promises.yaml
+      - tests/promises/**/*.promises.yaml
     failureMeaning:
       en: Authors moving promises into grouped files may see records silently vanish from the registry whenever a sibling record in the same file has an error — reports, run status, and binding validation all become unreliable in ways that look like missing tests.
       zh-CN: 作者把 promises 搬进容器文件后，一旦同文件里有别的记录出错，可能会看到部分 records 从 registry 里悄悄消失 —— 报告、运行状态和绑定校验全都变得不可靠，看起来像测试缺失。

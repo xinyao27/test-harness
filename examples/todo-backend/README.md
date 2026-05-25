@@ -96,7 +96,7 @@ https://github.com/TodoBackend/todo-backend-js-spec/blob/master/js/specs.js
 The traceability map lives in:
 
 ```text
-examples/todo-backend/spec-map.yaml
+examples/todo-backend/tests/spec-map.yaml
 ```
 
 Run the coverage check with:
@@ -112,7 +112,7 @@ The check confirms that every official spec case is listed, every case maps to a
 The Todo-Backend showcase is also used to exercise the full TestHarness feature set. The feature map lives in:
 
 ```text
-examples/todo-backend/harness-feature-map.yaml
+examples/todo-backend/tests/harness-feature-map.yaml
 ```
 
 Run both coverage checks with:

@@ -158,7 +158,7 @@ const collectPromiseFiles = async (directory) => {
 
 export const assertExamplePromiseIds = async (promiseIds) => {
   const examplePromiseIds = new Set();
-  const promiseFiles = await collectPromiseFiles(path.join(exampleRoot, "promises"));
+  const promiseFiles = await collectPromiseFiles(path.join(exampleRoot, "tests/promises"));
 
   for (const promiseFile of promiseFiles) {
     const relativePromiseFile = path.relative(exampleRoot, promiseFile);

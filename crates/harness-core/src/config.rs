@@ -3,7 +3,7 @@ use harness_protocol::{decode_harness_config, HarnessConfig, ProtocolDecodeError
 use std::fs;
 use std::path::Path;
 
-pub const HARNESS_CONFIG_PATH: &str = "harness.yaml";
+pub const HARNESS_CONFIG_PATH: &str = "tests/harness.yaml";
 
 pub fn load_harness_config(root_dir: impl AsRef<Path>) -> Result<HarnessConfig, HarnessError> {
     let path = root_dir.as_ref().join(HARNESS_CONFIG_PATH);

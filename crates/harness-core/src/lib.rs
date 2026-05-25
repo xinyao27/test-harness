@@ -12,9 +12,11 @@ mod validation;
 pub use config::{load_harness_config, HARNESS_CONFIG_PATH};
 pub use errors::{HarnessError, ModuleLoadError, PromiseLoadError};
 pub use localized_text::{resolve_localized_text, DEFAULT_LANGUAGE};
-pub use module_registry::{find_module_files, find_source_files, load_module_records};
+pub use module_registry::{
+    find_module_files, find_source_files, load_module_records, MODULES_DIRECTORY,
+};
 pub use programs::{build_seed_report, check_seed_harness, SeedCheckResult, SeedReportOptions};
-pub use promise_registry::{find_promise_files, load_promise_records};
+pub use promise_registry::{find_promise_files, load_promise_records, PROMISES_DIRECTORY};
 pub use report::{generate_seed_report, render_seed_report_markdown, render_seed_report_summary};
 pub use results::{
     create_test_results_file, get_promise_run_status, load_test_results, load_test_results_file,
@@ -59,8 +61,8 @@ promises:
     boundary: unit
     lifecycle: accepted
     given:
-      - en: A promise file exists under the promises root
-        zh-CN: promises/ 目录下存在一个 promise 文件
+      - en: A promise file exists under the tests/promises root
+        zh-CN: tests/promises/ 目录下存在一个 promise 文件
     when:
       - en: The seed Harness loads promise records
         zh-CN: seed Harness 加载 promise records
@@ -68,7 +70,7 @@ promises:
       - en: The promise is decoded into a PromiseRecord
         zh-CN: 该 promise 会被解码成 PromiseRecord
     observes:
-      - promises/**/*.promises.yaml
+      - tests/promises/**/*.promises.yaml
     failureMeaning:
       en: The Harness cannot trust its own reviewed behavior promises.
       zh-CN: Harness 无法信任自己已经 review 过的行为承诺。
@@ -86,10 +88,11 @@ promises:
     }
 
     fn write_minimal_workspace(root: &Path) {
+        fs::create_dir_all(root.join("tests")).unwrap();
         fs::write(root.join(HARNESS_CONFIG_PATH), VALID_HARNESS_CONFIG).unwrap();
-        fs::create_dir_all(root.join("promises/promise-registry")).unwrap();
+        fs::create_dir_all(root.join("tests/promises/promise-registry")).unwrap();
         fs::write(
-            root.join("promises/promise-registry/promise-registry.promises.yaml"),
+            root.join("tests/promises/promise-registry/promise-registry.promises.yaml"),
             VALID_PROMISE_YAML,
         )
         .unwrap();
@@ -148,10 +151,11 @@ promises:
     #[test]
     fn surfaces_per_record_decode_errors() {
         let temp = tempdir().unwrap();
+        fs::create_dir_all(temp.path().join("tests")).unwrap();
         fs::write(temp.path().join(HARNESS_CONFIG_PATH), VALID_HARNESS_CONFIG).unwrap();
-        fs::create_dir_all(temp.path().join("promises/grouped")).unwrap();
+        fs::create_dir_all(temp.path().join("tests/promises/grouped")).unwrap();
         fs::write(
-            temp.path().join("promises/grouped/grouped.promises.yaml"),
+            temp.path().join("tests/promises/grouped/grouped.promises.yaml"),
             r#"apiVersion: 1
 promises:
   - id: harness.promise_registry.load_canonical_yaml_promises
@@ -164,7 +168,7 @@ promises:
     given: [A grouped file exists]
     when: [The loader decodes children]
     then: [The valid child is retained]
-    observes: [promises/**/*.promises.yaml]
+    observes: [tests/promises/**/*.promises.yaml]
     failureMeaning: Valid children would be lost.
     review:
       approvedBy: xinyao
@@ -178,7 +182,7 @@ promises:
     given: [A grouped file exists]
     when: [The loader decodes children]
     then: [The invalid child is reported]
-    observes: [promises/**/*.promises.yaml]
+    observes: [tests/promises/**/*.promises.yaml]
     failureMeaning: Invalid children would be hidden.
     review:
       approvedBy: xinyao
@@ -194,9 +198,9 @@ promises:
     #[test]
     fn loads_canonical_yaml_modules() {
         let temp = tempdir().unwrap();
-        fs::create_dir_all(temp.path().join("modules")).unwrap();
+        fs::create_dir_all(temp.path().join("tests/modules")).unwrap();
         fs::write(
-            temp.path().join("modules/core.module.yaml"),
+            temp.path().join("tests/modules/core.module.yaml"),
             r#"apiVersion: 1
 id: core
 title: Core

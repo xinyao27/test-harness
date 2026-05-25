@@ -73,7 +73,7 @@ When updating documentation, keep the English and Chinese versions aligned.
 - Treat promise drift as a first-class review object. If a promise becomes weaker, narrower, less observable, or lower priority, preserve the old text, new text, initiator, reason, timestamp, and human acknowledgement state.
 - Do not assume a passing adapter test still proves a promise. Track N:M promise-to-test evidence mappings, capture assertion fingerprints, and preserve evidence deltas when tests are generated or edited.
 - For the seed Harness, use PR-based review metadata and allow checker warnings until the checker itself is accepted.
-- Keep adapter details under adapter-specific code and promises, such as `promises/adapters/vitest/`.
+- Keep adapter details under adapter-specific code and promises, such as `tests/promises/adapters/vitest/`.
 - Prefer `vitest run` for the current Vitest adapter and CI execution so test commands exit deterministically.
 - Use Vitest reporters, projects, annotations, browser mode, and Node API when working specifically on the Vitest adapter.
 - Do not weaken, remove, or blur high-priority promises without explicit human approval.

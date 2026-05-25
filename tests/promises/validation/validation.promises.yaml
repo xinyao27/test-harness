@@ -56,7 +56,7 @@ promises:
         zh-CN: 同一 promise 内两行 `name` 相同会产生 `duplicate_example_row_name` error
     observes:
       - crates/harness-core/src/validation.rs
-      - promises/**/*.promises.yaml
+      - tests/promises/**/*.promises.yaml
     failureMeaning:
       en: Reviewers may approve an examples table they cannot actually read as a table — unnamed rows, divergent columns, or duplicate labels make the table no better than a paragraph of prose.
       zh-CN: reviewer 可能会批准他们其实读不成表格的 examples 表 —— 行没有名字、列不一致或者标签重复，这种表跟一段散文没区别。
@@ -88,7 +88,7 @@ promises:
         zh-CN: 缺少 review approval metadata 的 accepted promises 会成为 warnings
     observes:
       - crates/harness-core/src/validation.rs
-      - promises/**/*.promises.yaml
+      - tests/promises/**/*.promises.yaml
     failureMeaning:
       en: Humans may be asked to approve promises that are hard to read, unstable, or not reviewable.
       zh-CN: 人类可能会被要求批准难以阅读、不稳定或无法 review 的 promises。
@@ -153,7 +153,7 @@ promises:
     observes:
       - crates/harness-core/src/validation.rs
       - crates/harness-core/src/module_registry.rs
-      - modules/*.module.yaml
+      - tests/modules/*.module.yaml
     failureMeaning:
       en: New code can land without any module taking review ownership, so reviewers cannot tell which area is responsible for it.
       zh-CN: 新代码可能在没有任何 module 接手 review 的情况下落地，reviewer 无法判断它归哪个区域负责。

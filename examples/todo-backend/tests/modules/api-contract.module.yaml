@@ -20,6 +20,6 @@ promises:
   - todo_backend.api.cors_allows_todomvc_client
   - todo_backend.spec.official_spec_map_is_complete
 covers:
-  - examples/todo-backend/spec-map.yaml
+  - examples/todo-backend/tests/spec-map.yaml
   - examples/todo-backend/contract-tests/**
-  - examples/todo-backend/promises/contract.promises.yaml
+  - examples/todo-backend/tests/promises/contract.promises.yaml

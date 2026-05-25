@@ -80,8 +80,8 @@ promises:
     boundary: unit
     lifecycle: accepted
     given:
-      - en: A canonical promise exists under the promises root
-        zh-CN: promises/ 目录下存在一条 canonical promise
+      - en: A canonical promise exists under the tests/promises root
+        zh-CN: tests/promises/ 目录下存在一条 canonical promise
     when:
       - en: A Vitest test calls scenario with that promise id
         zh-CN: Vitest 测试使用这个 promise id 调用 scenario

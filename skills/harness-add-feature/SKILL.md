@@ -12,22 +12,23 @@ You do not need to know how the Harness is implemented internally. You only need
 ## The Mental Model
 
 ```text
-Module           ← navigation grouping — modules/*.module.yaml
-  Promise group  ← related review units — promises/**/*.promises.yaml
-    Promise      ← one behavior guarantee inside the file's `promises:` list
-      Evidence   ← what proves the promise is still satisfied
-        Adapter test ← executable encoding (Vitest scenarioTest, Rust adapter metadata, etc.)
+Harness config   ← runner entrypoint — tests/harness.yaml
+  Module         ← navigation grouping — tests/modules/*.module.yaml
+    Promise group ← related review units — tests/promises/**/*.promises.yaml
+      Promise    ← one behavior guarantee inside the file's `promises:` list
+        Evidence ← what proves the promise is still satisfied
+          Adapter test ← executable encoding (Vitest scenarioTest, Rust adapter metadata, etc.)
 ```
 
 Humans review **promises**. You write **tests and code** that prove them. The grouped promise file is the canonical source of meaning — the test is just executable evidence for it. New promise files should use `apiVersion: 1` and a top-level `promises:` array.
 
 ## Workflow
 
-1. **Find the existing promise first.** Look in `promises/**/*.promises.yaml`. If one already covers what you are about to change, use it. Also check `modules/*.module.yaml` to see which area it belongs to.
+1. **Find the existing promise first.** Look in `tests/promises/**/*.promises.yaml`. If one already covers what you are about to change, use it. Also check `tests/modules/*.module.yaml` to see which area it belongs to.
 
 2. **Draft a new promise only if the behavior is genuinely new.** Each promise = one human-readable guarantee, not an implementation step. Add it to the most specific existing group file when it belongs with that behavior area; create a new `*.promises.yaml` group only when the existing groups would blur review ownership. Key invariants: `id` is permanent (renames require a new id plus `deprecatedBy` on the old promise); natural-language fields can be plain English or a `{ en, zh-CN }` map; only a human moves `lifecycle` to `accepted` by filling in the `review` block.
 
-3. **If the new promise needs a new module**, surface it to the human — that is a bigger move. Usually a new promise fits into an existing module under `modules/`.
+3. **If the new promise needs a new module**, surface it to the human — that is a bigger move. Usually a new promise fits into an existing module under `tests/modules/`.
 
 4. **Ask for human review when the meaning shifts.** Any change to `title`, `purpose`, `priority`, `boundary`, `given` / `when` / `then`, `observes`, or `lifecycle` is a review event — even if the test still passes. Do not set `lifecycle: accepted` yourself; the human does that by filling in `review.approvedBy` / `approvedAt`.
 

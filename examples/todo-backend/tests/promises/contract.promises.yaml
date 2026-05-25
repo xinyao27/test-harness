@@ -353,9 +353,9 @@ promises:
       - en: Every mapped promise id exists in the example promise files
         zh-CN: 每个被映射的 promise id 都存在于 example promise files 中
     observes:
-      - examples/todo-backend/spec-map.yaml
+      - examples/todo-backend/tests/spec-map.yaml
       - examples/todo-backend/tools/check-spec-map.mjs
-      - examples/todo-backend/promises/*.promises.yaml
+      - examples/todo-backend/tests/promises/*.promises.yaml
     failureMeaning:
       en: The example could claim full Todo-Backend coverage while silently missing or misbinding official behavior.
       zh-CN: example 可能声称完整覆盖 Todo-Backend，但实际悄悄漏掉或错误绑定官方行为。

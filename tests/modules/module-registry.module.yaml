@@ -4,8 +4,8 @@ title:
   en: Module Registry — load and index canonical module files
   zh-CN: Module Registry — 加载并索引 canonical module files
 summary:
-  en: Walks the `modules/` tree, reads every `.module.yaml` file by exact suffix, decodes through the module schema, and returns indexed module records. Coverage validation and any future module-aware tooling start here.
-  zh-CN: 遍历 `modules/` 目录，按精确后缀读取每个 `.module.yaml` 文件，通过 module schema 解码，返回已索引的 module records。覆盖率校验和未来所有 module-aware 工具都从这里开始。
+  en: Walks the `tests/modules/` tree, reads every `.module.yaml` file by exact suffix, decodes through the module schema, and returns indexed module records. Coverage validation and any future module-aware tooling start here.
+  zh-CN: 遍历 `tests/modules/` 目录，按精确后缀读取每个 `.module.yaml` 文件，通过 module schema 解码，返回已索引的 module records。覆盖率校验和未来所有 module-aware 工具都从这里开始。
 purpose:
   en: Without this loader, modules are inert artifacts — the harness cannot validate that every source file belongs to some reviewable area.
   zh-CN: 没有这个 loader，modules 只是惰性 artifact —— harness 无法校验每个源文件都归属于某个可 review 的区域。

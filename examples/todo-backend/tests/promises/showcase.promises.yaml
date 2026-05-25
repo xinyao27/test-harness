@@ -27,10 +27,10 @@ promises:
       - en: Every showcase promise id referenced by the map exists in the Todo-Backend promise files
         zh-CN: map 引用的每个 showcase promise id 都存在于 Todo-Backend promise files 中
     observes:
-      - examples/todo-backend/harness-feature-map.yaml
+      - examples/todo-backend/tests/harness-feature-map.yaml
       - examples/todo-backend/tools/check-feature-map.mjs
-      - modules/*.module.yaml
-      - promises/**/*.promises.yaml
+      - tests/modules/*.module.yaml
+      - tests/promises/**/*.promises.yaml
     failureMeaning:
       en: The example could advertise the whole Harness while quietly omitting an important product capability.
       zh-CN: example 可能宣传完整 Harness，但悄悄遗漏重要产品能力。
@@ -62,7 +62,7 @@ promises:
       - en: The command writes canonical Harness results and renders the report output
         zh-CN: 命令会写出 canonical Harness results 并渲染 report output
     observes:
-      - examples/todo-backend/harness.yaml
+      - examples/todo-backend/tests/harness.yaml
       - examples/todo-backend/tools/**
       - examples/todo-backend/.harness/results.yaml
     failureMeaning:
@@ -130,7 +130,7 @@ promises:
       - en: Summary output remains compact enough for release notes, README snippets, and CI logs
         zh-CN: summary output 足够紧凑，可用于 release notes、README snippets 和 CI logs
     observes:
-      - examples/todo-backend/promises/*.promises.yaml
+      - examples/todo-backend/tests/promises/*.promises.yaml
       - examples/todo-backend/README.md
       - examples/todo-backend/README.zh-CN.md
       - examples/todo-backend/.harness/results.yaml
@@ -165,8 +165,8 @@ promises:
       - en: Example modules list the promises and source areas they own
         zh-CN: example modules 会列出自己负责的 promises 和 source areas
     observes:
-      - examples/todo-backend/modules/*.module.yaml
-      - examples/todo-backend/promises/*.promises.yaml
+      - examples/todo-backend/tests/modules/*.module.yaml
+      - examples/todo-backend/tests/promises/*.promises.yaml
       - examples/todo-backend/tools/check-feature-map.mjs
     failureMeaning:
       en: The public demo could decay into an impressive run command with weak review metadata.

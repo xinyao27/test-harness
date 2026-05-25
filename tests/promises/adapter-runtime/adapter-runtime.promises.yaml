@@ -130,7 +130,7 @@ promises:
     observes:
       - crates/harness-adapter-runtime/src/**
       - crates/harness-adapter-runtime/src/main.rs
-      - harness.yaml
+      - tests/harness.yaml
     failureMeaning:
       en: The Rust runtime would still feel like a Cargo-only developer tool instead of a general Harness runtime for multiple languages.
       zh-CN: Rust runtime 仍会像 Cargo-only 的开发工具，而不是支持多语言的通用 Harness runtime。

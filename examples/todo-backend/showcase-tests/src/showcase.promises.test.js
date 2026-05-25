@@ -62,7 +62,7 @@ describeShowcase("Todo-Backend Harness showcase", () => {
       const output = runPnpmScript("example:todo-spec-map:check");
       expect(output).toContain("16 official cases");
 
-      const specMap = await loadYaml(path.join(exampleRoot, "spec-map.yaml"));
+      const specMap = await loadYaml(path.join(exampleRoot, "tests/spec-map.yaml"));
       expect(specMap.apiVersion).toBe(1);
       expect(specMap.coverage.expectedCaseCount).toBe(16);
       expect(specMap.cases).toHaveLength(16);
@@ -74,7 +74,7 @@ describeShowcase("Todo-Backend Harness showcase", () => {
     "todo_backend.showcase.feature_map_covers_harness_capabilities",
     "feature map links every canonical Harness module to Todo-Backend artifacts",
     async () => {
-      const featureMap = await loadYaml(path.join(exampleRoot, "harness-feature-map.yaml"));
+      const featureMap = await loadYaml(path.join(exampleRoot, "tests/harness-feature-map.yaml"));
       const output = runPnpmScript("example:todo-feature-map:check");
       expect(output).toContain(`${featureMap.coverage.expectedModuleCount} Harness modules`);
 

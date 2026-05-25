@@ -1,8 +1,8 @@
 apiVersion: 1
 kind: TodoBackendHarnessFeatureMap
 source:
-  modulesDirectory: modules
-  promisesDirectory: promises
+  modulesDirectory: tests/modules
+  promisesDirectory: tests/promises
 coverage:
   target: canonical-harness-modules-and-promises
   expectedModuleCount: 12
@@ -21,10 +21,10 @@ features:
       - todo_backend.showcase.cross_language_adapters_merge_evidence
       - todo_backend.showcase.one_command_runs_full_demo
     currentArtifacts:
-      - examples/todo-backend/harness-feature-map.yaml
-      - examples/todo-backend/harness.yaml
+      - examples/todo-backend/tests/harness-feature-map.yaml
+      - examples/todo-backend/tests/harness.yaml
       - examples/todo-backend/implementations.yaml
-      - examples/todo-backend/promises/showcase.promises.yaml
+      - examples/todo-backend/tests/promises/showcase.promises.yaml
       - examples/todo-backend/tools/check-feature-map.mjs
       - examples/todo-backend/tools/build-matrix.mjs
       - examples/todo-backend/tools/lib/processes.mjs
@@ -63,7 +63,7 @@ features:
       - todo_backend.showcase.cli_reports_bilingual_promise_status
     currentArtifacts:
       - package.json
-      - examples/todo-backend/harness.yaml
+      - examples/todo-backend/tests/harness.yaml
       - examples/todo-backend/README.md
       - examples/todo-backend/README.zh-CN.md
       - examples/todo-backend/showcase-tests
@@ -82,11 +82,11 @@ features:
       - todo_backend.showcase.feature_map_covers_harness_capabilities
       - todo_backend.showcase.validation_guards_promise_and_module_coverage
     currentArtifacts:
-      - examples/todo-backend/modules/api-contract.module.yaml
-      - examples/todo-backend/modules/client.module.yaml
-      - examples/todo-backend/modules/rust-axum.module.yaml
-      - examples/todo-backend/modules/showcase.module.yaml
-      - examples/todo-backend/modules/typescript-hono.module.yaml
+      - examples/todo-backend/tests/modules/api-contract.module.yaml
+      - examples/todo-backend/tests/modules/client.module.yaml
+      - examples/todo-backend/tests/modules/rust-axum.module.yaml
+      - examples/todo-backend/tests/modules/showcase.module.yaml
+      - examples/todo-backend/tests/modules/typescript-hono.module.yaml
     plannedArtifacts: []
     implementedCommands:
       - pnpm example:todo-feature-map:check
@@ -100,11 +100,11 @@ features:
       - todo_backend.showcase.feature_map_covers_harness_capabilities
       - todo_backend.spec.official_spec_map_is_complete
     currentArtifacts:
-      - examples/todo-backend/promises/contract.promises.yaml
-      - examples/todo-backend/promises/rust-axum.promises.yaml
-      - examples/todo-backend/promises/showcase.promises.yaml
-      - examples/todo-backend/promises/typescript-hono.promises.yaml
-      - examples/todo-backend/spec-map.yaml
+      - examples/todo-backend/tests/promises/contract.promises.yaml
+      - examples/todo-backend/tests/promises/rust-axum.promises.yaml
+      - examples/todo-backend/tests/promises/showcase.promises.yaml
+      - examples/todo-backend/tests/promises/typescript-hono.promises.yaml
+      - examples/todo-backend/tests/spec-map.yaml
     plannedArtifacts: []
     implementedCommands:
       - pnpm example:todo-spec-map:check
@@ -120,10 +120,10 @@ features:
       - todo_backend.showcase.feature_map_covers_harness_capabilities
       - todo_backend.showcase.validation_guards_promise_and_module_coverage
     currentArtifacts:
-      - examples/todo-backend/promises/contract.promises.yaml
-      - examples/todo-backend/promises/showcase.promises.yaml
-      - examples/todo-backend/promises/typescript-hono.promises.yaml
-      - examples/todo-backend/promises/rust-axum.promises.yaml
+      - examples/todo-backend/tests/promises/contract.promises.yaml
+      - examples/todo-backend/tests/promises/showcase.promises.yaml
+      - examples/todo-backend/tests/promises/typescript-hono.promises.yaml
+      - examples/todo-backend/tests/promises/rust-axum.promises.yaml
     plannedArtifacts: []
     implementedCommands:
       - pnpm example:todo-feature-map:check
@@ -145,11 +145,11 @@ features:
       - todo_backend.showcase.one_command_runs_full_demo
       - todo_backend.spec.official_spec_map_is_complete
     currentArtifacts:
-      - examples/todo-backend/harness-feature-map.yaml
-      - examples/todo-backend/harness.yaml
-      - examples/todo-backend/spec-map.yaml
-      - examples/todo-backend/promises/contract.promises.yaml
-      - examples/todo-backend/modules/api-contract.module.yaml
+      - examples/todo-backend/tests/harness-feature-map.yaml
+      - examples/todo-backend/tests/harness.yaml
+      - examples/todo-backend/tests/spec-map.yaml
+      - examples/todo-backend/tests/promises/contract.promises.yaml
+      - examples/todo-backend/tests/modules/api-contract.module.yaml
     plannedArtifacts:
       - examples/todo-backend/.harness/results.yaml
     implementedCommands:
@@ -166,8 +166,8 @@ features:
       - todo_backend.report.matrix_compares_implementations_by_promise
       - todo_backend.showcase.cli_reports_bilingual_promise_status
     currentArtifacts:
-      - examples/todo-backend/promises/contract.promises.yaml
-      - examples/todo-backend/promises/showcase.promises.yaml
+      - examples/todo-backend/tests/promises/contract.promises.yaml
+      - examples/todo-backend/tests/promises/showcase.promises.yaml
       - examples/todo-backend/README.md
       - examples/todo-backend/README.zh-CN.md
       - examples/todo-backend/implementations.yaml
@@ -191,8 +191,8 @@ features:
       - todo_backend.showcase.cross_language_adapters_merge_evidence
       - todo_backend.showcase.one_command_runs_full_demo
     currentArtifacts:
-      - examples/todo-backend/harness-feature-map.yaml
-      - examples/todo-backend/promises/showcase.promises.yaml
+      - examples/todo-backend/tests/harness-feature-map.yaml
+      - examples/todo-backend/tests/promises/showcase.promises.yaml
     plannedArtifacts:
       - examples/todo-backend/.harness/runs/*/events/*.ndjson
       - examples/todo-backend/.harness/results.yaml
@@ -211,8 +211,8 @@ features:
       - todo_backend.rust_axum.native_tests_are_promise_bound
       - todo_backend.showcase.cross_language_adapters_merge_evidence
     currentArtifacts:
-      - examples/todo-backend/modules/rust-axum.module.yaml
-      - examples/todo-backend/promises/rust-axum.promises.yaml
+      - examples/todo-backend/tests/modules/rust-axum.module.yaml
+      - examples/todo-backend/tests/promises/rust-axum.promises.yaml
       - examples/todo-backend/implementations/rust-axum
       - examples/todo-backend/tools/run-rust-contract.mjs
     plannedArtifacts:
@@ -234,8 +234,8 @@ features:
       - todo_backend.showcase.validation_guards_promise_and_module_coverage
       - todo_backend.showcase.feature_map_covers_harness_capabilities
     currentArtifacts:
-      - examples/todo-backend/modules/showcase.module.yaml
-      - examples/todo-backend/promises/showcase.promises.yaml
+      - examples/todo-backend/tests/modules/showcase.module.yaml
+      - examples/todo-backend/tests/promises/showcase.promises.yaml
       - examples/todo-backend/tools/check-feature-map.mjs
       - examples/todo-backend/tools/check-spec-map.mjs
     plannedArtifacts: []
@@ -255,8 +255,8 @@ features:
       - todo_backend.showcase.cross_language_adapters_merge_evidence
     currentArtifacts:
       - examples/todo-backend/browser-tests
-      - examples/todo-backend/modules/typescript-hono.module.yaml
-      - examples/todo-backend/promises/typescript-hono.promises.yaml
+      - examples/todo-backend/tests/modules/typescript-hono.module.yaml
+      - examples/todo-backend/tests/promises/typescript-hono.promises.yaml
       - examples/todo-backend/contract-tests
       - examples/todo-backend/implementations/typescript-hono
       - examples/todo-backend/tools/run-browser-e2e.mjs
@@ -280,7 +280,7 @@ features:
     currentArtifacts:
       - examples/todo-backend/browser-tests
       - examples/todo-backend/client/todomvc-react
-      - examples/todo-backend/harness-feature-map.yaml
+      - examples/todo-backend/tests/harness-feature-map.yaml
     plannedArtifacts: []
     implementedCommands:
       - pnpm example:todo-client

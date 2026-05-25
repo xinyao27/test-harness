@@ -5,8 +5,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
+pub const MODULES_DIRECTORY: &str = "tests/modules";
+
 pub fn find_module_files(root_dir: impl AsRef<Path>) -> Result<Vec<PathBuf>, HarnessError> {
-    let directory = root_dir.as_ref().join("modules");
+    let directory = root_dir.as_ref().join(MODULES_DIRECTORY);
     collect_files(&directory, ".module.yaml").map_err(|cause| HarnessError::ModuleFileReadError {
         path: directory,
         cause,
