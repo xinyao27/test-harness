@@ -1,11 +1,11 @@
-# Dashboard Canvas Experience
+# Harness Studio Canvas Experience
 
 > Status: discussion draft
-> Goal: simplify the Harness web experience into a canvas-first workbench for promise-driven vibe coding.
+> Goal: define Harness Studio as a canvas-first workbench for promise-driven vibe coding.
 
 ## 1. Direction
 
-The web experience should not feel like a generic admin dashboard. It should feel like a **TestHarness workbench** where a human and an agent can grow a project from reviewed behavior commitments into tests and implementation.
+Harness Studio should not feel like a generic admin dashboard. It should feel like a focused TestHarness workbench where a human and an agent can grow a project from reviewed behavior commitments into tests and implementation.
 
 The intended workflow is layered:
 
@@ -17,11 +17,11 @@ tests/modules + tests/promises
 
 This means the primary UI should help users understand and manage the behavior model first. Tests and implementation code appear as evidence and linked detail under that model, not as separate top-level products.
 
-The future direction is a vibe coding environment backed by a daemon that can connect the Dashboard to Codex, cloud workers, or other agent runtimes. That daemon can later draft promises, bind tests, run the harness, and modify business code. For now, the Dashboard should prepare the interaction model without trying to implement agent control yet.
+The future direction is a vibe coding environment backed by a daemon that can connect Harness Studio to Codex, cloud workers, or other agent runtimes. That daemon can later draft promises, bind tests, run the harness, and modify business code. For now, Harness Studio should prepare the interaction model without trying to implement agent control yet.
 
 ## 2. North Star: No-Editor Project Control
 
-The long-term goal is that day-to-day product work does not require opening a code editor first. The user should be able to open the Harness workbench, manage the behavior model, ask the agent to perform controlled changes, and judge the project through accepted promises and passing evidence.
+The long-term goal is that day-to-day product work does not require opening a code editor first. The user should be able to open Harness Studio, manage the behavior model, ask the agent to perform controlled changes, and judge the project through accepted promises and passing evidence.
 
 In that world, TestHarness is not a side panel for tests. It is the project's architecture index and release confidence layer:
 
@@ -33,13 +33,13 @@ In that world, TestHarness is not a side panel for tests. It is the project's ar
 
 A Module is not a loose label, filter, folder mirror, or UI category. It is the reviewable architecture boundary a human should use to understand what the project is made of. Looking at the Module layer should answer: "What are the major parts of this system, and what does each part promise?"
 
-This is a project-wide modeling rule, not a Dashboard-only presentation rule. Skills that generate modules, schemas that describe modules, validators that reject vague modules, and future daemon actions should all treat modules as architecture boundaries first.
+This is a project-wide modeling rule, not a canvas-only presentation rule. Skills that generate modules, schemas that describe modules, validators that reject vague modules, and future daemon actions should all treat modules as architecture boundaries first.
 
-This does not mean "any green test suite proves the product is correct." It means the system should make the release contract explicit: accepted promises are complete enough, each accepted promise has meaningful evidence, and the latest Harness run is passing. When those conditions hold, the Dashboard can become the place where a human decides the feature is ready to ship.
+This does not mean "any green test suite proves the product is correct." It means the system should make the release contract explicit: accepted promises are complete enough, each accepted promise has meaningful evidence, and the latest Harness run is passing. When those conditions hold, Harness Studio can become the place where a human decides the feature is ready to ship.
 
 ## 3. Problem With The Current Direction
 
-The current Dashboard exposes too many concepts too early: overview, modules, promises, graph, review queues, generation, runs, and status views all compete as top-level navigation. This makes the product feel bigger than the user's first task.
+The current dashboard direction exposes too many concepts too early: overview, modules, promises, graph, review queues, generation, runs, and status views all compete as top-level navigation. This makes the product feel bigger than the user's first task.
 
 For a new user, the first useful question is much simpler:
 
@@ -57,7 +57,7 @@ The canvas should reveal complexity progressively:
 
 1. **Project level**: show only Module nodes, because Modules equal the architecture map.
 2. **Module level**: selecting a Module expands or focuses its Promise nodes.
-3. **Promise level**: selecting a Promise opens a right-side contextual panel with the promise content.
+3. **Promise level**: selecting a Promise opens a collapsible right-side context panel with the promise content.
 4. **Evidence level**: tests, result evidence, and business logic links appear under the selected promise, not as global navigation.
 
 This keeps the experience calm: one surface, one mental model, increasingly rich detail as the user asks for it.
@@ -87,7 +87,7 @@ Each Module node should communicate only the essentials:
 
 The node should not expose long descriptions or full metadata. That belongs in detail panels after selection.
 
-The full set of Module nodes must be readable as the project's architecture map. If a Module does not correspond to a meaningful architectural part, it should not be a Module. If an important architectural part is missing from the Module layer, the Dashboard is hiding the shape of the project.
+The full set of Module nodes must be readable as the project's architecture map. If a Module does not correspond to a meaningful architectural part, it should not be a Module. If an important architectural part is missing from the Module layer, Harness Studio is hiding the shape of the project.
 
 ### Module Selection
 
@@ -113,11 +113,11 @@ Promise nodes should be readable and compact:
 
 Promise nodes should remain behavior-first. They should not look like test files, code files, or task cards.
 
-### Promise Selection Panel
+### Right Context Panel
 
-Selecting a Promise opens a right-side contextual panel attached to the canvas.
+Selecting a Promise opens a right-side context panel attached to the canvas. The panel must be collapsible. Collapsing it should preserve selection, keep a small reopen affordance, and let the canvas reclaim space without losing the user's place.
 
-The panel should show:
+In the MVP, this panel acts as a Promise Inspector and should show:
 
 - promise title and id
 - purpose
@@ -130,11 +130,13 @@ The panel should show:
 
 The panel should be scannable. It should start with meaning and status, then reveal metadata. It should not become a YAML dump.
 
+Later, the same right-side surface can gain prompt and agent controls for controlled vibe coding. It should still remain contextual to the selected Module or Promise instead of becoming a global chat sidebar.
+
 ### Evidence And Code Links
 
 Evidence should be one layer deeper than promises.
 
-From the Promise panel, the user can inspect:
+From the context panel, the user can inspect:
 
 - tests that bind to the promise id
 - latest adapter results
@@ -201,7 +203,7 @@ The daemon must preserve the Harness model:
 3. Human review approves or edits the promise.
 4. Tests bind to the approved promise id.
 5. Implementation work follows the promise and test evidence.
-6. The Dashboard shows the resulting status and links.
+6. Harness Studio shows the resulting status and links.
 
 Agent actions should never make the UI feel like a free-form chat app pasted beside a graph. The graph remains the source of orientation, and the Harness remains the release gate.
 
@@ -209,15 +211,15 @@ Agent actions should never make the UI feel like a free-form chat app pasted bes
 
 ### Stage 1: Canvas-Only Read Model
 
-- replace the current landing/dashboard/sidebar experience with the canvas
+- replace the current landing/dashboard/sidebar experience with Harness Studio's canvas
 - render Module nodes first
 - expand Promise nodes on Module selection
-- open a Promise detail panel on Promise selection
+- open a collapsible right context panel on Promise selection
 - keep all data read-only
 
 ### Stage 2: Evidence Drilldown
 
-- show bound test evidence in the Promise panel
+- show bound test evidence in the context panel
 - show run status and latest result details
 - link observed source files and implementation files
 - add lightweight filtering/search without reintroducing a sidebar
@@ -229,10 +231,15 @@ Agent actions should never make the UI feel like a free-form chat app pasted bes
 - run Harness commands from the UI
 - connect Codex/cloud workers to implement approved promises
 
-## 10. Open Questions
+## 10. Product Decisions And Defaults
 
-1. Should the right-side Promise panel be always visible after selection, or should it be collapsible?
-2. Should evidence and implementation files become graph nodes in Stage 2, or stay inside the panel until the user asks for them?
-3. Should the route model use query-state (`/?promise=...`) or semantic routes (`/promises/...`) while still rendering the same canvas?
-4. What should we call the product surface if not "Dashboard": Workbench, Canvas, Project Map, or Harness Studio?
-5. What release rule should the UI show: "all accepted promises passing", "all P0/P1 accepted promises passing", or a configurable release profile?
+Resolved:
+
+1. The product surface is called **Harness Studio**.
+2. The right-side context panel is collapsible.
+
+Default until proven otherwise:
+
+1. Evidence and implementation files stay inside the context panel first. Promote them into graph nodes only when they help orientation, comparison, or impact analysis.
+2. Use query-state URLs first (`/?module=...`, `/?promise=...`) because they express focus inside one canvas. Semantic routes can be added later if sharing, browser history, or deep linking need them.
+3. Show release confidence through a default profile: all accepted P0/P1 promises must pass and all accepted promises must have current evidence. Make the profile configurable later, once real projects reveal the right knobs.
