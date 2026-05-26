@@ -64,6 +64,9 @@
   --studio-edge-muted-stroke: var(--muted-foreground);
   --studio-border-width: 1px;
   --studio-shadow: var(--shadow-sm);
+  --studio-radius: var(--radius-lg);
+  --studio-node-radius: var(--radius-lg);
+  --studio-control-radius: var(--radius-md);
   --studio-shell-inset: 4px;
   --studio-control-inset: 4px;
   --studio-floating-inset: 0.75rem;
@@ -276,11 +279,13 @@
   .studio-canvas-frame {
     background-color: var(--studio-flow-surface);
     border: var(--studio-border-width) solid var(--border);
+    border-radius: var(--studio-radius);
     box-shadow: var(--studio-shadow);
   }
 
   .studio-flow-surface {
     background-color: var(--studio-flow-surface);
+    border-radius: inherit;
   }
 
   .studio-flow-surface::after {
@@ -290,6 +295,7 @@
     pointer-events: none;
     content: "";
     background: transparent;
+    border-radius: inherit;
   }
 
   .studio-flow-layer {
@@ -299,6 +305,7 @@
 
   .studio-flow-surface .react-flow__controls {
     overflow: hidden;
+    border-radius: var(--studio-control-radius);
     box-shadow: none !important;
   }
 
@@ -316,6 +323,7 @@
   .studio-flow-surface .react-flow__attribution {
     color: var(--studio-attribution-foreground) !important;
     background: var(--studio-control) !important;
+    border-radius: var(--radius-sm) 0 0 0;
   }
 
   .studio-flow-header-panel {
@@ -352,6 +360,7 @@
   .studio-floating-control {
     background: var(--background);
     border-color: var(--border);
+    border-radius: var(--studio-control-radius);
   }
 
   .studio-project-trigger {
@@ -376,6 +385,7 @@
     overflow: hidden;
     background: var(--background);
     border: var(--studio-border-width) solid var(--border);
+    border-radius: var(--studio-radius);
   }
 
   @media (min-width: 64rem) {
@@ -406,6 +416,7 @@
     min-height: var(--studio-node-min-height);
     padding: var(--studio-node-padding);
     border-width: var(--studio-border-width);
+    border-radius: var(--studio-node-radius);
     transition-duration: var(--studio-motion-duration);
     transition-property: background-color, border-color, color;
   }

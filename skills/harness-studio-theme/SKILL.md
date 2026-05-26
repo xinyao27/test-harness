@@ -45,6 +45,7 @@ If a new visual need is repeated across multiple features, add a semantic token 
 - Read the canonical primitive before styling a feature. For cards, dialogs, popovers, menus, badges, inputs, and buttons, start with `apps/web/src/components/ui/` and only add feature classes for feature-specific layout.
 - Let hierarchy come from size, spacing, surface, and placement before adding weight or color. Operational screens should scan quietly.
 - Treat radius as a system. Cards, popovers, controls, graph nodes, and small status chips should use their existing tier; do not invent one-off corner sizes.
+- Studio-only CSS classes such as `.studio-node-card`, `.studio-context-panel`, and `.studio-canvas-frame` must set radius through `--studio-*radius` variables derived from `--radius-*`.
 - Use the adjacency-contrast principle for borders: a border reads differently depending on the two surfaces around it. Prefer the solid `border-border` token for dividers and enclosed content instead of alpha-modulated borders.
 - Avoid double borders. If a component, panel handle, or shared primitive already draws the separator, do not add another `border-t`, `border-b`, or `border-r` next to it.
 - Keep app-specific dimensions close to the app that owns them. Shared theme tokens should be semantic color, radius, shadow, and repeated surface language, not one-screen layout constants.
