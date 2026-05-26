@@ -122,26 +122,45 @@ const defaultStudioProjects: StudioProject[] = [
 
 const studioGraphLayout = {
   activeModuleX: 0,
-  activeModuleYStart: 180,
-  activeModuleYStep: 132,
+  activeModuleY: 150,
+  architectureLayerXStep: 320,
+  architectureLayerYStart: 150,
+  architectureLayerYStep: 150,
   edgeLabelPadding: [6, 3] as [number, number],
   edgeLabelSize: 11,
   edgeLabelWeight: 500,
   edgePrimaryStrokeWidth: 1.5,
-  edgeRelatedDasharray: "4 4",
-  edgeRelatedStrokeWidth: 1,
-  fitViewPadding: 0.22,
-  laneColumnCount: 4,
-  laneRowYStep: 150,
-  laneXStep: 300,
-  laneYStart: 170,
-  laneYStep: 260,
+  edgeRelatedStrokeWidth: 1.2,
+  fitViewPadding: 0.14,
+  relatedModuleX: 0,
+  relatedModuleYStart: 282,
+  relatedModuleYStep: 132,
   maxZoom: 1.4,
   minZoom: 0.25,
   promiseX: 420,
   promiseYStart: 190,
   promiseYStep: 132,
 } as const;
+
+const architectureLayerByModuleId: Record<string, number> = {
+  protocol: 0,
+  "promise-schema": 0,
+  "results-schema": 0,
+  "promise-registry": 1,
+  "module-registry": 1,
+  validation: 1,
+  cli: 2,
+  "adapter-runtime": 2,
+  "rust-adapter": 2,
+  "vitest-adapter": 2,
+  report: 3,
+  "web-dashboard": 3,
+  "todo-backend-api-contract": 0,
+  "todo-backend-typescript-hono": 1,
+  "todo-backend-rust-axum": 1,
+  "todo-backend-client": 2,
+  "todo-backend-showcase": 3,
+};
 
 function ProjectSwitcher({
   onProjectChange,
@@ -509,7 +528,7 @@ export function HarnessStudioPage({
   const { locale, m } = useI18n();
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
   const [selectedPromiseId, setSelectedPromiseId] = useState<string | null>(null);
-  const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
+  const [isPanelCollapsed, setIsPanelCollapsed] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(settingsOpenByDefault);
   const [hasReadQueryState, setHasReadQueryState] = useState(false);
   const nodeTypes = useMemo(() => ({ studio: StudioGraphNode }), []);
@@ -586,7 +605,7 @@ export function HarnessStudioPage({
   const selectProjectRoot = useCallback(() => {
     setSelectedModuleId(null);
     setSelectedPromiseId(null);
-    setIsPanelCollapsed(false);
+    setIsPanelCollapsed(true);
   }, []);
 
   const selectPromise = useCallback(
@@ -604,7 +623,7 @@ export function HarnessStudioPage({
     setSelectedProjectId(projectId);
     setSelectedModuleId(null);
     setSelectedPromiseId(null);
-    setIsPanelCollapsed(false);
+    setIsPanelCollapsed(true);
   }, []);
 
   return (
@@ -629,6 +648,7 @@ export function HarnessStudioPage({
           onPaneClick={() => {
             setSelectedModuleId(null);
             setSelectedPromiseId(null);
+            setIsPanelCollapsed(true);
           }}
         >
           <Panel position="top-left" className="studio-flow-header-panel">
@@ -987,20 +1007,19 @@ function buildStudioGraph(
     ? snapshot.promises.filter((promise) => promise.moduleId === activeModule.id)
     : [];
   const relatedModuleIds = new Set(activeModule?.relatedModuleIds ?? []);
-  const orderedModules = activeModule
-    ? [activeModule, ...snapshot.modules.filter((module) => relatedModuleIds.has(module.id))]
-    : orderModulesByPriority(snapshot.modules);
+  const relatedModules = activeModule
+    ? snapshot.modules.filter((module) => relatedModuleIds.has(module.id))
+    : [];
+  const moduleLayerGroups = groupModulesByArchitectureLayer(snapshot.modules);
+  const orderedModules = activeModule ? [activeModule, ...relatedModules] : snapshot.modules;
 
-  const moduleNodes = orderedModules.map((module, index) => {
+  const moduleNodes = orderedModules.map((module) => {
     const isSelected = module.id === selectedModuleId;
     const isRelated = relatedModuleIds.has(module.id);
     const dimmed = Boolean(activeModule && !isSelected && !isRelated);
     const position = activeModule
-      ? {
-          x: studioGraphLayout.activeModuleX,
-          y: index * studioGraphLayout.activeModuleYStep + studioGraphLayout.activeModuleYStart,
-        }
-      : getPriorityLanePosition(module, orderedModules);
+      ? getFocusedModulePosition(module, activeModule, relatedModules)
+      : getArchitectureLayerPosition(module, moduleLayerGroups);
 
     return {
       id: `module:${module.id}`,
@@ -1040,6 +1059,7 @@ function buildStudioGraph(
     id: `owns:${promise.moduleId}:${promise.id}`,
     source: `module:${promise.moduleId}`,
     target: `promise:${promise.id}`,
+    type: "smoothstep",
     label: messages.graph_edge_owns({}, { locale }),
     markerEnd: { type: MarkerType.ArrowClosed },
     labelBgPadding: studioGraphLayout.edgeLabelPadding,
@@ -1052,23 +1072,22 @@ function buildStudioGraph(
     style: { stroke: edgeColors.stroke, strokeWidth: studioGraphLayout.edgePrimaryStrokeWidth },
   }));
 
-  const relatedEdges =
-    activeModule?.relatedModuleIds
-      .filter((moduleId) => snapshot.modules.some((module) => module.id === moduleId))
-      .map((moduleId) => ({
-        id: `related:${activeModule.id}:${moduleId}`,
+  const relatedEdges = activeModule
+    ? relatedModules.map((module) => ({
+        id: `related:${activeModule.id}:${module.id}`,
         source: `module:${activeModule.id}`,
-        target: `module:${moduleId}`,
+        target: `module:${module.id}`,
+        type: "smoothstep",
         label: messages.graph_edge_related({}, { locale }),
         labelBgPadding: studioGraphLayout.edgeLabelPadding,
         labelBgStyle: { fill: edgeColors.labelMutedBackground },
         labelStyle: { fill: edgeColors.labelMutedText, fontSize: studioGraphLayout.edgeLabelSize },
         style: {
           stroke: edgeColors.relatedStroke,
-          strokeDasharray: studioGraphLayout.edgeRelatedDasharray,
           strokeWidth: studioGraphLayout.edgeRelatedStrokeWidth,
         },
-      })) ?? [];
+      }))
+    : buildArchitectureRelationEdges(snapshot, edgeColors.relatedStroke);
 
   return {
     edges: [...ownershipEdges, ...relatedEdges],
@@ -1083,24 +1102,95 @@ const modulePriorityOrder: Record<ModulePriority, number> = {
   none: 3,
 };
 
-function orderModulesByPriority(modules: HarnessModule[]) {
-  return [...modules].sort((left, right) => {
-    return modulePriorityOrder[left.priority] - modulePriorityOrder[right.priority];
-  });
+function groupModulesByArchitectureLayer(modules: HarnessModule[]) {
+  return modules.reduce<Map<number, HarnessModule[]>>((groups, module) => {
+    const layer = getArchitectureLayer(module);
+    const layerModules = groups.get(layer) ?? [];
+    layerModules.push(module);
+    groups.set(layer, layerModules);
+    return groups;
+  }, new Map());
 }
 
-function getPriorityLanePosition(module: HarnessModule, orderedModules: HarnessModule[]) {
-  const priority = module.priority;
-  const laneModules = orderedModules.filter((item) => item.priority === priority);
-  const laneIndex = laneModules.findIndex((item) => item.id === module.id);
+function getArchitectureLayer(module: HarnessModule) {
+  return architectureLayerByModuleId[module.id] ?? modulePriorityOrder[module.priority];
+}
+
+function getArchitectureLayerPosition(module: HarnessModule, groups: Map<number, HarnessModule[]>) {
+  const layer = getArchitectureLayer(module);
+  const layerModules = groups.get(layer) ?? [];
+  const layerIndex = layerModules.findIndex((item) => item.id === module.id);
+  const maxLayerSize = Math.max(...[...groups.values()].map((items) => items.length), 1);
+  const layerOffset =
+    ((maxLayerSize - layerModules.length) * studioGraphLayout.architectureLayerYStep) / 2;
 
   return {
-    x: (laneIndex % studioGraphLayout.laneColumnCount) * studioGraphLayout.laneXStep,
+    x: layer * studioGraphLayout.architectureLayerXStep,
     y:
-      modulePriorityOrder[priority] * studioGraphLayout.laneYStep +
-      Math.floor(laneIndex / studioGraphLayout.laneColumnCount) * studioGraphLayout.laneRowYStep +
-      studioGraphLayout.laneYStart,
+      studioGraphLayout.architectureLayerYStart +
+      layerOffset +
+      Math.max(layerIndex, 0) * studioGraphLayout.architectureLayerYStep,
   };
+}
+
+function getFocusedModulePosition(
+  module: HarnessModule,
+  activeModule: HarnessModule,
+  relatedModules: HarnessModule[],
+) {
+  if (module.id === activeModule.id) {
+    return {
+      x: studioGraphLayout.activeModuleX,
+      y: studioGraphLayout.activeModuleY,
+    };
+  }
+
+  const relatedIndex = relatedModules.findIndex((item) => item.id === module.id);
+  return {
+    x: studioGraphLayout.relatedModuleX,
+    y:
+      studioGraphLayout.relatedModuleYStart +
+      Math.max(relatedIndex, 0) * studioGraphLayout.relatedModuleYStep,
+  };
+}
+
+function buildArchitectureRelationEdges(snapshot: HarnessSnapshot, stroke: string): Edge[] {
+  const moduleById = new Map(snapshot.modules.map((module) => [module.id, module]));
+  const seenRelationIds = new Set<string>();
+  const edges: Edge[] = [];
+
+  for (const module of snapshot.modules) {
+    for (const relatedModuleId of module.relatedModuleIds) {
+      const relatedModule = moduleById.get(relatedModuleId);
+      if (!relatedModule) continue;
+
+      const relationId = [module.id, relatedModule.id].sort().join(":");
+      if (seenRelationIds.has(relationId)) continue;
+      seenRelationIds.add(relationId);
+
+      const [source, target] = orderRelationEndpoints(module, relatedModule);
+      edges.push({
+        id: `architecture:${source.id}:${target.id}`,
+        source: `module:${source.id}`,
+        target: `module:${target.id}`,
+        type: "smoothstep",
+        style: {
+          stroke,
+          strokeWidth: studioGraphLayout.edgeRelatedStrokeWidth,
+        },
+      });
+    }
+  }
+
+  return edges;
+}
+
+function orderRelationEndpoints(left: HarnessModule, right: HarnessModule) {
+  const leftLayer = getArchitectureLayer(left);
+  const rightLayer = getArchitectureLayer(right);
+
+  if (leftLayer !== rightLayer) return leftLayer < rightLayer ? [left, right] : [right, left];
+  return left.id < right.id ? [left, right] : [right, left];
 }
 
 function InfoSection({ children, title }: { children: ReactNode; title: string }) {
