@@ -46,7 +46,6 @@ export function SettingsPanel() {
             const nextLocale = value[0];
             if (nextLocale) setLocale(nextLocale as AppLocale);
           }}
-          spacing={0}
           variant="outline"
           className="grid w-full grid-cols-2 sm:max-w-xs"
         >
@@ -74,7 +73,6 @@ export function SettingsPanel() {
             const nextMode = value[0];
             if (nextMode === "dark" || nextMode === "light") setMode(nextMode);
           }}
-          spacing={0}
           variant="outline"
           className="grid w-full grid-cols-2 sm:max-w-xs"
         >
