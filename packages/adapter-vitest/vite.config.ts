@@ -12,7 +12,6 @@ export default defineConfig({
   pack: {
     dts: true,
     entry: ["src/index.ts", "src/reporter.ts"],
-    exports: true,
     sourcemap: true,
   },
 });

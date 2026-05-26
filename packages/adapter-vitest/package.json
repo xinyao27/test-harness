@@ -18,12 +18,19 @@
   },
   "funding": "https://github.com/sponsors/xinyao27",
   "files": [
-    "dist"
+    "dist",
+    "src"
   ],
   "type": "module",
   "exports": {
-    ".": "./dist/index.mjs",
-    "./reporter": "./dist/reporter.mjs",
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./dist/index.mjs"
+    },
+    "./reporter": {
+      "types": "./src/reporter.ts",
+      "default": "./dist/reporter.mjs"
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {
