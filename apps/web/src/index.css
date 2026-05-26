@@ -345,7 +345,7 @@
   .studio-top-stats {
     display: flex;
     align-items: center;
-    gap: var(--studio-panel-gap-xs);
+    gap: var(--studio-panel-gap-sm);
     pointer-events: auto;
   }
 
