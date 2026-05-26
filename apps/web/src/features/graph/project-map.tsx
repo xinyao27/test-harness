@@ -63,13 +63,13 @@ export function ProjectMap({ snapshot }: { snapshot: HarnessSnapshot }) {
 function WorkbenchGraphNode({ data }: NodeProps<WorkbenchNode>) {
   const { locale, m } = useI18n();
   const tone = {
-    module: "border-blue-200 bg-blue-50 text-blue-950",
-    promise: "border-emerald-200 bg-emerald-50 text-emerald-950",
-    evidence: "border-zinc-200 bg-zinc-50 text-zinc-900",
+    module: "border-border bg-card text-card-foreground",
+    promise: "border-status-success-border bg-status-success text-status-success-foreground",
+    evidence: "border-border bg-muted text-foreground",
   }[data.kind];
 
   return (
-    <div className={`min-w-44 border p-3 shadow-sm ${tone}`}>
+    <div className={`min-w-44 border p-3 ${tone}`}>
       <Handle type="target" position={Position.Left} className="size-2 bg-foreground" />
       <div className="flex items-center justify-between gap-2">
         <div className="text-sm">{data.label}</div>

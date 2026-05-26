@@ -41,11 +41,11 @@ export function RunStatusBadge({ status }: { status: RunStatus }) {
   const { locale, m } = useI18n();
 
   const className = {
-    unknown: "border-zinc-300 text-zinc-600",
-    passing: "border-emerald-300 text-emerald-700",
-    failing: "border-red-300 text-red-700",
-    skipped: "border-zinc-300 text-zinc-500",
-    missing_evidence: "border-amber-300 text-amber-700",
+    unknown: "border-border text-muted-foreground",
+    passing: "border-status-success-border text-status-success-foreground",
+    failing: "border-destructive/50 text-destructive",
+    skipped: "border-border text-muted-foreground",
+    missing_evidence: "border-status-warning-border text-status-warning-foreground",
   }[status];
 
   return (

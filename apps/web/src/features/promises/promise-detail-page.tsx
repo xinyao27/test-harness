@@ -1,12 +1,5 @@
-import {
-  RiCheckboxCircleLine,
-  RiCloseCircleLine,
-  RiEditLine,
-  RiFileCodeLine,
-} from "@remixicon/react";
 import { useQuery } from "@tanstack/react-query";
 
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LifecycleBadge, PriorityBadge, RunStatusBadge } from "@/features/status/status-badge";
 import { getWorkbenchSnapshot } from "@/lib/api";
@@ -27,7 +20,7 @@ export function PromiseDetailPage({ promiseId }: { promiseId: string }) {
   }
 
   return (
-    <div className="grid h-full min-h-0 grid-cols-1 gap-3 overflow-y-auto overflow-x-hidden p-3 sm:p-4 xl:grid-cols-[minmax(0,1fr)_300px]">
+    <div className="grid h-full min-h-0 grid-cols-1 gap-3 overflow-y-auto overflow-x-hidden p-3 sm:p-4">
       <section className="min-w-0 space-y-3">
         <Card>
           <CardHeader>
@@ -91,39 +84,13 @@ export function PromiseDetailPage({ promiseId }: { promiseId: string }) {
           </CardContent>
         </Card>
       </section>
-
-      <aside className="min-w-0 space-y-3 xl:sticky xl:top-0 xl:self-start">
-        <Card>
-          <CardHeader>
-            <CardTitle>{m.promise_detail_actions_title({}, { locale })}</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-2">
-            <Button>
-              <RiCheckboxCircleLine />
-              {m.action_approve({}, { locale })}
-            </Button>
-            <Button variant="destructive">
-              <RiCloseCircleLine />
-              {m.action_reject({}, { locale })}
-            </Button>
-            <Button variant="outline">
-              <RiEditLine />
-              {m.action_request_changes({}, { locale })}
-            </Button>
-            <Button variant="outline">
-              <RiFileCodeLine />
-              {m.action_view_yaml({}, { locale })}
-            </Button>
-          </CardContent>
-        </Card>
-      </aside>
     </div>
   );
 }
 
 function TextSection({ title, items }: { title: string; items: string[] }) {
   return (
-    <section className="min-w-0 border bg-muted/20 p-3">
+    <section className="min-w-0 border bg-muted p-3">
       <h2 className="mb-2 text-xs text-muted-foreground">{title}</h2>
       <div className="space-y-2">
         {items.map((item) => (
@@ -138,7 +105,7 @@ function TextSection({ title, items }: { title: string; items: string[] }) {
 
 function NodeBox({ title, subtitle }: { title: string; subtitle: string }) {
   return (
-    <div className="min-w-0 border bg-muted/30 p-3">
+    <div className="min-w-0 border bg-muted p-3">
       <div className="break-words">{title}</div>
       <div className="mt-1 text-muted-foreground">{subtitle}</div>
     </div>

@@ -28,7 +28,7 @@ export function ModulesPage() {
           ).length;
           return (
             <Link key={module.id} to="/modules/$moduleId" params={{ moduleId: module.id }}>
-              <Card className="h-full transition-colors hover:bg-muted/40">
+              <Card className="h-full transition-colors hover:bg-muted">
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between gap-2">
                     {localizeText(module.title, locale)}

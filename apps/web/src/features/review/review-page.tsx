@@ -1,9 +1,6 @@
-import { RiCheckboxCircleLine, RiCloseCircleLine, RiLoopRightLine } from "@remixicon/react";
 import { useQuery } from "@tanstack/react-query";
 
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
 import { ReviewStateBadge } from "@/features/status/status-badge";
 import { getWorkbenchSnapshot } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
@@ -48,20 +45,6 @@ export function ReviewPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-              <Button>
-                <RiCheckboxCircleLine />
-                {m.action_approve({}, { locale })}
-              </Button>
-              <Button variant="destructive">
-                <RiCloseCircleLine />
-                {m.action_reject({}, { locale })}
-              </Button>
-              <Button variant="outline">
-                <RiLoopRightLine />
-                {m.action_request_changes({}, { locale })}
-              </Button>
-            </div>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
               <ReviewBlock
                 title={m.promise_detail_given({}, { locale })}
@@ -76,12 +59,6 @@ export function ReviewPage() {
                 body={m.review_block_then_body({}, { locale })}
               />
             </div>
-            <div>
-              <div className="mb-2 text-xs text-muted-foreground">
-                {m.review_notes({}, { locale })}
-              </div>
-              <Textarea placeholder={m.review_notes_placeholder({}, { locale })} />
-            </div>
           </CardContent>
         </Card>
       </section>
@@ -91,7 +68,7 @@ export function ReviewPage() {
 
 function ReviewBlock({ title, body }: { title: string; body: string }) {
   return (
-    <div className="border bg-muted/30 p-3">
+    <div className="border bg-muted p-3">
       <div className="text-xs text-muted-foreground">{title}</div>
       <p className="mt-2 text-sm">{body}</p>
     </div>

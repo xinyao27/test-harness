@@ -5,12 +5,11 @@ import { GeneratePage } from "@/features/generate/generate-page";
 import { MapPage } from "@/features/graph/map-page";
 import { ModuleDetailPage } from "@/features/modules/module-detail-page";
 import { ModulesPage } from "@/features/modules/modules-page";
-import { OverviewPage } from "@/features/overview/overview-page";
 import { PromiseDetailPage } from "@/features/promises/promise-detail-page";
 import { PromisesPage } from "@/features/promises/promises-page";
 import { ReviewPage } from "@/features/review/review-page";
 import { RunsPage } from "@/features/runs/runs-page";
-import { SettingsPage } from "@/features/settings/settings-page";
+import { HarnessStudioPage } from "@/features/studio/harness-studio-page";
 
 const rootRoute = createRootRoute({
   component: WorkbenchLayout,
@@ -19,7 +18,7 @@ const rootRoute = createRootRoute({
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
-  component: OverviewPage,
+  component: HarnessStudioPage,
 });
 
 const mapRoute = createRoute({
@@ -73,7 +72,7 @@ const runsRoute = createRoute({
 const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "settings",
-  component: SettingsPage,
+  component: SettingsRoute,
 });
 
 const routeTree = rootRoute.addChildren([
@@ -105,4 +104,8 @@ function ModuleDetailRoute() {
 function PromiseDetailRoute() {
   const { promiseId } = promiseDetailRoute.useParams();
   return <PromiseDetailPage promiseId={promiseId} />;
+}
+
+function SettingsRoute() {
+  return <HarnessStudioPage settingsOpenByDefault />;
 }

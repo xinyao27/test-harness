@@ -1,3 +1,10 @@
+.backend-status {
+  --todo-status-border: #ededed;
+  --todo-status-error: #b83f45;
+  --todo-status-foreground: #777;
+  --todo-status-strong: #4d4d4d;
+}
+
 .visually-hidden {
   border: 0;
   clip: rect(0 0 0 0);
@@ -22,15 +29,15 @@
 }
 
 .backend-status {
-  border-top: 1px solid #ededed;
-  color: #777;
+  border-top: 1px solid var(--todo-status-border);
+  color: var(--todo-status-foreground);
   font-size: 12px;
   line-height: 1.4;
   padding: 10px 15px;
 }
 
 .backend-status strong {
-  color: #4d4d4d;
+  color: var(--todo-status-strong);
   font-weight: 400;
 }
 
@@ -46,5 +53,5 @@
 }
 
 .backend-status .error {
-  color: #b83f45;
+  color: var(--todo-status-error);
 }

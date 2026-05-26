@@ -17,10 +17,22 @@ export function OverviewPage() {
   });
   const { locale, m } = useI18n();
   const statusCards = [
-    { label: m.metric_pending_promises({}, { locale }), value: "3", tone: "text-amber-700" },
-    { label: m.metric_needs_changes({}, { locale }), value: "1", tone: "text-orange-700" },
-    { label: m.metric_evidence_failed({}, { locale }), value: "0", tone: "text-emerald-700" },
-    { label: m.metric_evidence_unknown({}, { locale }), value: "42", tone: "text-zinc-600" },
+    {
+      label: m.metric_pending_promises({}, { locale }),
+      value: "3",
+      tone: "text-status-warning-foreground",
+    },
+    { label: m.metric_needs_changes({}, { locale }), value: "1", tone: "text-destructive" },
+    {
+      label: m.metric_evidence_failed({}, { locale }),
+      value: "0",
+      tone: "text-status-success-foreground",
+    },
+    {
+      label: m.metric_evidence_unknown({}, { locale }),
+      value: "42",
+      tone: "text-muted-foreground",
+    },
   ];
   const primaryDraft = data?.reviewDrafts[0];
 
@@ -34,7 +46,9 @@ export function OverviewPage() {
                 {m.overview_attention_title({}, { locale })}
               </div>
               <div className="mt-3 flex items-end gap-3">
-                <span className="text-5xl leading-none text-amber-700">{statusCards[0].value}</span>
+                <span className={`text-5xl leading-none ${statusCards[0].tone}`}>
+                  {statusCards[0].value}
+                </span>
                 <span className="pb-1 text-sm text-muted-foreground">{statusCards[0].label}</span>
               </div>
               {primaryDraft ? (

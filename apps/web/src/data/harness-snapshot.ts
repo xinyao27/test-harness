@@ -10,6 +10,7 @@ export type PromiseLifecycle =
   | "deprecated";
 
 export type PromisePriority = "P0" | "P1" | "P2";
+export type ModulePriority = PromisePriority | "none";
 export type PromiseBoundary = "unit" | "integration" | "browser" | "e2e" | "adapter";
 export type RunStatus = "unknown" | "passing" | "failing" | "skipped" | "missing_evidence";
 export type ReviewState = "pending" | "approved" | "rejected" | "changes_requested";
@@ -19,6 +20,8 @@ export interface HarnessModule {
   title: LocalizedText;
   summary: LocalizedText;
   purpose: LocalizedText;
+  priority: ModulePriority;
+  promiseIds: string[];
   covers: string[];
   relatedModuleIds: string[];
 }
@@ -71,14 +74,14 @@ export interface HarnessSnapshot {
 export const harnessSnapshot: HarnessSnapshot = {
   project: {
     name: {
-      "zh-CN": "Promise Harness Workbench",
-      en: "Test Promise Workbench",
+      "zh-CN": "Harness Studio",
+      en: "Harness Studio",
     },
     description: {
-      "zh-CN": "用 Module、Promise 和 Evidence 关系帮助人类 Review 系统行为。",
-      en: "Use module, promise, and evidence relationships to help humans review system behavior.",
+      "zh-CN": "用 architecture module、promise 和 evidence 关系帮助人类 Review 系统行为。",
+      en: "Use architecture module, promise, and evidence relationships to help humans review system behavior.",
     },
-    promiseCount: 43,
+    promiseCount: 46,
     moduleCount: 12,
     warningCount: 0,
     errorCount: 0,
@@ -87,7 +90,7 @@ export const harnessSnapshot: HarnessSnapshot = {
     {
       id: "protocol",
       title: {
-        "zh-CN": "Protocol Module",
+        "zh-CN": "Protocol module",
         en: "Protocol module",
       },
       summary: {
@@ -98,13 +101,25 @@ export const harnessSnapshot: HarnessSnapshot = {
         "zh-CN": "让 Rust、TypeScript 和未来实现都对同一组 behavior promises 负责。",
         en: "Keeps Rust, TypeScript, and future implementations accountable to the same behavior promises.",
       },
+      priority: "P0",
+      promiseIds: [
+        "harness.protocol.cli_contract_is_versioned_and_enforced",
+        "harness.protocol.cli_golden_outputs_lock_human_surface",
+        "harness.protocol.adapter_events_are_versioned_stream_records",
+        "harness.protocol.conformance_fixtures_lock_reference_behavior",
+        "harness.protocol.module_schema_is_portable",
+        "harness.protocol.promise_files_are_versioned",
+        "harness.protocol.results_are_versioned_adapter_outputs",
+        "harness.protocol.runner_config_is_versioned",
+        "harness.protocol.schemas_define_language_agnostic_contract",
+      ],
       covers: ["protocol/v1/**", "protocol/fixtures/**"],
       relatedModuleIds: ["promise-schema", "results-schema", "cli"],
     },
     {
       id: "promise-registry",
       title: {
-        "zh-CN": "Promise Registry",
+        "zh-CN": "Promise registry",
         en: "Promise registry",
       },
       summary: {
@@ -115,13 +130,41 @@ export const harnessSnapshot: HarnessSnapshot = {
         "zh-CN": "让 Report、Validation、Test binding 都有稳定的 Promise 输入。",
         en: "Gives reports, validation, and test bindings stable promise inputs.",
       },
+      priority: "P0",
+      promiseIds: [
+        "harness.promise_registry.load_canonical_yaml_promises",
+        "harness.promise_registry.surfaces_per_record_decode_errors",
+      ],
       covers: ["crates/harness-core/src/promise_registry.rs"],
       relatedModuleIds: ["promise-schema", "validation", "report"],
     },
     {
+      id: "promise-schema",
+      title: {
+        "zh-CN": "Promise schema",
+        en: "Promise schema",
+      },
+      summary: {
+        "zh-CN": "定义 promise records 的必填字段和分组文件形状。",
+        en: "Defines required promise record fields and grouped promise file shape.",
+      },
+      purpose: {
+        "zh-CN": "让 promise 文件在加载阶段就暴露缺失或畸形字段。",
+        en: "Makes missing or malformed promise fields visible at load time.",
+      },
+      priority: "P0",
+      promiseIds: [
+        "harness.promise.schema_defines_required_fields",
+        "harness.promise.schema_supports_example_variants",
+        "harness.promise.canonical_file_is_grouped",
+      ],
+      covers: ["crates/harness-protocol/src/lib.rs", "protocol/v1/promise.schema.yaml"],
+      relatedModuleIds: ["protocol", "promise-registry", "validation"],
+    },
+    {
       id: "module-registry",
       title: {
-        "zh-CN": "Module Registry",
+        "zh-CN": "Module registry",
         en: "Module registry",
       },
       summary: {
@@ -132,13 +175,34 @@ export const harnessSnapshot: HarnessSnapshot = {
         "zh-CN": "让每个源文件都能归属到可 Review 的 Module。",
         en: "Lets every source file belong to a reviewable module.",
       },
+      priority: "P0",
+      promiseIds: ["harness.module_registry.load_canonical_yaml_modules"],
       covers: ["crates/harness-core/src/module_registry.rs"],
       relatedModuleIds: ["validation", "protocol"],
     },
     {
+      id: "results-schema",
+      title: {
+        "zh-CN": "Results schema",
+        en: "Results schema",
+      },
+      summary: {
+        "zh-CN": "定义 adapter result files 的协议形状。",
+        en: "Defines the protocol shape for adapter result files.",
+      },
+      purpose: {
+        "zh-CN": "让不同 adapter 输出可比较、可报告的结果文件。",
+        en: "Keeps adapter outputs comparable and reportable.",
+      },
+      priority: "P0",
+      promiseIds: ["harness.results.schema_defines_required_fields"],
+      covers: ["crates/harness-core/src/results.rs", "protocol/v1/results.schema.yaml"],
+      relatedModuleIds: ["protocol", "adapter-runtime", "report"],
+    },
+    {
       id: "cli",
       title: {
-        "zh-CN": "CLI Module",
+        "zh-CN": "CLI module",
         en: "Command line module",
       },
       summary: {
@@ -149,13 +213,22 @@ export const harnessSnapshot: HarnessSnapshot = {
         "zh-CN": "把检查、测试、报告和配置读取串成 seed loop。",
         en: "Connects checks, tests, reports, and config loading into the seed loop.",
       },
+      priority: "P0",
+      promiseIds: [
+        "harness.cli.check_validates_promises",
+        "harness.cli.rejects_invalid_arguments_with_usage_hint",
+        "harness.cli.report_renders_promise_status",
+        "harness.cli.report_summary_lists_promises_compactly",
+        "harness.cli.test_reads_runner_config",
+        "harness.cli.test_orchestrates_adapter_and_verify",
+      ],
       covers: ["crates/harness-cli/src/**", "crates/harness-core/src/programs.rs"],
       relatedModuleIds: ["report", "adapter-runtime", "promise-registry"],
     },
     {
       id: "adapter-runtime",
       title: {
-        "zh-CN": "Adapter Runtime",
+        "zh-CN": "Adapter runtime",
         en: "Adapter runtime",
       },
       summary: {
@@ -166,13 +239,67 @@ export const harnessSnapshot: HarnessSnapshot = {
         "zh-CN": "避免每个 adapter 重复实现 result merge semantics。",
         en: "Prevents every adapter from reimplementing result merge semantics.",
       },
+      priority: "P0",
+      promiseIds: [
+        "harness.adapter_runtime.collects_event_shards_into_results",
+        "harness.adapter_runtime.exposes_runner_for_non_cargo_users",
+        "harness.adapter_runtime.preserves_framework_independent_evidence",
+        "harness.adapter_runtime.uses_isolated_run_event_directories",
+      ],
       covers: ["crates/harness-adapter-runtime/src/**"],
       relatedModuleIds: ["results-schema", "rust-adapter", "vitest-adapter"],
     },
     {
+      id: "rust-adapter",
+      title: {
+        "zh-CN": "Rust adapter",
+        en: "Rust adapter",
+      },
+      summary: {
+        "zh-CN": "把 Cargo tests 作为 promise-bound evidence 接入 Harness。",
+        en: "Connects Cargo tests to the Harness as promise-bound evidence.",
+      },
+      purpose: {
+        "zh-CN": "让 Rust core 和 CLI 可以用 Rust 测试自举。",
+        en: "Lets the Rust core and CLI self-bootstrap with Rust tests.",
+      },
+      priority: "P0",
+      promiseIds: [
+        "harness.adapters.rust.result_collector.maps_results_to_promises",
+        "harness.adapters.rust.result_collector.writes_results_to_explicit_harness_root",
+        "harness.adapters.rust.runner_merges_shards_after_cargo_test",
+        "harness.adapters.rust.scenario_helper.binds_tests_to_canonical_promises",
+      ],
+      covers: ["crates/harness-adapter-rust/src/**"],
+      relatedModuleIds: ["adapter-runtime", "cli"],
+    },
+    {
+      id: "vitest-adapter",
+      title: {
+        "zh-CN": "Vitest adapter",
+        en: "Vitest adapter",
+      },
+      summary: {
+        "zh-CN": "把 Vitest 测试结果转换成共享 runtime 可合并的 adapter events。",
+        en: "Turns Vitest outcomes into adapter events the shared runtime can merge.",
+      },
+      purpose: {
+        "zh-CN": "让 TypeScript 测试框架可以成为 protocol-shaped evidence source。",
+        en: "Lets a TypeScript test framework become a protocol-shaped evidence source.",
+      },
+      priority: "P0",
+      promiseIds: [
+        "harness.adapters.vitest.result_collector.maps_results_to_promises",
+        "harness.adapters.vitest.result_collector.writes_results_to_explicit_harness_root",
+        "harness.adapters.vitest.scenario_helper.binds_tests_to_canonical_promises",
+      ],
+      covers: ["packages/adapter-vitest/src/**"],
+      relatedModuleIds: ["adapter-runtime", "web-dashboard"],
+    },
+    {
       id: "report",
       title: {
-        "zh-CN": "Report Module",
+        "zh-CN": "Report module",
         en: "Report module",
       },
       summary: {
@@ -183,23 +310,66 @@ export const harnessSnapshot: HarnessSnapshot = {
         "zh-CN": "让 reviewer 不读源码也能看懂 Promise status。",
         en: "Lets reviewers understand promise status without reading implementation code.",
       },
+      priority: "P0",
+      promiseIds: [
+        "harness.report.computes_promise_run_status_from_results",
+        "harness.report.falls_back_through_language_chain",
+        "harness.report.renders_in_requested_language",
+      ],
       covers: ["crates/harness-core/src/report.rs"],
       relatedModuleIds: ["cli", "promise-registry"],
     },
     {
-      id: "web-dashboard",
+      id: "validation",
       title: {
-        "zh-CN": "Web Dashboard",
-        en: "Web Dashboard",
+        "zh-CN": "Validation",
+        en: "Validation",
       },
       summary: {
-        "zh-CN": "用可视化方式浏览 Module、Promise、Review Queue、Draft 和 Run Status。",
-        en: "Visualizes modules, promises, review queues, generated drafts, and run status.",
+        "zh-CN": "校验 modules、promises 和 collected results 是否足够可读和可证明。",
+        en: "Checks modules, promises, and collected results for readability and evidence coverage.",
       },
       purpose: {
-        "zh-CN": "让人类从可读界面进入 Promise Review，而不是先打开 YAML 或源码。",
-        en: "Lets humans enter promise review through a readable interface instead of raw YAML or source files.",
+        "zh-CN": "保护 architecture-first、promise-first authoring 不被模糊 metadata 稀释。",
+        en: "Protects architecture-first, promise-first authoring from vague metadata.",
       },
+      priority: "P0",
+      promiseIds: [
+        "harness.validation.checks_examples_table_shape",
+        "harness.validation.flags_promises_without_test_results",
+        "harness.validation.flags_uncovered_source_files",
+        "harness.validation.flags_unknown_scenario_bindings",
+        "harness.validation.rejects_unreadable_modules",
+        "harness.validation.rejects_unreadable_promises",
+        "harness.validation.warns_when_default_language_missing",
+      ],
+      covers: [
+        "crates/harness-core/src/module_registry.rs",
+        "crates/harness-core/src/validation.rs",
+      ],
+      relatedModuleIds: ["module-registry", "promise-registry", "report"],
+    },
+    {
+      id: "web-dashboard",
+      title: {
+        "zh-CN": "Harness Studio",
+        en: "Harness Studio",
+      },
+      summary: {
+        "zh-CN": "从一个 canvas 浏览 architecture modules、promises、evidence 和 run status。",
+        en: "Explores architecture modules, promises, evidence, and run status from one canvas.",
+      },
+      purpose: {
+        "zh-CN":
+          "让人类从 architecture-first 的 Studio 进入 Promise Review，而不是先打开 YAML 或源码。",
+        en: "Lets humans enter promise review through an architecture-first Studio instead of raw YAML or source files.",
+      },
+      priority: "P0",
+      promiseIds: [
+        "harness.web_dashboard.renders_canvas_first_harness_studio",
+        "harness.web_dashboard.i18n_switches_chrome_and_snapshot_text",
+        "harness.web_dashboard.switches_recent_project_contexts",
+      ],
       covers: ["apps/web/**", "packages/i18n/**"],
       relatedModuleIds: ["promise-registry", "module-registry", "cli"],
     },
@@ -459,12 +629,61 @@ export const harnessSnapshot: HarnessSnapshot = {
       review: { state: "pending" },
     },
     {
+      id: "harness.web_dashboard.renders_canvas_first_harness_studio",
+      moduleId: "web-dashboard",
+      feature: "Harness Studio / Canvas",
+      title: {
+        "zh-CN": "Harness Studio 会以 canvas-first 架构图打开",
+        en: "Harness Studio opens as a canvas-first architecture map",
+      },
+      purpose: {
+        "zh-CN": "让 Module 成为第一层可见架构，Promise 详情保持上下文关联。",
+        en: "Makes modules the first visible architecture layer and keeps promise detail contextual.",
+      },
+      priority: "P0",
+      boundary: "browser",
+      lifecycle: "proposed",
+      runStatus: "missing_evidence",
+      given: [
+        {
+          "zh-CN": "用户打开 Harness Studio 的根路由",
+          en: "The user opens the Harness Studio root route.",
+        },
+      ],
+      when: [
+        {
+          "zh-CN": "用户在 canvas 上选择 modules 和 promises",
+          en: "The user selects modules and promises on the canvas.",
+        },
+      ],
+      then: [
+        {
+          "zh-CN": "第一屏展示 module nodes，选中 module 后展开它拥有的 promises",
+          en: "The first screen shows module nodes, and selecting a module unfolds its owned promises.",
+        },
+        {
+          "zh-CN": "选中 promise 后打开可折叠右侧 context panel",
+          en: "Selecting a promise opens a collapsible right context panel.",
+        },
+      ],
+      observes: [
+        "apps/web/src/router.tsx",
+        "apps/web/src/components/layout/workbench-layout.tsx",
+        "apps/web/src/features/studio/**",
+      ],
+      failureMeaning: {
+        "zh-CN": "Web 界面会退回普通 dashboard，而不是 architecture-first promise review。",
+        en: "The web surface would fall back to an ordinary dashboard instead of architecture-first promise review.",
+      },
+      review: { state: "pending" },
+    },
+    {
       id: "harness.web_dashboard.i18n_switches_chrome_and_snapshot_text",
       moduleId: "web-dashboard",
-      feature: "Web Dashboard / I18N",
+      feature: "Harness Studio / I18N",
       title: {
-        "zh-CN": "Dashboard 可以在中文和英文之间切换 UI 框架文案与可读 snapshot 文本",
-        en: "The dashboard can switch UI chrome and readable snapshot text between Chinese and English",
+        "zh-CN": "Harness Studio 可以在中文和英文之间切换 UI 框架文案与可读 snapshot 文本",
+        en: "Harness Studio can switch UI chrome and readable snapshot text between Chinese and English",
       },
       purpose: {
         "zh-CN": "保护第一版可视化 workflow 不退化成仅中文界面。",
@@ -476,8 +695,8 @@ export const harnessSnapshot: HarnessSnapshot = {
       runStatus: "unknown",
       given: [
         {
-          "zh-CN": "用户打开 Web Dashboard",
-          en: "The user opens the Web Dashboard.",
+          "zh-CN": "用户打开 Harness Studio",
+          en: "The user opens Harness Studio.",
         },
       ],
       when: [
@@ -496,10 +715,55 @@ export const harnessSnapshot: HarnessSnapshot = {
       observes: ["packages/i18n/**", "apps/web/src/lib/i18n.ts", "apps/web/src/features/**"],
       failureMeaning: {
         "zh-CN":
-          "非中文 reviewer 会被迫查看原始 YAML 或源码，削弱 dashboard 作为 review 入口的价值。",
-        en: "Non-Chinese reviewers would have to inspect raw YAML or source code, weakening the dashboard as a review surface.",
+          "非中文 reviewer 会被迫查看原始 YAML 或源码，削弱 Harness Studio 作为 review 入口的价值。",
+        en: "Non-Chinese reviewers would have to inspect raw YAML or source code, weakening Harness Studio as a review surface.",
       },
       review: { state: "approved", approvedBy: "xinyao", approvedAt: "2026-05-25" },
+    },
+    {
+      id: "harness.web_dashboard.switches_recent_project_contexts",
+      moduleId: "web-dashboard",
+      feature: "Harness Studio / Project Switcher",
+      title: {
+        "zh-CN": "Harness Studio 可以在最近打开的 project context 之间切换",
+        en: "Harness Studio can switch between recently opened project contexts",
+      },
+      purpose: {
+        "zh-CN": "让 Studio 可以调试当前仓库和 example 仓库，同时不离开 canvas-first workflow。",
+        en: "Keeps the Studio useful for debugging the current repository and example repositories without leaving the canvas-first workflow.",
+      },
+      priority: "P1",
+      boundary: "browser",
+      lifecycle: "proposed",
+      runStatus: "missing_evidence",
+      given: [
+        {
+          "zh-CN": "用户从当前仓库打开 Harness Studio",
+          en: "The user opens Harness Studio from the current repository.",
+        },
+      ],
+      when: [
+        {
+          "zh-CN": "用户从左上角 project switcher 选择另一个 project",
+          en: "The user selects another project from the top-left project switcher.",
+        },
+      ],
+      then: [
+        {
+          "zh-CN": "Canvas 会切换到该 project 的 modules、promises 和 evidence status",
+          en: "The canvas switches to that project's modules, promises, and evidence status.",
+        },
+      ],
+      observes: [
+        "apps/web/src/features/studio/**",
+        "apps/web/src/data/todo-backend-snapshot.ts",
+        "apps/web/src/lib/api.ts",
+      ],
+      failureMeaning: {
+        "zh-CN": "Project switcher 会变成只换 label 的假入口，无法用于调试 examples。",
+        en: "The project switcher would become a label-only control and could not debug examples.",
+      },
+      review: { state: "pending" },
     },
   ],
   reviewDrafts: [
@@ -513,8 +777,9 @@ export const harnessSnapshot: HarnessSnapshot = {
       priority: "P0",
       state: "pending",
       reason: {
-        "zh-CN": "新增 Web Dashboard 前，需要先定义 graph artifact 的 behavior promise。",
-        en: "Before adding the Web Dashboard, the graph artifact needs an explicit behavior promise.",
+        "zh-CN":
+          "新增 Harness Studio graph 能力前，需要先定义 graph artifact 的 behavior promise。",
+        en: "Before adding Harness Studio graph capabilities, the graph artifact needs an explicit behavior promise.",
       },
     },
     {
@@ -541,8 +806,8 @@ export const harnessSnapshot: HarnessSnapshot = {
       priority: "P1",
       state: "changes_requested",
       reason: {
-        "zh-CN": "需要把 Web Dashboard 与文件系统写入边界拆清楚。",
-        en: "The boundary between the Web Dashboard and filesystem writes needs to be clearer.",
+        "zh-CN": "需要把 Harness Studio 与文件系统写入边界拆清楚。",
+        en: "The boundary between Harness Studio and filesystem writes needs to be clearer.",
       },
     },
   ],
