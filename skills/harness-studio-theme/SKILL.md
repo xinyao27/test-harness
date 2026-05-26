@@ -35,6 +35,7 @@ Avoid these in business components:
 - One-off `dark:` colors when a semantic token can express the state.
 - Better Hub tokens that do not belong to this app, such as `--code-*`, `--inline-code-*`, `--diff-*`, `--contrib-*`, `--link`, or `--info`.
 - Custom shadows, custom radii, or hard-coded pixel radii in feature code. Use `rounded-*`, `shadow-*`, and the radius presets.
+- Hard-coded zero radius such as `rounded-none`; use token-backed tiers like `rounded-sm`, `rounded-md`, or `rounded-lg` so radius presets still work.
 - Arbitrary font sizes or spacing such as `text-[11px]`, `gap-[7px]`, or `rounded-[10px]`. Use standard Tailwind steps unless a local CSS variable already owns the layout.
 
 If a new visual need is repeated across multiple features, add a semantic token or a UI primitive style instead of duplicating raw classes.
@@ -55,7 +56,7 @@ If a new visual need is repeated across multiple features, add a semantic token 
 2. Audit feature code for non-semantic styling:
 
 ```bash
-rg -n '#[0-9a-fA-F]{3,8}|rgba\(|rgb\(|oklch\(|bg-\[|text-\[|border-\[|dark:|(bg|text|border|ring|outline|fill|stroke)-[A-Za-z0-9_-]+/[0-9]{1,3}' apps/web/src/features apps/web/src/components/layout
+rg -n '#[0-9a-fA-F]{3,8}|rgba\(|rgb\(|oklch\(|bg-\[|text-\[|border-\[|dark:|rounded-none|(bg|text|border|ring|outline|fill|stroke)-[A-Za-z0-9_-]+/[0-9]{1,3}' apps/web/src/features apps/web/src/components/layout apps/web/src/components/ui
 rg -n -e '--(code|inline-code|diff|contrib|link|info)' apps/web/src
 ```
 
