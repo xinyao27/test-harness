@@ -67,7 +67,7 @@ export function MapPage() {
                 <p className="line-clamp-3 text-xs text-muted-foreground">{selectedSummary.body}</p>
               </>
             ) : (
-              <div className="border bg-muted p-3 text-xs text-muted-foreground">
+              <div className="rounded-md border bg-muted p-3 text-xs text-muted-foreground">
                 {m.map_selected_empty({}, { locale })}
               </div>
             )}

@@ -26,7 +26,7 @@ export function GeneratePage() {
           <p className="text-sm">{m.generate_context_default({}, { locale })}</p>
           <div className="space-y-2 text-xs text-muted-foreground">
             {relatedModules.map((module) => (
-              <div key={module.id} className="border-l pl-2">
+              <div key={module.id} className="border-l border-border pl-2">
                 {localizeText(module.title, locale)}
               </div>
             ))}
@@ -69,7 +69,7 @@ function DraftField({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <div className="mb-1 text-xs text-muted-foreground">{label}</div>
-      <div className="border-l pl-3 text-sm">{value}</div>
+      <div className="border-l border-border pl-3 text-sm">{value}</div>
     </div>
   );
 }

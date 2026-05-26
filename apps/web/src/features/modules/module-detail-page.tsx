@@ -75,7 +75,7 @@ function InfoBlock({ title, items }: { title: string; items: string[] }) {
       <div className="mb-2 text-xs text-muted-foreground">{title}</div>
       <div className="space-y-1 text-xs text-muted-foreground">
         {items.map((item) => (
-          <div key={item} className="truncate border-l pl-2">
+          <div key={item} className="truncate border-l border-border pl-2">
             {item}
           </div>
         ))}

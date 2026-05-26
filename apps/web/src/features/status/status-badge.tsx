@@ -20,7 +20,7 @@ export function PriorityBadge({ priority }: { priority: PromisePriority }) {
   return (
     <Badge
       variant={priority === "P0" ? "default" : "secondary"}
-      className={priority === "P0" ? "bg-foreground text-background" : ""}
+      className={priority === "P0" ? "bg-primary text-primary-foreground" : ""}
     >
       {getPriorityLabel(priority, locale, m)}
     </Badge>
@@ -43,7 +43,7 @@ export function RunStatusBadge({ status }: { status: RunStatus }) {
   const className = {
     unknown: "border-border text-muted-foreground",
     passing: "border-status-success-border text-status-success-foreground",
-    failing: "border-destructive/50 text-destructive",
+    failing: "border-destructive text-destructive",
     skipped: "border-border text-muted-foreground",
     missing_evidence: "border-status-warning-border text-status-warning-foreground",
   }[status];

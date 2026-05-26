@@ -710,7 +710,7 @@ export function HarnessStudioPage({
       </section>
 
       <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{m.settings_title({}, { locale })}</DialogTitle>
             <DialogDescription>{m.settings_description({}, { locale })}</DialogDescription>
@@ -786,7 +786,7 @@ function StudioContext({ snapshot }: { snapshot: HarnessSnapshot }) {
 
   return (
     <div className="space-y-(--studio-panel-gap)">
-      <section className="border bg-muted p-(--studio-panel-padding)">
+      <section className="rounded-md border bg-muted p-(--studio-panel-padding)">
         <h2 className="text-sm font-medium">{m.studio_context_empty_title({}, { locale })}</h2>
         <p className="mt-(--studio-panel-gap-sm) text-xs text-muted-foreground">
           {m.studio_context_empty_body({}, { locale })}
@@ -834,9 +834,9 @@ function ModuleContext({ module, snapshot }: { module: HarnessModule; snapshot: 
       <InfoSection title={m.studio_owned_promises({}, { locale })}>
         <div className="space-y-(--studio-panel-gap-sm)">
           {promises.map((promise) => (
-            <div key={promise.id} className="border-l pl-(--studio-panel-gap-sm)">
+            <div key={promise.id} className="border-l border-border pl-(--studio-panel-gap-sm)">
               <div className="text-xs">{localizeText(promise.title, locale)}</div>
-              <div className="mt-(--studio-panel-gap-xs) text-[11px] text-muted-foreground">
+              <div className="mt-(--studio-panel-gap-xs) text-xs text-muted-foreground">
                 {promise.priority}
               </div>
             </div>
@@ -865,7 +865,7 @@ function PromiseContext({ module, promise }: { module: HarnessModule; promise: H
         <h2 className="mt-(--studio-panel-gap) text-base font-medium">
           {localizeText(promise.title, locale)}
         </h2>
-        <p className="mt-(--studio-panel-gap-xs) break-all text-[11px] text-muted-foreground">
+        <p className="mt-(--studio-panel-gap-xs) break-all text-xs text-muted-foreground">
           {promise.id}
         </p>
       </section>
@@ -935,7 +935,7 @@ function StudioGraphNode({ data }: NodeProps<StudioNode>) {
         </div>
         <PriorityTag priority={data.priority} />
       </div>
-      <div className="mt-(--studio-panel-gap) flex items-center justify-between gap-(--studio-panel-gap-sm) text-[11px] text-muted-foreground">
+      <div className="mt-(--studio-panel-gap) flex items-center justify-between gap-(--studio-panel-gap-sm) text-xs text-muted-foreground">
         <span className="truncate">{data.meta}</span>
       </div>
       <Handle type="source" position={Position.Right} className="opacity-0" />
@@ -958,7 +958,7 @@ function PriorityTag({ priority }: { priority: ModulePriority }) {
     <Badge
       size="xs"
       variant={priority === "P0" ? "default" : "secondary"}
-      className={cn(priority === "P0" && "bg-foreground text-background")}
+      className={cn(priority === "P0" && "bg-primary text-primary-foreground")}
     >
       {priority}
     </Badge>
@@ -1128,7 +1128,7 @@ function CodeList({ items }: { items: string[] }) {
       {items.map((item) => (
         <div
           key={item}
-          className="truncate border-l pl-(--studio-panel-gap-sm) font-mono text-xs text-muted-foreground"
+          className="truncate border-l border-border pl-(--studio-panel-gap-sm) font-mono text-xs text-muted-foreground"
         >
           {item}
         </div>
@@ -1139,7 +1139,7 @@ function CodeList({ items }: { items: string[] }) {
 
 function StatusRow({ label, value }: { label: string; value: number }) {
   return (
-    <div className="flex items-center justify-between gap-(--studio-panel-gap) border bg-background p-(--studio-panel-gap-sm)">
+    <div className="flex items-center justify-between gap-(--studio-panel-gap) rounded-md border bg-card p-(--studio-panel-gap-sm) shadow-xs">
       <span className="min-w-0 truncate">{label}</span>
       <span className="shrink-0 font-medium">{value === 0 ? "OK" : value}</span>
     </div>
