@@ -19,6 +19,7 @@ import type { HarnessSnapshot } from "@/data/harness-snapshot";
 import { getReviewStateLabel, getRunStatusLabel } from "@/features/status/status-labels";
 import { useI18n, type AppLocale } from "@/lib/i18n";
 import { localizeText } from "@/lib/localized-text";
+import { cn } from "@/lib/utils";
 import { useWorkbenchStore } from "@/stores/workbench-store";
 
 type WorkbenchNodeData = {
@@ -40,7 +41,7 @@ export function ProjectMap({ snapshot }: { snapshot: HarnessSnapshot }) {
   const { nodes, edges } = useMemo(() => buildGraph(snapshot, locale, m), [snapshot, locale, m]);
 
   return (
-    <div className="h-full border bg-background">
+    <div className="studio-flow-surface h-full overflow-hidden rounded-lg border shadow-xs">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -52,8 +53,15 @@ export function ProjectMap({ snapshot }: { snapshot: HarnessSnapshot }) {
         onNodeClick={(_, node) => setSelectedNodeId(node.id)}
         onPaneClick={() => setSelectedNodeId(null)}
       >
-        <Background gap={18} size={1} />
-        <MiniMap pannable zoomable nodeStrokeWidth={3} />
+        <Background color="var(--border)" gap={18} size={1} />
+        <MiniMap
+          pannable
+          zoomable
+          maskColor="var(--background)"
+          nodeColor="var(--muted)"
+          nodeStrokeColor="var(--border)"
+          nodeStrokeWidth={3}
+        />
         <Controls />
       </ReactFlow>
     </div>
@@ -69,15 +77,15 @@ function WorkbenchGraphNode({ data }: NodeProps<WorkbenchNode>) {
   }[data.kind];
 
   return (
-    <div className={`min-w-44 border p-3 ${tone}`}>
-      <Handle type="target" position={Position.Left} className="size-2 bg-foreground" />
+    <div className={cn("min-w-44 rounded-lg border p-3 shadow-xs", tone)}>
+      <Handle type="target" position={Position.Left} className="size-2 bg-border" />
       <div className="flex items-center justify-between gap-2">
         <div className="text-sm">{data.label}</div>
         <Badge variant="outline">{getKindLabel(data.kind, locale, m)}</Badge>
       </div>
-      <div className="mt-1 text-xs opacity-70">{data.caption}</div>
-      {data.status ? <div className="mt-2 text-[11px] opacity-70">{data.status}</div> : null}
-      <Handle type="source" position={Position.Right} className="size-2 bg-foreground" />
+      <div className="mt-1 text-xs text-muted-foreground">{data.caption}</div>
+      {data.status ? <div className="mt-2 text-xs text-muted-foreground">{data.status}</div> : null}
+      <Handle type="source" position={Position.Right} className="size-2 bg-border" />
     </div>
   );
 }
@@ -130,7 +138,7 @@ function buildGraph(
     target: `promise:${promise.id}`,
     label: messages.graph_edge_owns({}, { locale }),
     markerEnd: { type: MarkerType.ArrowClosed },
-    style: { strokeWidth: 1.5 },
+    style: { stroke: "var(--studio-edge-stroke)", strokeWidth: 1.5 },
   }));
 
   const evidenceEdges: Edge[] = visiblePromises.slice(0, 4).map((promise) => ({
@@ -139,7 +147,7 @@ function buildGraph(
     target: `evidence:${promise.id}`,
     label: messages.graph_edge_observes({}, { locale }),
     markerEnd: { type: MarkerType.ArrowClosed },
-    style: { strokeDasharray: "5 4", strokeWidth: 1.5 },
+    style: { stroke: "var(--studio-edge-stroke)", strokeDasharray: "5 4", strokeWidth: 1.5 },
   }));
 
   const relationEdges: Edge[] = snapshot.modules.flatMap((module) =>
@@ -152,7 +160,7 @@ function buildGraph(
         source: `module:${module.id}`,
         target: `module:${relatedModuleId}`,
         label: messages.graph_edge_related({}, { locale }),
-        style: { strokeWidth: 1, opacity: 0.35 },
+        style: { stroke: "var(--studio-edge-muted-stroke)", strokeWidth: 1, opacity: 0.35 },
       })),
   );
 

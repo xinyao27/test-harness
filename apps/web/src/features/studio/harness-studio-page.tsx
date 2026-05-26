@@ -44,6 +44,17 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import {
+  Command,
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+  CommandShortcut,
+} from "@/components/ui/command";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -51,6 +62,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -80,6 +92,7 @@ type StudioNodeData = {
   dimmed: boolean;
   kind: StudioNodeKind;
   meta: string;
+  needsAttention: boolean;
   priority: ModulePriority;
   selected: boolean;
   title: string;
@@ -95,6 +108,18 @@ type StudioProject = {
   source: "current" | "directory" | "example";
 };
 
+type StudioSearchResult = {
+  id: string;
+  kind: StudioNodeKind;
+  moduleId: string;
+  priority: ModulePriority;
+  searchText: string;
+  subtitle: string;
+  title: string;
+  promiseId?: string;
+  trailing?: string;
+};
+
 type DirectoryPickerCapableWindow = Window & {
   showDirectoryPicker?: () => Promise<{ name: string }>;
 };
@@ -103,6 +128,8 @@ const currentStudioProjectId = "current:test-harness";
 const noStudioProjectId = "none";
 const studioProjectsStorageKey = "harness-studio.projects";
 const selectedStudioProjectStorageKey = "harness-studio.selected-project";
+const projectMenuItemClass =
+  "studio-project-menu-item flex h-7 w-full items-center gap-2 px-1.5 text-left text-xs text-popover-foreground outline-none";
 
 const defaultStudioProjects: StudioProject[] = [
   {
@@ -121,26 +148,77 @@ const defaultStudioProjects: StudioProject[] = [
 
 const studioGraphLayout = {
   activeModuleX: 0,
-  activeModuleYStart: 180,
-  activeModuleYStep: 132,
+  activeModuleY: 150,
+  architectureLayerXStep: 320,
+  architectureLayerYStart: 150,
+  architectureLayerYStep: 150,
   edgeLabelPadding: [6, 3] as [number, number],
   edgeLabelSize: 11,
   edgeLabelWeight: 500,
   edgePrimaryStrokeWidth: 1.5,
-  edgeRelatedDasharray: "4 4",
-  edgeRelatedStrokeWidth: 1,
-  fitViewPadding: 0.22,
-  laneColumnCount: 4,
-  laneRowYStep: 150,
-  laneXStep: 300,
-  laneYStart: 170,
-  laneYStep: 260,
+  edgeOverviewStrokeOpacity: 0.42,
+  edgeOverviewStrokeWidth: 1,
+  edgeRelatedStrokeOpacity: 0.66,
+  edgeRelatedStrokeWidth: 1.15,
+  fitViewPadding: 0.14,
+  relatedModuleX: 0,
+  relatedModuleYStart: 282,
+  relatedModuleYStep: 132,
   maxZoom: 1.4,
   minZoom: 0.25,
   promiseX: 420,
   promiseYStart: 190,
   promiseYStep: 132,
 } as const;
+
+const studioNodeHandles = {
+  sourceBottom: "source-bottom",
+  sourceRight: "source-right",
+  sourceTop: "source-top",
+  targetBottom: "target-bottom",
+  targetLeft: "target-left",
+  targetTop: "target-top",
+} as const;
+
+const architectureLayerByModuleId: Record<string, number> = {
+  protocol: 0,
+  "promise-schema": 0,
+  "results-schema": 0,
+  "promise-registry": 1,
+  "module-registry": 1,
+  validation: 1,
+  cli: 2,
+  "adapter-runtime": 2,
+  "rust-adapter": 2,
+  "vitest-adapter": 2,
+  report: 3,
+  "web-dashboard": 3,
+  "todo-backend-api-contract": 0,
+  "todo-backend-typescript-hono": 1,
+  "todo-backend-rust-axum": 1,
+  "todo-backend-client": 2,
+  "todo-backend-showcase": 3,
+};
+
+const architectureOverviewRelationPairs = [
+  ["protocol", "promise-schema"],
+  ["protocol", "results-schema"],
+  ["protocol", "module-registry"],
+  ["promise-schema", "promise-registry"],
+  ["module-registry", "validation"],
+  ["results-schema", "adapter-runtime"],
+  ["cli", "adapter-runtime"],
+  ["adapter-runtime", "rust-adapter"],
+  ["adapter-runtime", "vitest-adapter"],
+  ["cli", "report"],
+  ["cli", "web-dashboard"],
+  ["todo-backend-api-contract", "todo-backend-client"],
+  ["todo-backend-api-contract", "todo-backend-typescript-hono"],
+  ["todo-backend-api-contract", "todo-backend-rust-axum"],
+  ["todo-backend-client", "todo-backend-showcase"],
+  ["todo-backend-typescript-hono", "todo-backend-showcase"],
+  ["todo-backend-rust-axum", "todo-backend-showcase"],
+] as const;
 
 function ProjectSwitcher({
   onProjectChange,
@@ -262,13 +340,13 @@ function ProjectSwitcher({
         align="start"
         side="bottom"
         sideOffset={4}
-        className="w-(--studio-project-menu-width) gap-2 border-border bg-popover p-2"
+        className="studio-project-menu w-(--studio-project-menu-width) gap-2 border-border bg-popover p-2"
       >
         <div className="relative">
           <RiSearchLine className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             aria-label={m.studio_project_search_placeholder({}, { locale })}
-            className="h-8 pl-7 text-xs"
+            className="studio-project-search h-8 pl-7 text-xs"
             placeholder={m.studio_project_search_placeholder({}, { locale })}
             value={query}
             onChange={(event) => setQuery(event.currentTarget.value)}
@@ -284,7 +362,8 @@ function ProjectSwitcher({
               <button
                 key={project.id}
                 type="button"
-                className="flex h-7 w-full items-center gap-2 px-1.5 text-left text-xs text-popover-foreground hover:bg-muted"
+                className={projectMenuItemClass}
+                data-selected={project.id === selectedProjectId}
                 onClick={() => selectProject(project)}
               >
                 <RiFolderLine className="size-3.5 shrink-0 text-muted-foreground" />
@@ -302,18 +381,15 @@ function ProjectSwitcher({
         </div>
 
         <div className="space-y-0.5">
-          <button
-            type="button"
-            className="flex h-7 w-full items-center gap-2 px-1.5 text-left text-xs text-popover-foreground hover:bg-muted"
-            onClick={addProject}
-          >
+          <button type="button" className={projectMenuItemClass} onClick={addProject}>
             <RiFolderAddLine className="size-3.5 shrink-0 text-muted-foreground" />
             <span className="min-w-0 flex-1 truncate">{m.studio_project_add({}, { locale })}</span>
             <RiArrowRightSLine className="size-3.5 shrink-0 text-muted-foreground" />
           </button>
           <button
             type="button"
-            className="flex h-7 w-full items-center gap-2 px-1.5 text-left text-xs text-popover-foreground hover:bg-muted"
+            className={projectMenuItemClass}
+            data-selected={selectedProjectId === noStudioProjectId}
             onClick={selectNoProject}
           >
             <RiCloseLine className="size-3.5 shrink-0 text-muted-foreground" />
@@ -510,10 +586,23 @@ export function HarnessStudioPage({
   const { locale, m } = useI18n();
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
   const [selectedPromiseId, setSelectedPromiseId] = useState<string | null>(null);
-  const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
+  const [isPanelCollapsed, setIsPanelCollapsed] = useState(true);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(settingsOpenByDefault);
   const [hasReadQueryState, setHasReadQueryState] = useState(false);
   const nodeTypes = useMemo(() => ({ studio: StudioGraphNode }), []);
+
+  useEffect(() => {
+    const openSearch = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase() === "k") {
+        event.preventDefault();
+        setIsSearchOpen((current) => !current);
+      }
+    };
+
+    window.addEventListener("keydown", openSearch);
+    return () => window.removeEventListener("keydown", openSearch);
+  }, []);
 
   useEffect(() => {
     if (!data || hasReadQueryState || typeof window === "undefined") return;
@@ -577,6 +666,10 @@ export function HarnessStudioPage({
         : { edges: [], nodes: [] },
     [data, locale, m, selectedModule?.id, selectedPromise?.id],
   );
+  const searchResults = useMemo(
+    () => (data ? buildStudioSearchResults(data, locale, m) : []),
+    [data, locale, m],
+  );
 
   const selectModule = useCallback((moduleId: string) => {
     setSelectedModuleId(moduleId);
@@ -587,7 +680,7 @@ export function HarnessStudioPage({
   const selectProjectRoot = useCallback(() => {
     setSelectedModuleId(null);
     setSelectedPromiseId(null);
-    setIsPanelCollapsed(false);
+    setIsPanelCollapsed(true);
   }, []);
 
   const selectPromise = useCallback(
@@ -601,11 +694,23 @@ export function HarnessStudioPage({
     [data],
   );
 
+  const selectSearchResult = useCallback(
+    (result: StudioSearchResult) => {
+      if (result.kind === "promise" && result.promiseId) {
+        selectPromise(result.promiseId);
+      } else {
+        selectModule(result.moduleId);
+      }
+      setIsSearchOpen(false);
+    },
+    [selectModule, selectPromise],
+  );
+
   const changeProject = useCallback((projectId: string) => {
     setSelectedProjectId(projectId);
     setSelectedModuleId(null);
     setSelectedPromiseId(null);
-    setIsPanelCollapsed(false);
+    setIsPanelCollapsed(true);
   }, []);
 
   return (
@@ -630,6 +735,7 @@ export function HarnessStudioPage({
           onPaneClick={() => {
             setSelectedModuleId(null);
             setSelectedPromiseId(null);
+            setIsPanelCollapsed(true);
           }}
         >
           <Panel position="top-left" className="studio-flow-header-panel">
@@ -639,6 +745,32 @@ export function HarnessStudioPage({
                   onProjectChange={changeProject}
                   selectedProjectId={selectedProjectId}
                 />
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        aria-label={m.studio_search_trigger({}, { locale })}
+                        className="studio-floating-control"
+                        onClick={() => setIsSearchOpen(true)}
+                      />
+                    }
+                  >
+                    <RiSearchLine />
+                    <span className="hidden sm:inline">
+                      {m.studio_search_trigger({}, { locale })}
+                    </span>
+                    <KbdGroup className="hidden opacity-70 sm:inline-flex">
+                      <Kbd>⌘</Kbd>
+                      <Kbd>K</Kbd>
+                    </KbdGroup>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    {m.studio_search_title({}, { locale })}
+                  </TooltipContent>
+                </Tooltip>
                 <StudioBreadcrumbs
                   module={selectedModule}
                   onModuleClick={() => {
@@ -652,9 +784,23 @@ export function HarnessStudioPage({
 
               <div className="studio-top-stats">
                 {data?.source ? (
-                  <Badge size="xs" variant={data.source === "daemon" ? "secondary" : "outline"}>
-                    {snapshotSourceLabel(data.source, m, locale)}
-                  </Badge>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Badge
+                          size="xs"
+                          variant={data.source === "daemon" ? "secondary" : "destructive"}
+                        />
+                      }
+                    >
+                      {snapshotSourceLabel(data.source, m, locale)}
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      {data.source === "static"
+                        ? m.studio_snapshot_fallback_body({}, { locale })
+                        : snapshotSourceLabel(data.source, m, locale)}
+                    </TooltipContent>
+                  </Tooltip>
                 ) : null}
                 <Badge variant="secondary">
                   {m.metric_total_modules({}, { locale })}: {data?.project.moduleCount ?? 0}
@@ -716,7 +862,7 @@ export function HarnessStudioPage({
       </section>
 
       <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{m.settings_title({}, { locale })}</DialogTitle>
             <DialogDescription>{m.settings_description({}, { locale })}</DialogDescription>
@@ -726,6 +872,13 @@ export function HarnessStudioPage({
           </ScrollArea>
         </DialogContent>
       </Dialog>
+
+      <StudioSearchDialog
+        isOpen={isSearchOpen}
+        onOpenChange={setIsSearchOpen}
+        onSelectResult={selectSearchResult}
+        results={searchResults}
+      />
     </div>
   );
 }
@@ -734,6 +887,67 @@ function snapshotSourceLabel(source: SnapshotSource, m: MessageModule, locale: A
   if (source === "daemon") return m.studio_source_daemon({}, { locale });
   if (source === "static") return m.studio_source_static({}, { locale });
   return m.studio_source_empty({}, { locale });
+}
+
+function StudioSearchDialog({
+  isOpen,
+  onOpenChange,
+  onSelectResult,
+  results,
+}: {
+  isOpen: boolean;
+  onOpenChange: (isOpen: boolean) => void;
+  onSelectResult: (result: StudioSearchResult) => void;
+  results: StudioSearchResult[];
+}) {
+  const { locale, m } = useI18n();
+  const moduleResults = results.filter((result) => result.kind === "module");
+  const promiseResults = results.filter((result) => result.kind === "promise");
+
+  return (
+    <CommandDialog
+      open={isOpen}
+      onOpenChange={onOpenChange}
+      title={m.studio_search_title({}, { locale })}
+      description={m.studio_search_description({}, { locale })}
+    >
+      <Command>
+        <CommandInput placeholder={m.search_placeholder({}, { locale })} />
+        <CommandList>
+          <CommandEmpty>{m.studio_search_empty({}, { locale })}</CommandEmpty>
+          <CommandGroup heading={m.studio_search_modules({}, { locale })}>
+            {moduleResults.map((result) => (
+              <StudioSearchItem key={result.id} result={result} onSelectResult={onSelectResult} />
+            ))}
+          </CommandGroup>
+          <CommandSeparator />
+          <CommandGroup heading={m.studio_search_promises({}, { locale })}>
+            {promiseResults.map((result) => (
+              <StudioSearchItem key={result.id} result={result} onSelectResult={onSelectResult} />
+            ))}
+          </CommandGroup>
+        </CommandList>
+      </Command>
+    </CommandDialog>
+  );
+}
+
+function StudioSearchItem({
+  onSelectResult,
+  result,
+}: {
+  onSelectResult: (result: StudioSearchResult) => void;
+  result: StudioSearchResult;
+}) {
+  return (
+    <CommandItem value={result.searchText} onSelect={() => onSelectResult(result)}>
+      <div className="min-w-0 flex-1">
+        <div className="truncate">{result.title}</div>
+        <div className="mt-0.5 truncate text-muted-foreground">{result.subtitle}</div>
+      </div>
+      <CommandShortcut>{result.trailing ?? result.priority}</CommandShortcut>
+    </CommandItem>
+  );
 }
 
 function ContextPanel({
@@ -779,6 +993,7 @@ function ContextPanel({
 
         <ScrollArea className="min-h-0 flex-1">
           <div className="studio-context-body">
+            {snapshot?.source === "static" ? <SnapshotSourceNotice /> : null}
             {promise && module ? (
               <PromiseContext promise={promise} module={module} />
             ) : module && snapshot ? (
@@ -793,12 +1008,25 @@ function ContextPanel({
   );
 }
 
+function SnapshotSourceNotice() {
+  const { locale, m } = useI18n();
+
+  return (
+    <section className="mb-(--studio-panel-gap) rounded-md border border-destructive bg-destructive/10 p-(--studio-panel-padding) text-destructive">
+      <h2 className="text-sm font-medium">{m.studio_snapshot_fallback_title({}, { locale })}</h2>
+      <p className="mt-(--studio-panel-gap-xs) text-xs">
+        {m.studio_snapshot_fallback_body({}, { locale })}
+      </p>
+    </section>
+  );
+}
+
 function StudioContext({ snapshot }: { snapshot: HarnessSnapshot }) {
   const { locale, m } = useI18n();
 
   return (
     <div className="space-y-(--studio-panel-gap)">
-      <section className="border bg-muted p-(--studio-panel-padding)">
+      <section className="rounded-md border bg-muted p-(--studio-panel-padding)">
         <h2 className="text-sm font-medium">{m.studio_context_empty_title({}, { locale })}</h2>
         <p className="mt-(--studio-panel-gap-sm) text-xs text-muted-foreground">
           {m.studio_context_empty_body({}, { locale })}
@@ -846,9 +1074,9 @@ function ModuleContext({ module, snapshot }: { module: HarnessModule; snapshot: 
       <InfoSection title={m.studio_owned_promises({}, { locale })}>
         <div className="space-y-(--studio-panel-gap-sm)">
           {promises.map((promise) => (
-            <div key={promise.id} className="border-l pl-(--studio-panel-gap-sm)">
+            <div key={promise.id} className="border-l border-border pl-(--studio-panel-gap-sm)">
               <div className="text-xs">{localizeText(promise.title, locale)}</div>
-              <div className="mt-(--studio-panel-gap-xs) text-[11px] text-muted-foreground">
+              <div className="mt-(--studio-panel-gap-xs) text-xs text-muted-foreground">
                 {promise.priority}
               </div>
             </div>
@@ -877,7 +1105,7 @@ function PromiseContext({ module, promise }: { module: HarnessModule; promise: H
         <h2 className="mt-(--studio-panel-gap) text-base font-medium">
           {localizeText(promise.title, locale)}
         </h2>
-        <p className="mt-(--studio-panel-gap-xs) break-all text-[11px] text-muted-foreground">
+        <p className="mt-(--studio-panel-gap-xs) break-all text-xs text-muted-foreground">
           {promise.id}
         </p>
       </section>
@@ -931,13 +1159,36 @@ function StudioGraphNode({ data }: NodeProps<StudioNode>) {
   return (
     <div
       className={cn(
-        "studio-node-card border",
+        "studio-node-card relative border",
         tone,
         data.selected && "border-foreground",
         data.dimmed && "border-border text-muted-foreground",
       )}
     >
-      <Handle type="target" position={Position.Left} className="opacity-0" />
+      {data.needsAttention ? (
+        <span
+          aria-hidden="true"
+          className="absolute right-1 top-1 z-10 size-2 rounded-full bg-destructive"
+        />
+      ) : null}
+      <Handle
+        id={studioNodeHandles.targetTop}
+        type="target"
+        position={Position.Top}
+        className="opacity-0"
+      />
+      <Handle
+        id={studioNodeHandles.sourceTop}
+        type="source"
+        position={Position.Top}
+        className="opacity-0"
+      />
+      <Handle
+        id={studioNodeHandles.targetLeft}
+        type="target"
+        position={Position.Left}
+        className="opacity-0"
+      />
       <div className="flex items-start justify-between gap-(--studio-panel-gap-sm)">
         <div className="min-w-0">
           <div className="line-clamp-2 text-sm font-medium">{data.title}</div>
@@ -947,10 +1198,27 @@ function StudioGraphNode({ data }: NodeProps<StudioNode>) {
         </div>
         <PriorityTag priority={data.priority} />
       </div>
-      <div className="mt-(--studio-panel-gap) flex items-center justify-between gap-(--studio-panel-gap-sm) text-[11px] text-muted-foreground">
+      <div className="mt-(--studio-panel-gap) flex items-center justify-between gap-(--studio-panel-gap-sm) text-xs text-muted-foreground">
         <span className="truncate">{data.meta}</span>
       </div>
-      <Handle type="source" position={Position.Right} className="opacity-0" />
+      <Handle
+        id={studioNodeHandles.sourceRight}
+        type="source"
+        position={Position.Right}
+        className="opacity-0"
+      />
+      <Handle
+        id={studioNodeHandles.targetBottom}
+        type="target"
+        position={Position.Bottom}
+        className="opacity-0"
+      />
+      <Handle
+        id={studioNodeHandles.sourceBottom}
+        type="source"
+        position={Position.Bottom}
+        className="opacity-0"
+      />
     </div>
   );
 }
@@ -970,7 +1238,7 @@ function PriorityTag({ priority }: { priority: ModulePriority }) {
     <Badge
       size="xs"
       variant={priority === "P0" ? "default" : "secondary"}
-      className={cn(priority === "P0" && "bg-foreground text-background")}
+      className={cn(priority === "P0" && "bg-primary text-primary-foreground")}
     >
       {priority}
     </Badge>
@@ -996,23 +1264,25 @@ function buildStudioGraph(
     ? snapshot.modules.find((module) => module.id === selectedModuleId)
     : null;
   const activePromises = activeModule
-    ? snapshot.promises.filter((promise) => promise.moduleId === activeModule.id)
+    ? sortPromisesForReview(
+        snapshot.promises.filter((promise) => promise.moduleId === activeModule.id),
+        locale,
+      )
     : [];
   const relatedModuleIds = new Set(activeModule?.relatedModuleIds ?? []);
-  const orderedModules = activeModule
-    ? [activeModule, ...snapshot.modules.filter((module) => relatedModuleIds.has(module.id))]
-    : orderModulesByPriority(snapshot.modules);
+  const relatedModules = activeModule
+    ? snapshot.modules.filter((module) => relatedModuleIds.has(module.id))
+    : [];
+  const moduleLayerGroups = groupModulesByArchitectureLayer(snapshot.modules);
+  const orderedModules = activeModule ? [activeModule, ...relatedModules] : snapshot.modules;
 
-  const moduleNodes = orderedModules.map((module, index) => {
+  const moduleNodes = orderedModules.map((module) => {
     const isSelected = module.id === selectedModuleId;
     const isRelated = relatedModuleIds.has(module.id);
     const dimmed = Boolean(activeModule && !isSelected && !isRelated);
     const position = activeModule
-      ? {
-          x: studioGraphLayout.activeModuleX,
-          y: index * studioGraphLayout.activeModuleYStep + studioGraphLayout.activeModuleYStart,
-        }
-      : getPriorityLanePosition(module, orderedModules);
+      ? getFocusedModulePosition(module, activeModule, relatedModules)
+      : getArchitectureLayerPosition(module, moduleLayerGroups);
 
     return {
       id: `module:${module.id}`,
@@ -1023,6 +1293,7 @@ function buildStudioGraph(
         dimmed,
         kind: "module" as const,
         meta: messages.modules_cover_count({ count: module.covers.length }, { locale }),
+        needsAttention: moduleNeedsReviewAttention(module, snapshot.promises),
         priority: module.priority,
         selected: isSelected,
         title: localizeText(module.title, locale),
@@ -1042,6 +1313,7 @@ function buildStudioGraph(
       dimmed: false,
       kind: "promise" as const,
       meta: promise.lifecycle,
+      needsAttention: promiseNeedsReviewAttention(promise),
       priority: promise.priority,
       selected: promise.id === selectedPromiseId,
       title: localizeText(promise.title, locale),
@@ -1051,7 +1323,10 @@ function buildStudioGraph(
   const ownershipEdges = activePromises.map((promise) => ({
     id: `owns:${promise.moduleId}:${promise.id}`,
     source: `module:${promise.moduleId}`,
+    sourceHandle: studioNodeHandles.sourceRight,
     target: `promise:${promise.id}`,
+    targetHandle: studioNodeHandles.targetLeft,
+    type: "default",
     label: messages.graph_edge_owns({}, { locale }),
     markerEnd: { type: MarkerType.ArrowClosed },
     labelBgPadding: studioGraphLayout.edgeLabelPadding,
@@ -1062,25 +1337,29 @@ function buildStudioGraph(
       fontWeight: studioGraphLayout.edgeLabelWeight,
     },
     style: { stroke: edgeColors.stroke, strokeWidth: studioGraphLayout.edgePrimaryStrokeWidth },
+    interactionWidth: 16,
   }));
 
-  const relatedEdges =
-    activeModule?.relatedModuleIds
-      .filter((moduleId) => snapshot.modules.some((module) => module.id === moduleId))
-      .map((moduleId) => ({
-        id: `related:${activeModule.id}:${moduleId}`,
+  const relatedEdges = activeModule
+    ? relatedModules.map((module) => ({
+        id: `related:${activeModule.id}:${module.id}`,
         source: `module:${activeModule.id}`,
-        target: `module:${moduleId}`,
+        sourceHandle: studioNodeHandles.sourceBottom,
+        target: `module:${module.id}`,
+        targetHandle: studioNodeHandles.targetTop,
+        type: "default",
         label: messages.graph_edge_related({}, { locale }),
         labelBgPadding: studioGraphLayout.edgeLabelPadding,
         labelBgStyle: { fill: edgeColors.labelMutedBackground },
         labelStyle: { fill: edgeColors.labelMutedText, fontSize: studioGraphLayout.edgeLabelSize },
         style: {
           stroke: edgeColors.relatedStroke,
-          strokeDasharray: studioGraphLayout.edgeRelatedDasharray,
+          strokeOpacity: studioGraphLayout.edgeRelatedStrokeOpacity,
           strokeWidth: studioGraphLayout.edgeRelatedStrokeWidth,
         },
-      })) ?? [];
+        interactionWidth: 16,
+      }))
+    : buildArchitectureRelationEdges(snapshot, edgeColors.relatedStroke);
 
   return {
     edges: [...ownershipEdges, ...relatedEdges],
@@ -1095,24 +1374,262 @@ const modulePriorityOrder: Record<ModulePriority, number> = {
   none: 3,
 };
 
-function orderModulesByPriority(modules: HarnessModule[]) {
-  return [...modules].sort((left, right) => {
-    return modulePriorityOrder[left.priority] - modulePriorityOrder[right.priority];
+function buildStudioSearchResults(
+  snapshot: HarnessSnapshot,
+  locale: AppLocale,
+  messages: MessageModule,
+): StudioSearchResult[] {
+  const modulesById = new Map(snapshot.modules.map((module) => [module.id, module]));
+  const moduleResults = snapshot.modules.map((module) => {
+    const title = localizeText(module.title, locale);
+    const summary = localizeText(module.summary, locale);
+    const searchText = [
+      module.id,
+      title,
+      summary,
+      localizeText(module.purpose, locale),
+      module.priority,
+      ...module.covers,
+      ...module.promiseIds,
+    ].join(" ");
+
+    return {
+      id: `module:${module.id}`,
+      kind: "module" as const,
+      moduleId: module.id,
+      priority: module.priority,
+      searchText,
+      subtitle: `${module.id} · ${messages.modules_promise_count(
+        { count: module.promiseIds.length },
+        { locale },
+      )}`,
+      title,
+      trailing: module.priority,
+    };
+  });
+
+  const promiseResults = snapshot.promises.map((promise) => {
+    const module = modulesById.get(promise.moduleId);
+    const title = localizeText(promise.title, locale);
+    const moduleTitle = module ? localizeText(module.title, locale) : promise.moduleId;
+    const searchText = [
+      promise.id,
+      promise.feature,
+      title,
+      localizeText(promise.purpose, locale),
+      localizeText(promise.failureMeaning, locale),
+      moduleTitle,
+      promise.moduleId,
+      promise.priority,
+      promise.lifecycle,
+      promise.boundary,
+      ...promise.observes,
+      ...localizeTexts(promise.given, locale),
+      ...localizeTexts(promise.when, locale),
+      ...localizeTexts(promise.then, locale),
+    ].join(" ");
+
+    return {
+      id: `promise:${promise.id}`,
+      kind: "promise" as const,
+      moduleId: promise.moduleId,
+      priority: promise.priority,
+      promiseId: promise.id,
+      searchText,
+      subtitle: `${moduleTitle} · ${promise.id}`,
+      title,
+      trailing: promise.lifecycle,
+    };
+  });
+
+  return [...moduleResults, ...promiseResults];
+}
+
+function sortPromisesForReview(promises: HarnessPromise[], locale: AppLocale) {
+  return [...promises].sort((left, right) => {
+    const leftAttention = promiseNeedsReviewAttention(left) ? 0 : 1;
+    const rightAttention = promiseNeedsReviewAttention(right) ? 0 : 1;
+    if (leftAttention !== rightAttention) return leftAttention - rightAttention;
+
+    const priorityDifference =
+      modulePriorityOrder[left.priority] - modulePriorityOrder[right.priority];
+    if (priorityDifference !== 0) return priorityDifference;
+
+    return localizeText(left.title, locale).localeCompare(localizeText(right.title, locale));
   });
 }
 
-function getPriorityLanePosition(module: HarnessModule, orderedModules: HarnessModule[]) {
-  const priority = module.priority;
-  const laneModules = orderedModules.filter((item) => item.priority === priority);
-  const laneIndex = laneModules.findIndex((item) => item.id === module.id);
+function moduleNeedsReviewAttention(module: HarnessModule, promises: HarnessPromise[]) {
+  return promises.some(
+    (promise) => promise.moduleId === module.id && promiseNeedsReviewAttention(promise),
+  );
+}
+
+function promiseNeedsReviewAttention(promise: HarnessPromise) {
+  return (
+    promise.lifecycle === "proposed" ||
+    promise.lifecycle === "changed_requires_review" ||
+    promise.review.state === "pending" ||
+    promise.review.state === "changes_requested"
+  );
+}
+
+function groupModulesByArchitectureLayer(modules: HarnessModule[]) {
+  return modules.reduce<Map<number, HarnessModule[]>>((groups, module) => {
+    const layer = getArchitectureLayer(module);
+    const layerModules = groups.get(layer) ?? [];
+    layerModules.push(module);
+    groups.set(layer, layerModules);
+    return groups;
+  }, new Map());
+}
+
+function getArchitectureLayer(module: HarnessModule) {
+  return architectureLayerByModuleId[module.id] ?? modulePriorityOrder[module.priority];
+}
+
+function getArchitectureLayerPosition(module: HarnessModule, groups: Map<number, HarnessModule[]>) {
+  const layer = getArchitectureLayer(module);
+  const layerModules = groups.get(layer) ?? [];
+  const layerIndex = layerModules.findIndex((item) => item.id === module.id);
+  const maxLayerSize = Math.max(...[...groups.values()].map((items) => items.length), 1);
+  const layerOffset =
+    ((maxLayerSize - layerModules.length) * studioGraphLayout.architectureLayerYStep) / 2;
 
   return {
-    x: (laneIndex % studioGraphLayout.laneColumnCount) * studioGraphLayout.laneXStep,
+    x: layer * studioGraphLayout.architectureLayerXStep,
     y:
-      modulePriorityOrder[priority] * studioGraphLayout.laneYStep +
-      Math.floor(laneIndex / studioGraphLayout.laneColumnCount) * studioGraphLayout.laneRowYStep +
-      studioGraphLayout.laneYStart,
+      studioGraphLayout.architectureLayerYStart +
+      layerOffset +
+      Math.max(layerIndex, 0) * studioGraphLayout.architectureLayerYStep,
   };
+}
+
+function getFocusedModulePosition(
+  module: HarnessModule,
+  activeModule: HarnessModule,
+  relatedModules: HarnessModule[],
+) {
+  if (module.id === activeModule.id) {
+    return {
+      x: studioGraphLayout.activeModuleX,
+      y: studioGraphLayout.activeModuleY,
+    };
+  }
+
+  const relatedIndex = relatedModules.findIndex((item) => item.id === module.id);
+  return {
+    x: studioGraphLayout.relatedModuleX,
+    y:
+      studioGraphLayout.relatedModuleYStart +
+      Math.max(relatedIndex, 0) * studioGraphLayout.relatedModuleYStep,
+  };
+}
+
+function buildArchitectureRelationEdges(snapshot: HarnessSnapshot, stroke: string): Edge[] {
+  const moduleById = new Map(snapshot.modules.map((module) => [module.id, module]));
+  const moduleLayerGroups = groupModulesByArchitectureLayer(snapshot.modules);
+  const overviewEdges: Edge[] = [];
+
+  for (const [sourceId, targetId] of architectureOverviewRelationPairs) {
+    const source = moduleById.get(sourceId);
+    const target = moduleById.get(targetId);
+    if (!source || !target || !hasModuleRelation(source, target)) continue;
+    overviewEdges.push(
+      createArchitectureRelationEdge(source, target, stroke, "overview", moduleLayerGroups),
+    );
+  }
+
+  if (overviewEdges.length > 0) return overviewEdges;
+
+  const seenRelationIds = new Set<string>();
+  const edges: Edge[] = [];
+
+  for (const module of snapshot.modules) {
+    for (const relatedModuleId of module.relatedModuleIds) {
+      const relatedModule = moduleById.get(relatedModuleId);
+      if (!relatedModule) continue;
+
+      const relationId = [module.id, relatedModule.id].sort().join(":");
+      if (seenRelationIds.has(relationId)) continue;
+      seenRelationIds.add(relationId);
+
+      const [source, target] = orderRelationEndpoints(module, relatedModule);
+      edges.push(
+        createArchitectureRelationEdge(source, target, stroke, "related", moduleLayerGroups),
+      );
+    }
+  }
+
+  return edges;
+}
+
+function hasModuleRelation(left: HarnessModule, right: HarnessModule) {
+  return left.relatedModuleIds.includes(right.id) || right.relatedModuleIds.includes(left.id);
+}
+
+function createArchitectureRelationEdge(
+  source: HarnessModule,
+  target: HarnessModule,
+  stroke: string,
+  edgeKind: string,
+  moduleLayerGroups: Map<number, HarnessModule[]>,
+): Edge {
+  const isOverview = edgeKind === "overview";
+  const handles = getArchitectureRelationHandles(source, target, moduleLayerGroups);
+
+  return {
+    id: `architecture:${edgeKind}:${source.id}:${target.id}`,
+    source: `module:${source.id}`,
+    sourceHandle: handles.sourceHandle,
+    target: `module:${target.id}`,
+    targetHandle: handles.targetHandle,
+    type: "default",
+    style: {
+      stroke,
+      strokeOpacity: isOverview
+        ? studioGraphLayout.edgeOverviewStrokeOpacity
+        : studioGraphLayout.edgeRelatedStrokeOpacity,
+      strokeWidth: isOverview
+        ? studioGraphLayout.edgeOverviewStrokeWidth
+        : studioGraphLayout.edgeRelatedStrokeWidth,
+    },
+    interactionWidth: 16,
+  };
+}
+
+function getArchitectureRelationHandles(
+  source: HarnessModule,
+  target: HarnessModule,
+  moduleLayerGroups: Map<number, HarnessModule[]>,
+) {
+  const sourcePosition = getArchitectureLayerPosition(source, moduleLayerGroups);
+  const targetPosition = getArchitectureLayerPosition(target, moduleLayerGroups);
+
+  if (sourcePosition.x === targetPosition.x) {
+    return sourcePosition.y <= targetPosition.y
+      ? {
+          sourceHandle: studioNodeHandles.sourceBottom,
+          targetHandle: studioNodeHandles.targetTop,
+        }
+      : {
+          sourceHandle: studioNodeHandles.sourceTop,
+          targetHandle: studioNodeHandles.targetBottom,
+        };
+  }
+
+  return {
+    sourceHandle: studioNodeHandles.sourceRight,
+    targetHandle: studioNodeHandles.targetLeft,
+  };
+}
+
+function orderRelationEndpoints(left: HarnessModule, right: HarnessModule) {
+  const leftLayer = getArchitectureLayer(left);
+  const rightLayer = getArchitectureLayer(right);
+
+  if (leftLayer !== rightLayer) return leftLayer < rightLayer ? [left, right] : [right, left];
+  return left.id < right.id ? [left, right] : [right, left];
 }
 
 function InfoSection({ children, title }: { children: ReactNode; title: string }) {
@@ -1140,7 +1657,7 @@ function CodeList({ items }: { items: string[] }) {
       {items.map((item) => (
         <div
           key={item}
-          className="truncate border-l pl-(--studio-panel-gap-sm) font-mono text-xs text-muted-foreground"
+          className="truncate border-l border-border pl-(--studio-panel-gap-sm) font-mono text-xs text-muted-foreground"
         >
           {item}
         </div>
@@ -1151,7 +1668,7 @@ function CodeList({ items }: { items: string[] }) {
 
 function StatusRow({ label, value }: { label: string; value: number }) {
   return (
-    <div className="flex items-center justify-between gap-(--studio-panel-gap) border bg-background p-(--studio-panel-gap-sm)">
+    <div className="flex items-center justify-between gap-(--studio-panel-gap) rounded-md border bg-card p-(--studio-panel-gap-sm) shadow-xs">
       <span className="min-w-0 truncate">{label}</span>
       <span className="shrink-0 font-medium">{value === 0 ? "OK" : value}</span>
     </div>

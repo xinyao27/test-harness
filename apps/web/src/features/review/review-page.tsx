@@ -23,7 +23,7 @@ export function ReviewPage() {
           </CardHeader>
           <CardContent className="space-y-2">
             {data?.reviewDrafts.map((draft) => (
-              <div key={draft.id} className="border p-3">
+              <div key={draft.id} className="rounded-md border bg-muted p-3">
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <ReviewStateBadge state={draft.state} />
                   <span className="text-xs text-muted-foreground">{draft.priority}</span>
@@ -68,7 +68,7 @@ export function ReviewPage() {
 
 function ReviewBlock({ title, body }: { title: string; body: string }) {
   return (
-    <div className="border bg-muted p-3">
+    <div className="rounded-md border bg-muted p-3">
       <div className="text-xs text-muted-foreground">{title}</div>
       <p className="mt-2 text-sm">{body}</p>
     </div>

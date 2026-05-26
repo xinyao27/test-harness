@@ -9,6 +9,7 @@ import { getReviewStateLabel } from "@/features/status/status-labels";
 import { getWorkbenchSnapshot } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { localizeText } from "@/lib/localized-text";
+import { cn } from "@/lib/utils";
 
 export function OverviewPage() {
   const { data } = useQuery({
@@ -46,7 +47,7 @@ export function OverviewPage() {
                 {m.overview_attention_title({}, { locale })}
               </div>
               <div className="mt-3 flex items-end gap-3">
-                <span className={`text-5xl leading-none ${statusCards[0].tone}`}>
+                <span className={cn("text-5xl leading-none", statusCards[0].tone)}>
                   {statusCards[0].value}
                 </span>
                 <span className="pb-1 text-sm text-muted-foreground">{statusCards[0].label}</span>
@@ -74,8 +75,8 @@ export function OverviewPage() {
 
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {statusCards.map((card) => (
-            <div key={card.label} className="border bg-background p-3">
-              <div className={`text-2xl leading-none ${card.tone}`}>{card.value}</div>
+            <div key={card.label} className="rounded-lg border bg-card p-3 shadow-xs">
+              <div className={cn("text-2xl leading-none", card.tone)}>{card.value}</div>
               <div className="mt-2 truncate text-xs text-muted-foreground">{card.label}</div>
             </div>
           ))}
@@ -89,7 +90,7 @@ export function OverviewPage() {
             {data?.reviewDrafts.map((draft) => (
               <div
                 key={draft.id}
-                className="flex flex-col gap-2 border p-3 sm:flex-row sm:items-start sm:justify-between"
+                className="flex flex-col gap-2 rounded-md border bg-muted p-3 sm:flex-row sm:items-start sm:justify-between"
               >
                 <div className="min-w-0">
                   <div className="truncate text-sm">{localizeText(draft.title, locale)}</div>

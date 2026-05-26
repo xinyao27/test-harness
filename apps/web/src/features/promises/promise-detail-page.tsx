@@ -90,7 +90,7 @@ export function PromiseDetailPage({ promiseId }: { promiseId: string }) {
 
 function TextSection({ title, items }: { title: string; items: string[] }) {
   return (
-    <section className="min-w-0 border bg-muted p-3">
+    <section className="min-w-0 rounded-md border bg-muted p-3">
       <h2 className="mb-2 text-xs text-muted-foreground">{title}</h2>
       <div className="space-y-2">
         {items.map((item) => (
@@ -105,7 +105,7 @@ function TextSection({ title, items }: { title: string; items: string[] }) {
 
 function NodeBox({ title, subtitle }: { title: string; subtitle: string }) {
   return (
-    <div className="min-w-0 border bg-muted p-3">
+    <div className="min-w-0 rounded-md border bg-muted p-3">
       <div className="break-words">{title}</div>
       <div className="mt-1 text-muted-foreground">{subtitle}</div>
     </div>
