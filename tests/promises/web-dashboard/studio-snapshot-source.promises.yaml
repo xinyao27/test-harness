@@ -1,0 +1,43 @@
+apiVersion: 1
+promises:
+  - id: harness.web_dashboard.makes_snapshot_source_and_staleness_visible
+    feature: Harness Studio / Snapshot Source
+    title:
+      en: Harness Studio makes stale fallback data visibly different from live daemon data
+      zh-CN: Harness Studio 会明确区分过期 fallback 数据和实时 daemon 数据
+    purpose:
+      en: Prevent reviewers from trusting an old static frontend snapshot when newly added modules or promises only exist in canonical project files.
+      zh-CN: 防止 reviewer 信任旧的前端静态 snapshot，尤其是在新加 modules 或 promises 只存在于 canonical project files 中时。
+    priority: P0
+    boundary: browser
+    lifecycle: proposed
+    given:
+      - en: Harness Studio opens a project whose daemon-backed snapshot is unavailable
+        zh-CN: Harness Studio 打开一个 daemon-backed snapshot 不可用的 project
+      - en: The frontend can still render a static fallback snapshot
+        zh-CN: 前端仍然可以渲染 static fallback snapshot
+    when:
+      - en: The Studio renders modules, promises, counts, search results, or context panels from fallback data
+        zh-CN: Studio 从 fallback data 渲染 modules、promises、counts、search results 或 context panels
+    then:
+      - en: The UI clearly labels the data source as static fallback, not live project data
+        zh-CN: UI 会明确标记数据源是 static fallback，而不是 live project data
+      - en: The UI explains that fallback data can miss newly added modules and promises
+        zh-CN: UI 会说明 fallback data 可能缺少新加的 modules 和 promises
+      - en: The UI provides an obvious path to reconnect, pair, or start the local daemon when live data is expected
+        zh-CN: 当用户期望 live data 时，UI 会提供明显路径来 reconnect、pair 或启动 local daemon
+      - en: Module and promise counts use the same source label, so counts from fallback are not mistaken for canonical project truth
+        zh-CN: Module 和 promise counts 使用同一数据源标识，避免 fallback counts 被误认为 canonical project truth
+      - en: When the daemon snapshot becomes available, the graph refreshes to include canonical modules and promises from tests/modules and tests/promises
+        zh-CN: 当 daemon snapshot 可用后，graph 会刷新并包含来自 tests/modules 和 tests/promises 的 canonical modules 和 promises
+    observes:
+      - apps/web/src/features/studio/**
+      - apps/web/src/lib/api.ts
+      - apps/web/src/data/harness-snapshot.ts
+      - packages/i18n/messages/*.json
+      - tests/modules/**/*.module.yaml
+      - tests/promises/**/*.promises.yaml
+    failureMeaning:
+      en: Reviewers could believe that a module or promise does not exist simply because the UI silently fell back to an old frontend snapshot.
+      zh-CN: Reviewer 可能会因为 UI 静默回退到旧前端 snapshot，而误以为某个 module 或 promise 不存在。
+    review: {}

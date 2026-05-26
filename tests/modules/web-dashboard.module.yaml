@@ -11,8 +11,12 @@ purpose:
   zh-CN: Harness Studio 是面向人类的 architecture 与 promise 控制界面；在 daemon-backed 写入能力出现前，它也必须让 Review 和导航足够清晰。
 promises:
   - harness.web_dashboard.renders_canvas_first_harness_studio
+  - harness.web_dashboard.searches_modules_and_promises_from_the_canvas
+  - harness.web_dashboard.marks_modules_with_review_attention
+  - harness.web_dashboard.makes_snapshot_source_and_staleness_visible
   - harness.web_dashboard.i18n_switches_chrome_and_snapshot_text
   - harness.web_dashboard.switches_recent_project_contexts
+  - harness.web_dashboard.connects_to_local_daemon_without_login
 covers:
   - apps/web/**
   - packages/i18n/**

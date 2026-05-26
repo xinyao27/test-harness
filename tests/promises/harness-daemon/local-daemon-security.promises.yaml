@@ -1,0 +1,43 @@
+apiVersion: 1
+promises:
+  - id: harness.daemon.local_api_accepts_only_loopback_and_allowed_origins
+    feature: Harness Daemon / Local Security
+    title:
+      en: The daemon local API accepts only trusted local browser clients
+      zh-CN: Daemon local API 只接受可信的本地浏览器客户端
+    purpose:
+      en: Keep the daemon useful as a local bridge while preventing arbitrary LAN clients or unrelated webpages from reading projects or triggering side effects.
+      zh-CN: 让 daemon 作为本地桥梁可用，同时防止任意局域网 client 或无关网页读取项目或触发副作用。
+    priority: P0
+    boundary: integration
+    lifecycle: proposed
+    given:
+      - en: The daemon exposes local HTTP and streaming endpoints for Studio
+        zh-CN: Daemon 为 Studio 暴露 local HTTP 和 streaming endpoints
+      - en: Browser requests can come from the packaged Studio, a deployed Studio origin, or unrelated webpages
+        zh-CN: Browser requests 可能来自 packaged Studio、已部署的 Studio origin，或无关网页
+    when:
+      - en: A client calls snapshot, project registry, run, stream, or agent endpoints
+        zh-CN: Client 调用 snapshot、project registry、run、stream 或 agent endpoints
+    then:
+      - en: The daemon binds to loopback by default and rejects non-local network access unless explicitly configured otherwise
+        zh-CN: Daemon 默认绑定 loopback，并拒绝非本机网络访问，除非用户显式另行配置
+      - en: CORS and browser private-network checks allow only exact configured Studio origins, never wildcard origins
+        zh-CN: CORS 和浏览器 private-network checks 只允许精确配置的 Studio origins，不能使用 wildcard origins
+      - en: All non-pairing endpoints require a valid local session token
+        zh-CN: 除 pairing 以外的所有 endpoints 都要求有效的 local session token
+      - en: Streaming connections authenticate before emitting project, run, or agent events
+        zh-CN: Streaming connections 必须先完成认证，才能发送 project、run 或 agent events
+      - en: Project access is limited to daemon-approved project roots
+        zh-CN: Project access 只限于 daemon 已批准的 project roots
+    observes:
+      - crates/harness-daemon/**
+      - apps/web/src/lib/api.ts
+      - docs/design/harness-daemon-runtime-control-plane.md
+      - docs/design/harness-daemon-runtime-control-plane.zh-CN.md
+      - docs/design/local-daemon-studio-connection.md
+      - docs/design/local-daemon-studio-connection.zh-CN.md
+    failureMeaning:
+      en: A local daemon could become a public attack surface that leaks project structure or lets a webpage trigger runs, file writes, or agent actions.
+      zh-CN: 本地 daemon 可能变成公开攻击面，泄露项目结构，或让网页触发 run、文件写入、agent actions。
+    review: {}

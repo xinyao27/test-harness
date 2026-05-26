@@ -5,7 +5,7 @@
 
 ## 一、目的
 
-完整 Test Harness 目前仍然只是设计。第一版实现不应该试图一次性构建完整的 Promise Review Console。
+完整 Test Harness 目前仍然只是设计。第一版实现不应该试图一次性构建完整的 Harness Studio 或 daemon-backed 本地控制平面。
 
 MVP 应该是一个 **seed Harness**：一个最小的、基于文件的、protocol-first 系统，用来描述、运行和报告这套 Harness 项目自身的 promises。
 
@@ -49,7 +49,8 @@ Seed Harness 的目的，是建立第一个自举循环：
 
 Seed 阶段不做：
 
-- 完整可视化 Promise Review Console
+- 完整 Harness Studio playground UX
+- daemon-backed project switching、file watching 或本地 agent control
 - 复杂 browser UX
 - 当前 Vitest adapter 之外的高级 adapters
 - 完整 drift AI 分类

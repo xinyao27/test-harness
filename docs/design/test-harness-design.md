@@ -66,8 +66,8 @@ Result + Evidence Collector
 Analyzer
   -> build feature map, promise map, evidence coverage, risk map
 
-Promise Review Console
-  -> show promises, review queues, drift, evidence, failures, run history
+Harness Studio
+  -> show the architecture playground, promises, drift, evidence, failures, and run history
 ```
 
 Adapters own execution. The Harness protocol owns promise meaning.
@@ -411,7 +411,7 @@ Use the Harness for:
 - quality checks
 - result normalization by promise id
 - module, feature, and risk maps
-- Promise Review Console UX
+- Harness Studio UX
 
 ## 7. Readability And Manageability Rules
 
@@ -456,31 +456,19 @@ Review Pass
 
 ## 9. UX Shape
 
-The product UX should be a **Promise Review Console**, not a generic test dashboard.
+The product UX should be **Harness Studio**, not a generic test dashboard.
 
-Recommended layout:
+Harness Studio is a playground-first surface:
 
 ```text
-Left
-  Feature tree
-  Promise board by lifecycle status
-
-Center
-  Selected promise
-  Review controls
-  Promise diff
-  Promise Drift records
-  Evidence Drift records
-  Evidence coverage
-  History
-
-Right
-  Adapter UI / report
-  Run results
-  Logs
-  Screenshots
-  DOM / state / file evidence
+React Flow playground
+  -> Module layer as the project architecture map
+  -> Promise nodes inside selected architecture boundaries
+  -> Context inspector for selected Module or Promise
+  -> Evidence, runs, drift, and implementation links as drill-down detail
 ```
+
+The current UX direction is defined in [dashboard-canvas-experience.md](dashboard-canvas-experience.md). Despite the historical filename, that document now describes the Harness Studio Playground experience.
 
 Important UX questions:
 
@@ -520,8 +508,8 @@ Build the smallest version that preserves the core model. The detailed seed plan
 7. **Result collector**
    Read adapter results and normalize results by promise id.
 
-8. **Minimal Promise Review Console**
-   Show promise review state, run results, drift records, and evidence coverage.
+8. **Minimal Harness Studio read surface**
+   Show the architecture module layer, promise focus, run results, drift records, and evidence coverage without reintroducing dashboard-style navigation.
 
 ## 11. Success Criteria
 

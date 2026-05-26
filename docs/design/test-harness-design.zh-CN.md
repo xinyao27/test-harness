@@ -66,8 +66,8 @@ Result + Evidence Collector
 Analyzer
   -> 生成 feature map、promise map、evidence coverage、risk map
 
-Promise Review Console
-  -> 展示 promises、review queues、drift、evidence、failures、run history
+Harness Studio
+  -> 展示 architecture playground、promises、drift、evidence、failures 和 run history
 ```
 
 Adapters 负责执行。Harness protocol 负责承诺语义。
@@ -411,7 +411,7 @@ Evidence drift:
 - quality checks
 - 按 promise id 归一化结果
 - module、feature 和 risk maps
-- Promise Review Console UX
+- Harness Studio UX
 
 ## 七、可读性和可管理性规则
 
@@ -456,31 +456,19 @@ Review Pass
 
 ## 九、UX 形态
 
-产品 UX 应该是 **Promise Review Console**，不是普通测试 dashboard。
+产品 UX 应该是 **Harness Studio**，不是普通测试 dashboard。
 
-推荐布局：
+Harness Studio 是 playground-first 的界面：
 
 ```text
-Left
-  Feature tree
-  按生命周期分组的 Promise board
-
-Center
-  当前 promise
-  Review controls
-  Promise diff
-  Promise Drift records
-  Evidence Drift records
-  Evidence coverage
-  History
-
-Right
-  Adapter UI / report
-  Run results
-  Logs
-  Screenshots
-  DOM / state / file evidence
+React Flow playground
+  -> Module layer 作为项目 architecture map
+  -> 选中 architecture boundary 后展示 Promise nodes
+  -> Context inspector 展示选中的 Module 或 Promise
+  -> Evidence、runs、drift 和 implementation links 作为 drill-down detail
 ```
+
+当前 UX 方向定义在 [dashboard-canvas-experience.zh-CN.md](dashboard-canvas-experience.zh-CN.md)。虽然文件名保留了历史上的 canvas 命名，但内容现在描述的是 Harness Studio Playground experience。
 
 重要 UX 问题：
 
@@ -520,8 +508,8 @@ Right
 7. **Result collector**
    读取 adapter results，并按 promise id 归一化。
 
-8. **Minimal Promise Review Console**
-   展示 promise review 状态、运行结果、drift records 和 evidence coverage。
+8. **Minimal Harness Studio read surface**
+   展示 architecture module layer、promise focus、运行结果、drift records 和 evidence coverage，同时不要重新引入 dashboard-style navigation。
 
 ## 十一、成功标准
 

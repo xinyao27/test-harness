@@ -5,7 +5,7 @@
 
 ## 1. Purpose
 
-The full Test Harness is still only a design. The first implementation should not try to build the complete Promise Review Console.
+The full Test Harness is still only a design. The first implementation should not try to build the complete Harness Studio or daemon-backed local control plane.
 
 The MVP should be a **seed Harness**: a minimal, file-based, protocol-first system that can describe, run, and report promises about this Harness project itself.
 
@@ -49,7 +49,8 @@ In scope:
 
 Out of scope for the seed:
 
-- full visual Promise Review Console
+- full Harness Studio playground UX
+- daemon-backed project switching, file watching, or local agent control
 - complex browser UX
 - advanced adapters beyond the current Vitest adapter
 - full drift AI classification

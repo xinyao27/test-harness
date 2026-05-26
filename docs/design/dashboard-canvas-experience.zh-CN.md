@@ -1,11 +1,11 @@
-# Harness Studio Canvas Experience
+# Harness Studio Playground Experience
 
-> 状态：讨论稿
-> 目标：把 Harness Studio 定义成 canvas-first 的 workbench，为 promise-driven vibe coding 做准备。
+> 状态：当前设计方向
+> 目标：把 Harness Studio 定义成 playground-first 的 workbench，用于 promise-driven architecture review 和未来 vibe coding。
 
 ## 1. 方向
 
-Harness Studio 不应该像一个通用 admin dashboard。它应该是一个聚焦的 TestHarness workbench：人和 agent 可以从已 review 的行为承诺开始，一层层长出测试和实现。
+Harness Studio 不是 dashboard。它是一个聚焦的 playground，让用户通过 Harness model 理解和控制项目。
 
 目标流程是分层的：
 
@@ -15,109 +15,233 @@ tests/modules + tests/promises
   -> 满足这些 promises 的业务逻辑
 ```
 
-所以主界面首先应该帮助用户理解和管理 behavior model。测试和业务代码是这个 model 之下的 evidence 和 linked detail，而不是独立的一组顶层产品入口。
+UI 应该让这个层级直接可见，而不是要求用户先打开原始 YAML。Module 是项目架构。Promise 是这些架构边界内的行为契约。Evidence 和 implementation links 是支撑细节。
 
-未来方向是一套 vibe coding 环境：Harness Studio 背后有 daemon，可以连接 Codex、cloud workers 或其他 agent runtime。这个 daemon 以后可以 draft promises、绑定测试、运行 Harness、修改业务代码。但现在 Harness Studio 只需要先准备好交互模型，不要现在就把 agent 控制能力做进去。
+Harness Studio 以后应该成为用户管理 Harness model、要求本地 agent 执行受控变更、运行验证，并判断 feature 是否可以上线的地方。
 
 ## 2. 北极星：不再先打开编辑器
 
-长期目标是：日常产品开发不再需要先打开代码编辑器。用户应该可以只打开 Harness Studio，管理 behavior model，让 agent 执行受控变更，并通过 accepted promises 和 passing evidence 判断项目状态。
+长期目标是：日常产品开发不再需要先打开代码编辑器。
 
-在这个世界里，TestHarness 不是测试旁边的一个面板。它是项目的架构索引和上线信心层：
+用户应该可以打开 Harness Studio 并回答：
 
-- Module 是项目架构的第一层可见抽象。
-- Promise 描述每个 Module 必须守住的行为契约。
-- 测试是这些 promises 的可执行证据。
-- 业务逻辑是满足这些证据的 linked implementation。
-- Harness run passing 表示每个与上线相关的 accepted behavior commitment 都有当前有效证据。
+- 这个项目由什么组成？
+- 有哪些 architecture modules？
+- 每个 module 承诺负责什么？
+- 哪些 promises 已经有 accepted meaning？
+- 哪些 promises 有当前有效 evidence？
+- 什么发生了变化，这个变化是否保持了 approved promise？
 
-Module 不是随手建的标签、filter、文件夹镜像或 UI 分类。它是人类理解项目组成时使用的可 review 架构边界。看一眼 Module 层，应该能回答：“这个系统由哪些主要部分组成？每个部分承诺负责什么？”
+在这个世界里，TestHarness 不是测试旁边的 sidebar。它是项目的 architecture index 和 release confidence layer。
 
-这是一条项目级建模规则，不只是 canvas 的展示规则。生成 module 的 skills、描述 module 的 schemas、拒绝模糊 module 的 validators，以及未来 daemon 的动作，都应该先把 module 当成 architecture boundary。
+Module 不是随手建的标签、文件夹镜像、filter 或 UI 分类。它是人类理解项目组成时使用的可 review 架构边界。完整 Module 层应该回答：“这个系统由哪些主要部分组成？每个部分承诺负责什么？”
 
-这不是说“任何绿色测试套件都证明产品一定正确”。它的意思是：系统应该把上线契约显式化。Accepted promises 足够完整，每个 accepted promise 都有有意义的证据，并且最新 Harness run passing。当这些条件成立时，Harness Studio 就可以成为人类判断 feature 是否可以上线的地方。
+这条规则不只适用于 UI。生成 module 的 skills、描述 module 的 schemas、拒绝模糊 module 的 validators，以及未来 daemon 的动作，都应该先把 module 当成 architecture boundary。
 
-## 3. 当前方向的问题
+## 3. 产品原则
 
-现在 dashboard 方向一开始暴露的概念太多：overview、modules、promises、graph、review queues、generation、runs、status views 都在抢顶层导航。这会让产品显得比用户的第一个任务复杂很多。
+使用一个 playground 作为产品界面。
 
-对新用户来说，第一件有用的事其实很简单：
+Sidebar 不再作为产品概念存在。Landing dashboard 删除。Modules、promises、runs、generation、review queues、status pages 这些顶层管理页面也删除。根路由应该直接进入 React Flow playground。
 
-> 这个项目有哪些 Module，每个 Module 下有哪些 Promise？
+外层 app shell 应该几乎不可见：
 
-其他能力都应该从这个问题下面渐进展开。
-
-## 4. 产品原则
-
-使用单一 canvas 作为主界面。
-
-Sidebar 不再作为产品概念存在。Landing dashboard 也删掉。用户进入后直接看到一个大的 XYFlow canvas，用来表示项目的 behavior model。
-
-Canvas 按层级渐进展示复杂度：
-
-1. **Project level**：只展示 Module nodes，因为 Module 就是 architecture map。
-2. **Module level**：选中一个 Module 后，展开或聚焦它对应的 Promise nodes。
-3. **Promise level**：选中一个 Promise 后，在右侧可折叠 contextual panel 展示 promise 内容。
-4. **Evidence level**：测试、运行证据、业务代码链接都放在选中 promise 下面，不做全局导航。
-
-这样体验会更安静：一个界面，一个心智模型；只有当用户进一步选择时，才展示更深的内容。
-
-## 5. MVP 体验
-
-### 入口
-
-根路由直接渲染 canvas。不再有独立首页，也不再有 "Dashboard" 页面。
-
-第一屏包含：
-
-- 占满可用空间的 XYFlow canvas
-- 清晰排列的 Module nodes
-- 必要时保留极少量 canvas controls，例如 zoom、fit view、search
 - 没有 sidebar
-- 没有 Overview、Modules、Promises、Runs、Generate、Review 这些顶层 tabs
+- 没有 landing page
+- 没有装饰性 chrome
+- 没有假按钮
+- 没有顶层 tabs
+- 没有 gradients、shadows、blur 或 translucent panels
 
-### Module Nodes
+用户应该感觉自己一直沉浸在 playground 里面。
 
-每个 Module node 只表达最必要的信息：
+## 4. Playground Layout
+
+主视口是一个带边框的 React Flow canvas playground。
+
+Frame 应该贴近 app 边缘，只保留很小的外部间距。视觉语言是 flat 和 square：
+
+- square corners
+- playground 外面只有一个清晰 border
+- 使用 app theme 的 token-based colors
+- 没有 gradient backgrounds
+- 没有 decorative shadows
+- 没有 semi-transparent panels
+
+Canvas overlays 应该使用 React Flow 自己的布局 primitives：
+
+- 顶部 controls 放在 React Flow `Panel`
+- 右侧 context inspector 放在 React Flow `Panel`
+- zoom 和 fit controls 在合适时使用 React Flow controls
+
+顶部 controls 不能被 context inspector 挤压。Header 区域应该被预留，context inspector 从 header 下方开始。
+
+## 5. Top Controls
+
+顶部 control panel 是唯一常驻导航 chrome。
+
+左侧：
+
+- project switcher
+- breadcrumb
+- search
+
+右侧：
+
+- total module count badge
+- total promise count badge
+- snapshot source and freshness indicator
+- settings button
+
+所有 buttons 和 icon buttons 都应该使用共享 shadcn/ui components，并保持一致 size。不要给某个按钮单独写一套尺寸。
+
+### Project Switcher
+
+Project switcher 用来在本地 Harness projects 之间切换。
+
+Daemon 已连接时，switcher 必须从认证后的本地 daemon project registry 读取数据。它不应该只是前端视觉列表，也不应该要求账号登录或 hosted server。
+
+它应该提供：
+
+- 搜索最近打开的 projects
+- recent project list
+- current project check mark
+- add new project action
+- 添加 project 时选择目录
+
+切换 project 最终必须改变 daemon-backed project snapshot。只有视觉变化的 switcher 不能作为最终行为。
+
+### Breadcrumb
+
+Breadcrumb 放在 project switcher 旁边，表示当前 playground 内的 focus。
+
+示例：
+
+```text
+todo-backend
+todo-backend > TodoMVC Client
+todo-backend > Todo-Backend API Contract > Creates todos
+```
+
+点击 breadcrumb segment 应该回到上层 focus，而不是离开 playground。
+
+### Search
+
+Search 是跳转到已知 module 或 promise 的最快方式。
+
+它应该可以从 canvas 顶部 controls 和 keyboard shortcut 打开。Search 应该匹配 module titles、promise titles、promise ids、feature names、priorities、lifecycle states 和 covered file paths。Results 应该区分 modules 和 promises，并展示足够上下文，让用户能放心选择。
+
+选择 module result 会聚焦该 module。选择 promise result 会聚焦它所属的 module、选中 promise node、打开 context inspector，并更新 URL。这个能力对新 draft 的 promises 尤其重要，因为 reviewer 应该能在实现代码还不存在时找到相关 UI。
+
+### Settings
+
+Settings 从右上角 settings button 打开。
+
+Settings 应该使用 shadcn/ui Dialog，而不是独立 settings page。Settings 包含产品级偏好：
+
+- language
+- light / dark mode
+- daemon status 和 local pairing details
+- revoke local daemon token
+
+语言切换不应该作为独立控件占据右上角的重要位置。
+
+本地 daemon 使用不应该出现 login surface。
+
+### Snapshot Source
+
+Harness Studio 必须让当前数据源可见。
+
+Daemon-backed data 是 live project view。Static fallback data 只是降级的 read-only view，而且可能过期。如果 Studio 渲染 fallback data，UI 必须明确说明新加 modules 或 promises 可能缺失，并提供明显的 reconnect 或 pairing 路径。
+
+Module 和 promise counts 应该继承同一个 source state。来自 fallback data 的 count 不能看起来像 canonical project truth。
+
+## 6. Graph Model
+
+Graph 渐进展示 Harness complexity：
+
+1. **Project level**：展示 Module nodes，因为 Module 就是 architecture map。
+2. **Module focus**：选中 Module 后展开或聚焦它的 Promise nodes。
+3. **Promise focus**：选中 Promise 后打开 context inspector。
+4. **Evidence level**：测试、run evidence 和 implementation links 优先显示在 inspector 内。
+
+Navigation 只改变同一个 graph 里的 focus，而不是切换到独立 management pages。
+
+## 7. Module Nodes
+
+Module nodes 必须能作为 architecture boundaries 阅读。
+
+每个 Module node 应该展示：
 
 - module title
-- promise 数量
-- aggregate run status，如果已有结果
-- review 或 evidence 问题的小提示，如果存在
+- priority badge
+- owned promises 需要 human review 时展示 review attention indicator
+- promise count
+- coverage count
+- 可用时展示 evidence 或 run status
 
-Node 不展示长描述或完整 metadata。这些内容应该在选中后的 detail panel 里出现。
+每个 Module node 应该避免：
 
-完整的 Module nodes 必须能被当作项目架构图来阅读。如果一个 Module 不能对应一个有意义的架构部分，它就不应该是 Module。如果一个重要架构部分没有出现在 Module 层，Harness Studio 就隐藏了项目的真实形状。
+- 冗余的 "Module" tag
+- 类似 "Relevance unknown" 的模糊标签
+- 长描述
+- 完整 YAML metadata
 
-### Module Selection
+Priority 很重要，应该影响 layout 和展示：
 
-点击 Module 后，该 Module 成为 active focus。
+- P0 modules 放在第一排或第一组。
+- P1 modules 放在下一排或下一组。
+- 更低优先级继续向下。
+- Priority badges 应该紧凑、清晰。
 
-Active 状态可以：
+Node layout 应该让项目架构一眼可读。
 
-- 在 Module 周围展开 Promise nodes
-- 淡化无关 modules
-- 画出 Module 到 Promise 的 ownership edges
-- 更新 URL，让选中状态可以分享或恢复
+### Module Review Attention
 
-用户应该感觉自己是在同一个 canvas 上逐渐 zoom in，而不是跳转到另一个页面。
+当 Module 拥有需要人类 review 的 promises 时，Module 应该展示一个紧凑的 attention dot。
 
-### Promise Nodes
+第一版应该通过 promise lifecycle 和 review state 定义“needs attention”，而不是通过每个用户自己的 unread state。只要一个 module 拥有 proposed promises、changed promises、pending review promises，或未来 protocol 中明确需要 review 的状态，它就需要 attention。
 
-Promise nodes 应该紧凑且可读：
+这个 dot 不是装饰。它回答的是：“我下一步应该检查哪个 architecture boundary？”选中 module 后，需要 review 的 promises 应该排在 already-reviewed promises 前面。
+
+视觉上它可以像一个小红点，但实现应该使用语义化 theme tokens，而不是硬编码 palette classes。
+
+## 8. Promise Nodes
+
+用户 focus 某个 module，或者通过 URL 直接选中 promise 时，Promise nodes 出现。
+
+Promise nodes 应该展示：
 
 - short title
-- priority
+- priority badge
 - lifecycle
-- current run status
+- 当前 evidence 或 run status
 
-Promise node 要始终 behavior-first。它不应该看起来像 test file、code file 或 task card。
+它们应该始终 behavior-first。它们不应该看起来像 task cards、test files 或 implementation file nodes。
 
-### 右侧 Context Panel
+## 9. Context Inspector
 
-选中 Promise 后，右侧打开一个依附于 canvas 的 context panel。这个 panel 必须允许折叠。折叠后应该保留当前选中状态，留下一个小的重新打开入口，让 canvas 重新拿回空间，但不要让用户丢失当前位置。
+Context inspector 是右侧 React Flow `Panel`，不是普通 app sidebar。
 
-在 MVP 中，这个 panel 先作为 Promise Inspector，展示：
+它应该：
+
+- 位于 playground frame 内
+- 从 top control panel 下方开始
+- 可以折叠
+- 折叠后保留 graph selection
+- 在合适位置使用共享 shadcn/ui building blocks
+- 避免 shadows、transparency 和 rounded card styling
+
+选中 Module 时，inspector 展示 architecture context：
+
+- module title
+- purpose
+- priority
+- owned promises
+- coverage paths
+- evidence summary
+
+选中 Promise 时，inspector 展示 behavior context：
 
 - promise title 和 id
 - purpose
@@ -125,121 +249,129 @@ Promise node 要始终 behavior-first。它不应该看起来像 test file、cod
 - Given / When / Then
 - failure meaning
 - observed files
-- 绑定的测试证据和当前 result status
-- 如果可用，展示关联的 implementation files
+- 绑定测试证据和当前 result status
+- 如果可用，展示 linked implementation files
 
-Panel 应该方便扫读。先展示 meaning 和 status，再展示 metadata。它不应该变成 YAML dump。
+Inspector 应该先展示 meaning 和 status，再展示 metadata。它不应该变成 raw YAML dump。
 
-未来进入受控 vibe coding 后，同一个右侧区域可以加入 prompt 和 agent controls。但它仍然应该跟随当前选中的 Module 或 Promise，而不是变成一个全局聊天 sidebar。
+## 10. Style System
 
-### Evidence And Code Links
+Harness Studio 应该使用 flat、practical 的设计语言。
 
-Evidence 比 Promise 再深一层。
+这些内容都要使用 `apps/web/src/index.css` 中的 theme tokens：
 
-从 context panel 中，用户可以查看：
+- colors
+- borders
+- backgrounds
+- spacing
+- 有意使用的 shadows
+- radii
 
-- 绑定到 promise id 的测试
-- 最新 adapter results
-- observed source files
-- 与该 promise 相关的 implementation files
+避免在 application surfaces 中使用类似 `border-zinc-950` 的硬编码 Tailwind palette classes。这类写法会让 theme switching 更困难，也隐藏了设计意图。
 
-这些内容以后可以变成 graph nodes，但默认第一屏不应该直接展示它们。
+当前设计默认值：
 
-## 6. 信息架构
+- square corners
+- 没有大圆角 cards
+- 没有 gradients
+- 没有 decorative shadows
+- 没有 blur panels
+- 没有 semi-transparent panels
+- 低装饰性
+- 高布局清晰度
 
-UI 应该按 canvas state 组织，而不是 sidebar pages。
+Button、Badge、Dialog、Dropdown Menu、Breadcrumb、Tooltip 等标准控件优先使用 shadcn/ui components。可以扩展本地 variants，但应该保持 theme-token behavior。
 
-建议 URL model：
+## 11. URL Model
+
+优先使用 query-state URLs，因为它表达的是一个 playground 内的 focus：
 
 ```text
-/                         -> module overview canvas
-/?module=<module-id>       -> 同一个 canvas 聚焦某个 module
-/?promise=<promise-id>     -> 同一个 canvas 选中 promise，并打开 panel
+/                         -> project module overview
+/?module=<module-id>       -> 同一个 playground 聚焦某个 module
+/?promise=<promise-id>     -> 同一个 playground 选中 promise
 ```
 
-如果使用 route-based URL 也可以，只要仍然渲染同一个 canvas：
+如果分享、浏览器历史或 deep linking 需要，以后可以补 semantic routes。关键规则是：navigation 改变 playground 内的 focus，而不是切到独立 management pages。
 
-```text
-/modules/<module-id>
-/promises/<promise-id>
-```
+## 12. Future Daemon Direction
 
-关键规则是：导航只是改变 canvas 的 focus，而不是切到独立 management page。
+Daemon 是从只读可视化走向本地控制和 vibe coding 的桥。具体 runtime 边界定义在 [Harness Daemon Runtime Control Plane](./harness-daemon-runtime-control-plane.zh-CN.md)。
 
-## 7. 第一体验里要移除什么
+最重要的产品规则是：daemon 是本地 control plane，不是新的真实数据源，也不是 server-mediated identity system。Harness files 和显式 run evidence 仍然是 canonical；daemon 在完成 local pairing 后负责索引、监听、运行，并把 derived state stream 回 Harness Studio。No-login connection model 定义在 [Local Daemon Studio Connection](./local-daemon-studio-connection.zh-CN.md)。
 
-这些不再作为顶层入口出现：
-
-- Dashboard / Overview
-- Modules list page
-- Promises list page
-- 独立 Project map page
-- Review queue
-- Generate promise
-- Runs
-- Status pages
-
-这些能力以后可以作为 contextual overlays 或 panel sections 回来，但不应该作为第一层导航暴露。
-
-## 8. 未来 Daemon 方向
-
-Daemon 是从只读可视化走向 vibe coding 的桥。
-
-未来 canvas 可以暴露这些动作：
+未来 playground 可以暴露这些动作：
 
 - 把新增 architecture Module 作为明确的 architecture review event 提出
 - draft 或 split Promises
 - 把测试绑定到 Promise
 - 运行 `harness check` 或 `harness test`
-- 让 Codex 实现代码直到某个 Promise passing
-- 让 Codex 在保持 accepted promise meaning 不变的前提下修改测试或实现
+- 让本地 agent 实现代码直到某个 Promise passing
+- 让本地 agent 在保持 accepted promise meaning 不变的前提下修改测试或实现
 - 总结 evidence drift
 - 对 promise 变更打开 human approval flow
 
-Daemon 必须保持 Harness 模型：
+Agent actions 不应该让 UI 变成一个贴在 graph 旁边的自由聊天窗口。Graph 仍然是用户定位和理解项目的主界面，Harness 仍然是 release gate。
 
-1. Module 变更必须作为明确的 architecture review event。
-2. Promise meaning 必须先在所属 architecture module 内 draft，然后才开始实现。
-3. 人类 review、编辑或批准 promise。
-4. 测试绑定到 approved promise id。
-5. 实现工作跟随 promise 和 test evidence。
-6. Harness Studio 展示最终 status 和链接。
+## 13. Implementation Stages
 
-Agent actions 不应该让 UI 变成一个贴在 graph 旁边的自由聊天窗口。Graph 仍然是用户定位和理解项目的主界面，Harness 仍然是上线 gate。
+### Stage 1: Playground Shell
 
-## 9. 实现阶段
+- 删除 sidebar 和 landing dashboard
+- 渲染一个带边框的 React Flow playground
+- 把常驻 controls 移入 React Flow panels
+- 使用 project switcher、breadcrumb、count badges 和 settings dialog
+- 删除 fake 或没有实际作用的 buttons
+- 强制使用 flat token-based styling
 
-### Stage 1: Canvas-Only Read Model
+### Stage 2: Graph Interaction
 
-- 用 Harness Studio 的 canvas 替换当前 landing / dashboard / sidebar 体验
-- 默认先渲染 Module nodes
-- 选中 Module 后展开 Promise nodes
-- 选中 Promise 后打开可折叠的右侧 context panel
-- 所有数据保持 read-only
+- 按 priority group 渲染 Module nodes
+- 选中 Module 后展开或聚焦 Promise nodes
+- 在 top panel 下方打开右侧 context inspector
+- 同步 URL query state
+- 支持 inspector collapse 和 restore
 
-### Stage 2: Evidence Drilldown
+### Stage 3: Daemon-Backed Data
 
-- 在 context panel 中展示绑定测试证据
-- 展示 run status 和 latest result details
-- 链接 observed source files 和 implementation files
-- 加轻量 filtering/search，但不要重新引入 sidebar
+- 无账号登录地把 Studio 与本地 daemon 配对
+- 用 daemon project snapshots 替换静态前端 snapshots
+- project switcher 切换真实 projects
+- 监听 Harness files 并刷新 graph
+- stream project 和 snapshot events
 
-### Stage 3: Controlled Vibe Coding
+### Stage 4: Runs And Evidence
 
-- 引入 daemon API
-- 允许通过显式动作 draft promise 和绑定测试
-- 从 UI 运行 Harness commands
-- 连接 Codex/cloud workers 去实现 approved promises
+- 从 playground 运行 Harness commands
+- 收集 result evidence
+- 展示 latest run 和 promise status
+- 从 inspector 链接 tests 和 implementation files
 
-## 10. 产品决策与默认方案
+### Stage 5: Controlled Vibe Coding
+
+- 通过 daemon providers 引入本地 agent sessions
+- 把 permission requests 和 diffs 展示成可 review actions
+- 让 agents draft promises、绑定 tests、实现 approved behavior
+- 保持 graph 作为定位主界面
+
+## 14. Product Decisions
 
 已确定：
 
 1. 产品界面叫 **Harness Studio**。
-2. 右侧 context panel 允许折叠。
+2. 第一屏是 playground，不是 dashboard。
+3. 没有 sidebar。
+4. Settings 使用 shadcn/ui Dialog 打开。
+5. Project switching 放在左上角 playground controls。
+6. Search 属于 canvas 顶部 controls，因为 promise review 需要直接导航。
+7. Breadcrumbs 在 project switcher 旁边展示当前 focus。
+8. Module 和 promise counts 是右上角 compact badges。
+9. Context inspector 可折叠，并位于 React Flow playground 内。
+10. 视觉语言是 flat、square、token-based。
+11. 本地 daemon 使用不要求账号登录或 hosted relay。
 
-先按最优雅默认方案尝试：
+先按默认方案尝试：
 
-1. Evidence 和 implementation files 先留在 context panel 里。只有当它们真的能帮助定位、比较或分析影响范围时，再提升成 graph nodes。
-2. URL model 先用 query-state（`/?module=...`、`/?promise=...`），因为它表达的是同一个 canvas 内的 focus。后面如果分享、浏览器历史或 deep linking 需要，再补 semantic routes。
+1. Evidence 和 implementation files 先留在 inspector 里。只有当它们真的能帮助定位、比较或分析影响范围时，再提升成 graph nodes。
+2. URL model 先用 query-state。
 3. Release confidence 先显示一个默认 profile：所有 accepted P0/P1 promises 必须 passing，所有 accepted promises 必须有当前有效 evidence。等真实项目暴露出需求后，再让 profile 可配置。

@@ -1,0 +1,19 @@
+apiVersion: 1
+id: harness-daemon
+title:
+  en: Harness Daemon
+  zh-CN: Harness Daemon
+summary:
+  en: Local runtime control plane for reading Harness projects and serving Studio-compatible snapshots.
+  zh-CN: 读取本地 Harness projects 并提供 Studio-compatible snapshots 的本地 runtime control plane。
+purpose:
+  en: Keep Harness Studio connected to real project files without making the daemon a new source of truth.
+  zh-CN: 让 Harness Studio 连接真实项目文件，同时避免 daemon 变成新的真实数据源。
+promises:
+  - harness.daemon.snapshot_reads_canonical_project_files
+  - harness.daemon.http_snapshot_matches_studio_contract
+  - harness.daemon.local_pairing_issues_revocable_session_tokens
+  - harness.daemon.local_api_accepts_only_loopback_and_allowed_origins
+covers:
+  - crates/harness-daemon/**
+  - apps/web/src/lib/api.ts

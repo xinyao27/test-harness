@@ -3,6 +3,7 @@ members = [
   "crates/harness-protocol",
   "crates/harness-core",
   "crates/harness-cli",
+  "crates/harness-daemon",
   "crates/harness-adapter-runtime",
   "crates/harness-adapter-rust",
   "examples/todo-backend/implementations/rust-axum",
@@ -17,9 +18,12 @@ version = "0.0.0"
 
 [workspace.dependencies]
 jsonschema = { version = "0.46.5", default-features = false }
+axum = "0.8.9"
 regex = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.9"
 tempfile = "3"
+tokio = { version = "1.52.3", features = ["macros", "rt-multi-thread", "signal"] }
+tower-http = { version = "0.6.11", features = ["cors"] }
 walkdir = "2"

@@ -57,7 +57,10 @@ export interface ReviewDraft {
   reason: LocalizedText;
 }
 
+export type SnapshotSource = "daemon" | "static" | "empty";
+
 export interface HarnessSnapshot {
+  source?: SnapshotSource;
   project: {
     name: LocalizedText;
     description: LocalizedText;
@@ -69,6 +72,134 @@ export interface HarnessSnapshot {
   modules: HarnessModule[];
   promises: HarnessPromise[];
   reviewDrafts: ReviewDraft[];
+}
+
+const promisePriorities = ["P0", "P1", "P2"] as const;
+const modulePriorities = ["P0", "P1", "P2", "none"] as const;
+const promiseBoundaries = ["unit", "integration", "browser", "e2e", "adapter"] as const;
+const promiseLifecycles = [
+  "proposed",
+  "accepted",
+  "implemented",
+  "changed_requires_review",
+  "deprecated",
+] as const;
+const runStatuses = ["unknown", "passing", "failing", "skipped", "missing_evidence"] as const;
+const reviewStates = ["pending", "approved", "rejected", "changes_requested"] as const;
+const snapshotSources = ["daemon", "static", "empty"] as const;
+
+export function isHarnessSnapshot(value: unknown): value is HarnessSnapshot {
+  if (!isRecord(value)) return false;
+  if (value.source !== undefined && !isOneOf(value.source, snapshotSources)) return false;
+
+  return (
+    isProject(value.project) &&
+    isArrayOf(value.modules, isHarnessModule) &&
+    isArrayOf(value.promises, isHarnessPromise) &&
+    isArrayOf(value.reviewDrafts, isReviewDraft)
+  );
+}
+
+function isProject(value: unknown): value is HarnessSnapshot["project"] {
+  return (
+    isRecord(value) &&
+    isLocalizedText(value.name) &&
+    isLocalizedText(value.description) &&
+    typeof value.promiseCount === "number" &&
+    typeof value.moduleCount === "number" &&
+    typeof value.warningCount === "number" &&
+    typeof value.errorCount === "number"
+  );
+}
+
+function isHarnessModule(value: unknown): value is HarnessModule {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    isLocalizedText(value.title) &&
+    isLocalizedText(value.summary) &&
+    isLocalizedText(value.purpose) &&
+    isOneOf(value.priority, modulePriorities) &&
+    isArrayOf(value.promiseIds, isString) &&
+    isArrayOf(value.covers, isString) &&
+    isArrayOf(value.relatedModuleIds, isString)
+  );
+}
+
+function isHarnessPromise(value: unknown): value is HarnessPromise {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    typeof value.moduleId === "string" &&
+    typeof value.feature === "string" &&
+    isLocalizedText(value.title) &&
+    isLocalizedText(value.purpose) &&
+    isOneOf(value.priority, promisePriorities) &&
+    isOneOf(value.boundary, promiseBoundaries) &&
+    isOneOf(value.lifecycle, promiseLifecycles) &&
+    isOneOf(value.runStatus, runStatuses) &&
+    isArrayOf(value.given, isLocalizedText) &&
+    isArrayOf(value.when, isLocalizedText) &&
+    isArrayOf(value.then, isLocalizedText) &&
+    isArrayOf(value.observes, isString) &&
+    isLocalizedText(value.failureMeaning) &&
+    isReview(value.review)
+  );
+}
+
+function isReviewDraft(value: unknown): value is ReviewDraft {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    isLocalizedText(value.title) &&
+    isArrayOf(value.moduleIds, isString) &&
+    isOneOf(value.priority, promisePriorities) &&
+    isOneOf(value.state, reviewStates) &&
+    isLocalizedText(value.reason)
+  );
+}
+
+function isReview(value: unknown): value is HarnessPromise["review"] {
+  return (
+    isRecord(value) &&
+    isOneOf(value.state, reviewStates) &&
+    optionalString(value.approvedBy) &&
+    optionalString(value.approvedAt)
+  );
+}
+
+function isLocalizedText(value: unknown): value is LocalizedText {
+  if (typeof value === "string") return true;
+  if (!isRecord(value)) return false;
+
+  const entries = Object.values(value);
+  return (
+    entries.some((entry) => typeof entry === "string") &&
+    entries.every((entry) => entry === undefined || typeof entry === "string")
+  );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isString(value: unknown): value is string {
+  return typeof value === "string";
+}
+
+function optionalString(value: unknown): boolean {
+  return value === undefined || typeof value === "string";
+}
+
+function isArrayOf<T>(value: unknown, guard: (item: unknown) => item is T): value is T[] {
+  return Array.isArray(value) && value.every(guard);
+}
+
+function isOneOf<const T extends readonly string[]>(
+  value: unknown,
+  options: T,
+): value is T[number] {
+  return typeof value === "string" && options.includes(value);
 }
 
 export const harnessSnapshot: HarnessSnapshot = {

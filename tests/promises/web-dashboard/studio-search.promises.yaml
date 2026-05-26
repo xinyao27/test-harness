@@ -1,0 +1,45 @@
+apiVersion: 1
+promises:
+  - id: harness.web_dashboard.searches_modules_and_promises_from_the_canvas
+    feature: Harness Studio / Search
+    title:
+      en: Harness Studio can search modules and promises from the canvas
+      zh-CN: Harness Studio 可以从 canvas 搜索 modules 和 promises
+    purpose:
+      en: Let reviewers quickly find the UI for a known promise, module, feature, or file path without manually scanning the graph or opening raw YAML.
+      zh-CN: 让 reviewer 能快速找到已知 promise、module、feature 或文件路径对应的 UI，而不需要手动扫 graph 或打开原始 YAML。
+    priority: P0
+    boundary: browser
+    lifecycle: proposed
+    given:
+      - en: The current Harness project snapshot contains modules and promises
+        zh-CN: 当前 Harness project snapshot 包含 modules 和 promises
+      - en: A reviewer knows a promise id, title fragment, module name, feature name, priority, or covered file path
+        zh-CN: Reviewer 知道某个 promise id、title 片段、module name、feature name、priority 或 covered file path
+    when:
+      - en: The reviewer opens search from the top canvas controls or keyboard shortcut
+        zh-CN: Reviewer 从 canvas 顶部 controls 或 keyboard shortcut 打开 search
+      - en: The reviewer types a query
+        zh-CN: Reviewer 输入查询内容
+    then:
+      - en: The search results include matching modules and promises from the active project snapshot
+        zh-CN: Search results 会包含 active project snapshot 中匹配的 modules 和 promises
+      - en: Results show enough context to distinguish matches, including type, title, id when useful, owning module, priority, and lifecycle or evidence status
+        zh-CN: Results 会展示足够上下文来区分匹配项，包括 type、title、必要时的 id、owning module、priority，以及 lifecycle 或 evidence status
+      - en: Selecting a module result focuses that module on the canvas and updates the breadcrumb and URL
+        zh-CN: 选择 module result 会在 canvas 上聚焦该 module，并更新 breadcrumb 和 URL
+      - en: Selecting a promise result focuses its owning module, selects the promise node, opens the context inspector, and updates the breadcrumb and URL
+        zh-CN: 选择 promise result 会聚焦其所属 module、选中 promise node、打开 context inspector，并更新 breadcrumb 和 URL
+      - en: Search works for newly added proposed promises before implementation code exists
+        zh-CN: Search 对新增的 proposed promises 也有效，即使实现代码还不存在
+    observes:
+      - apps/web/src/features/studio/**
+      - apps/web/src/lib/api.ts
+      - apps/web/src/data/harness-snapshot.ts
+      - packages/i18n/messages/*.json
+      - tests/modules/**/*.module.yaml
+      - tests/promises/**/*.promises.yaml
+    failureMeaning:
+      en: Harness Studio would make promises first-class in storage but second-class in navigation, forcing reviewers back to file search or raw YAML for the fastest workflow.
+      zh-CN: Harness Studio 会在存储上把 promises 当成一等对象，却在导航上把它们降级，迫使 reviewer 回到文件搜索或原始 YAML 才能最快工作。
+    review: {}

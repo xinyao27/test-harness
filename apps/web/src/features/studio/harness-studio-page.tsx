@@ -59,6 +59,7 @@ import type {
   HarnessPromise,
   HarnessSnapshot,
   ModulePriority,
+  SnapshotSource,
 } from "@/data/harness-snapshot";
 import { SettingsPanel } from "@/features/settings/settings-page";
 import {
@@ -650,6 +651,11 @@ export function HarnessStudioPage({
               </div>
 
               <div className="studio-top-stats">
+                {data?.source ? (
+                  <Badge size="xs" variant={data.source === "daemon" ? "secondary" : "outline"}>
+                    {snapshotSourceLabel(data.source, m, locale)}
+                  </Badge>
+                ) : null}
                 <Badge variant="secondary">
                   {m.metric_total_modules({}, { locale })}: {data?.project.moduleCount ?? 0}
                 </Badge>
@@ -722,6 +728,12 @@ export function HarnessStudioPage({
       </Dialog>
     </div>
   );
+}
+
+function snapshotSourceLabel(source: SnapshotSource, m: MessageModule, locale: AppLocale) {
+  if (source === "daemon") return m.studio_source_daemon({}, { locale });
+  if (source === "static") return m.studio_source_static({}, { locale });
+  return m.studio_source_empty({}, { locale });
 }
 
 function ContextPanel({
