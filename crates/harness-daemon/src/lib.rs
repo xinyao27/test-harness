@@ -124,11 +124,27 @@ pub fn resolve_project_root(
     project_id: Option<&str>,
 ) -> Option<PathBuf> {
     let workspace_root = workspace_root.as_ref();
-    match project_id.unwrap_or("current:test-harness") {
+    let project_id = project_id.unwrap_or("current:test-harness");
+    if let Some(path) = project_id.strip_prefix("directory:") {
+        return resolve_directory_project_root(path);
+    }
+
+    match project_id {
         "current:test-harness" | "current" => Some(workspace_root.to_path_buf()),
         "example:todo-backend" => Some(workspace_root.join("examples/todo-backend")),
         "none" => None,
         _ => None,
+    }
+}
+
+fn resolve_directory_project_root(path: &str) -> Option<PathBuf> {
+    let root = PathBuf::from(path);
+    let root = root.canonicalize().ok()?;
+
+    if root.join("tests/harness.yaml").exists() {
+        Some(root)
+    } else {
+        None
     }
 }
 
@@ -355,6 +371,35 @@ mod tests {
     use harness_protocol::{ProtocolVersion, TestResult, TestResultStatus, TestResultsFile};
     use std::fs;
     use tempfile::tempdir;
+
+    #[test]
+    fn directory_project_ids_resolve_only_harness_project_roots() {
+        harness_adapter_rust::scenario_test!(
+            "harness.daemon.local_api_accepts_only_loopback_and_allowed_origins",
+            "directory project roots must be explicit Harness projects",
+            {
+                let workspace = tempdir().unwrap();
+                let project = tempdir().unwrap();
+                fs::create_dir_all(project.path().join("tests")).unwrap();
+                fs::write(project.path().join("tests/harness.yaml"), "apiVersion: 1\n").unwrap();
+                let project_root = project.path().canonicalize().unwrap();
+                let project_id = format!("directory:{}", project_root.display());
+
+                assert_eq!(
+                    resolve_project_root(workspace.path(), Some(&project_id)),
+                    Some(project_root)
+                );
+
+                let non_harness_project = tempdir().unwrap();
+                let non_harness_id = format!("directory:{}", non_harness_project.path().display());
+
+                assert_eq!(
+                    resolve_project_root(workspace.path(), Some(&non_harness_id)),
+                    None
+                );
+            }
+        );
+    }
 
     #[test]
     fn snapshot_reads_modules_promises_and_results_from_project_files() {

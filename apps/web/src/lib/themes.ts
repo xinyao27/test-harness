@@ -23,7 +23,34 @@ export type BorderRadiusValues = {
   "--radius-lg": string;
   "--radius-md": string;
   "--radius-sm": string;
+  "--studio-control-radius": string;
+  "--studio-menu-item-radius": string;
+  "--studio-node-radius": string;
+  "--studio-radius": string;
 };
+
+function createBorderRadiusValues({
+  lg,
+  md,
+  radius,
+  sm,
+}: {
+  lg: string;
+  md: string;
+  radius: string;
+  sm: string;
+}): BorderRadiusValues {
+  return {
+    "--radius": radius,
+    "--radius-sm": sm,
+    "--radius-md": md,
+    "--radius-lg": lg,
+    "--studio-radius": lg,
+    "--studio-node-radius": lg,
+    "--studio-control-radius": md,
+    "--studio-menu-item-radius": lg,
+  };
+}
 
 export const borderRadiusPresets: Array<{
   description: string;
@@ -35,45 +62,45 @@ export const borderRadiusPresets: Array<{
     id: "default",
     label: "Default",
     description: "Sharp",
-    values: {
-      "--radius": "0.25rem",
-      "--radius-sm": "0.05rem",
-      "--radius-md": "0.125rem",
-      "--radius-lg": "0.25rem",
-    },
+    values: createBorderRadiusValues({
+      radius: "0.25rem",
+      sm: "0.05rem",
+      md: "0.125rem",
+      lg: "0.25rem",
+    }),
   },
   {
     id: "small",
     label: "Small",
     description: "Subtle",
-    values: {
-      "--radius": "0.375rem",
-      "--radius-sm": "0.125rem",
-      "--radius-md": "0.25rem",
-      "--radius-lg": "0.375rem",
-    },
+    values: createBorderRadiusValues({
+      radius: "0.375rem",
+      sm: "0.125rem",
+      md: "0.25rem",
+      lg: "0.375rem",
+    }),
   },
   {
     id: "medium",
     label: "Medium",
     description: "Balanced",
-    values: {
-      "--radius": "0.75rem",
-      "--radius-sm": "0.25rem",
-      "--radius-md": "0.5rem",
-      "--radius-lg": "0.75rem",
-    },
+    values: createBorderRadiusValues({
+      radius: "0.75rem",
+      sm: "0.25rem",
+      md: "0.5rem",
+      lg: "0.75rem",
+    }),
   },
   {
     id: "large",
     label: "Large",
     description: "Soft",
-    values: {
-      "--radius": "1.25rem",
-      "--radius-sm": "0.375rem",
-      "--radius-md": "0.75rem",
-      "--radius-lg": "1.25rem",
-    },
+    values: createBorderRadiusValues({
+      radius: "1.25rem",
+      sm: "0.375rem",
+      md: "0.75rem",
+      lg: "1.25rem",
+    }),
   },
 ];
 

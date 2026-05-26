@@ -324,7 +324,7 @@
   .studio-flow-surface .react-flow__attribution {
     color: var(--studio-attribution-foreground) !important;
     background: var(--studio-control) !important;
-    border-radius: var(--radius-sm) 0 0 0;
+    border-radius: var(--studio-control-radius) 0 0 0;
   }
 
   .studio-flow-header-panel {
@@ -437,6 +437,10 @@
 
   .studio-context-body {
     padding: var(--studio-panel-padding);
+  }
+
+  .studio-context-card {
+    border-radius: var(--studio-radius);
   }
 
   .studio-node-card {

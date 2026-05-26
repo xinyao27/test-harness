@@ -1,9 +1,21 @@
-import type { ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { FieldDescription, FieldGroup, FieldLegend, FieldSet } from "@/components/ui/field";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Item, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import {
+  completeDaemonPairing,
+  getDaemonConnectionStatus,
+  revokeDaemonSession,
+  startDaemonPairing,
+  type DaemonConnectionState,
+} from "@/lib/api";
 import { harnessLocales, useI18n, type AppLocale } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
 import type { AppThemeMode, ThemeDefinition } from "@/lib/themes";
@@ -138,11 +150,9 @@ export function SettingsPanel() {
 
       <Separator />
 
+      <DaemonConnectionSettings />
+
       <ItemGroup className="grid gap-(--studio-panel-gap) sm:grid-cols-2">
-        <SettingItem
-          label={m.settings_daemon_label({}, { locale })}
-          value={m.settings_daemon_value({}, { locale })}
-        />
         <SettingItem
           label={m.settings_filesystem_label({}, { locale })}
           value={m.settings_filesystem_value({}, { locale })}
@@ -155,6 +165,160 @@ export function SettingsPanel() {
       />
     </FieldGroup>
   );
+}
+
+function DaemonConnectionSettings() {
+  const queryClient = useQueryClient();
+  const { locale, m } = useI18n();
+  const [isBusy, setIsBusy] = useState(false);
+  const [isPairingStarted, setIsPairingStarted] = useState(false);
+  const [pairingCode, setPairingCode] = useState("");
+  const [status, setStatus] = useState<DaemonConnectionState>("disconnected");
+
+  const refreshStatus = useCallback(async () => {
+    const nextStatus = await getDaemonConnectionStatus();
+    setStatus(nextStatus.state);
+  }, []);
+
+  const refreshStudioData = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ["workbench-projects"] });
+    void queryClient.invalidateQueries({ queryKey: ["workbench-snapshot"] });
+  }, [queryClient]);
+
+  useEffect(() => {
+    void refreshStatus();
+  }, [refreshStatus]);
+
+  const startPairing = useCallback(async () => {
+    setIsBusy(true);
+    try {
+      const pairing = await startDaemonPairing();
+      setIsPairingStarted(Boolean(pairing));
+      setPairingCode("");
+      await refreshStatus();
+    } finally {
+      setIsBusy(false);
+    }
+  }, [refreshStatus]);
+
+  const completePairing = useCallback(async () => {
+    const normalizedPairingCode = pairingCode.trim();
+    if (!normalizedPairingCode) return;
+
+    setIsBusy(true);
+    try {
+      const isPaired = await completeDaemonPairing(normalizedPairingCode);
+      if (isPaired) {
+        setPairingCode("");
+        setIsPairingStarted(false);
+        refreshStudioData();
+      }
+      await refreshStatus();
+    } finally {
+      setIsBusy(false);
+    }
+  }, [pairingCode, refreshStatus, refreshStudioData]);
+
+  const revokeSession = useCallback(async () => {
+    setIsBusy(true);
+    try {
+      await revokeDaemonSession();
+      setPairingCode("");
+      setIsPairingStarted(false);
+      refreshStudioData();
+      await refreshStatus();
+    } finally {
+      setIsBusy(false);
+    }
+  }, [refreshStatus, refreshStudioData]);
+
+  return (
+    <SettingsGroup
+      description={m.settings_daemon_description({}, { locale })}
+      title={m.settings_daemon_label({}, { locale })}
+    >
+      <div className="space-y-(--studio-panel-gap-sm)">
+        <div className="flex flex-wrap items-center gap-(--studio-panel-gap-sm)">
+          <Badge variant={status === "connected" ? "secondary" : "destructive"}>
+            {daemonStatusLabel(status, locale, m)}
+          </Badge>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={isBusy}
+            onClick={startPairing}
+          >
+            {m.settings_daemon_start_pairing({}, { locale })}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={isBusy || status !== "connected"}
+            onClick={revokeSession}
+          >
+            {m.settings_daemon_revoke({}, { locale })}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={isBusy}
+            onClick={() => void refreshStatus()}
+          >
+            {m.action_retry({}, { locale })}
+          </Button>
+        </div>
+
+        {isPairingStarted ? (
+          <div className="space-y-(--studio-panel-gap-sm) border border-border bg-card p-(--studio-panel-gap-sm)">
+            <p className="text-sm text-muted-foreground">
+              {m.settings_daemon_pairing_started({}, { locale })}
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="daemon-pairing-code">
+                {m.settings_daemon_pairing_code({}, { locale })}
+              </Label>
+              <InputOTP
+                id="daemon-pairing-code"
+                maxLength={6}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={pairingCode}
+                onChange={setPairingCode}
+              >
+                <InputOTPGroup>
+                  {Array.from({ length: 6 }, (_, index) => (
+                    <InputOTPSlot key={index} index={index} />
+                  ))}
+                </InputOTPGroup>
+              </InputOTP>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              disabled={isBusy || pairingCode.trim().length !== 6}
+              onClick={completePairing}
+            >
+              {m.settings_daemon_complete_pairing({}, { locale })}
+            </Button>
+          </div>
+        ) : null}
+      </div>
+    </SettingsGroup>
+  );
+}
+
+function daemonStatusLabel(
+  status: DaemonConnectionState,
+  locale: AppLocale,
+  m: ReturnType<typeof useI18n>["m"],
+) {
+  if (status === "connected") return m.settings_daemon_status_connected({}, { locale });
+  if (status === "invalid-session") return m.settings_daemon_status_invalid({}, { locale });
+  if (status === "pairing-required") return m.settings_daemon_status_pairing({}, { locale });
+  return m.settings_daemon_status_disconnected({}, { locale });
 }
 
 function ThemeGrid({

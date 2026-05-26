@@ -9,7 +9,7 @@ import {
   RiSidebarFoldLine,
   RiSidebarUnfoldLine,
 } from "@remixicon/react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Controls,
   Handle,
@@ -21,15 +21,7 @@ import {
   type Node,
   type NodeProps,
 } from "@xyflow/react";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ChangeEvent,
-  type ReactNode,
-} from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 
 import "@xyflow/react/dist/style.css";
 
@@ -58,11 +50,13 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -80,7 +74,14 @@ import {
   ReviewStateBadge,
   RunStatusBadge,
 } from "@/features/status/status-badge";
-import { getWorkbenchSnapshotForProject } from "@/lib/api";
+import {
+  fallbackWorkbenchProjects,
+  getWorkbenchProjects,
+  getWorkbenchSnapshotForProject,
+  runWorkbenchTests,
+  type WorkbenchRunResult,
+  type WorkbenchProject,
+} from "@/lib/api";
 import { useI18n, type AppLocale } from "@/lib/i18n";
 import { localizeText, localizeTexts } from "@/lib/localized-text";
 import { cn } from "@/lib/utils";
@@ -101,13 +102,6 @@ type StudioNodeData = {
 type StudioNode = Node<StudioNodeData>;
 type MessageModule = ReturnType<typeof useI18n>["m"];
 
-type StudioProject = {
-  id: string;
-  name: string;
-  path: string;
-  source: "current" | "directory" | "example";
-};
-
 type StudioSearchResult = {
   id: string;
   kind: StudioNodeKind;
@@ -120,8 +114,9 @@ type StudioSearchResult = {
   trailing?: string;
 };
 
-type DirectoryPickerCapableWindow = Window & {
-  showDirectoryPicker?: () => Promise<{ name: string }>;
+type StudioRunState = {
+  result: WorkbenchRunResult | null;
+  status: "idle" | "running" | "success" | "failed";
 };
 
 const currentStudioProjectId = "current:test-harness";
@@ -130,21 +125,6 @@ const studioProjectsStorageKey = "harness-studio.projects";
 const selectedStudioProjectStorageKey = "harness-studio.selected-project";
 const projectMenuItemClass =
   "studio-project-menu-item flex h-7 w-full items-center gap-2 px-1.5 text-left text-xs text-popover-foreground outline-none";
-
-const defaultStudioProjects: StudioProject[] = [
-  {
-    id: currentStudioProjectId,
-    name: "test-harness",
-    path: ".",
-    source: "current",
-  },
-  {
-    id: "example:todo-backend",
-    name: "todo-backend",
-    path: "examples/todo-backend",
-    source: "example",
-  },
-];
 
 const studioGraphLayout = {
   activeModuleX: 0,
@@ -221,17 +201,22 @@ const architectureOverviewRelationPairs = [
 ] as const;
 
 function ProjectSwitcher({
+  knownProjects,
   onProjectChange,
   selectedProjectId,
 }: {
+  knownProjects: WorkbenchProject[];
   onProjectChange: (projectId: string) => void;
   selectedProjectId: string;
 }) {
   const { locale, m } = useI18n();
-  const directoryInputRef = useRef<HTMLInputElement>(null);
+  const [isAddProjectOpen, setIsAddProjectOpen] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [projectPath, setProjectPath] = useState("");
   const [query, setQuery] = useState("");
-  const [projects, setProjects] = useState<StudioProject[]>(readStoredStudioProjects);
+  const [projects, setProjects] = useState<WorkbenchProject[]>(() =>
+    mergeStudioProjects([...knownProjects, ...readStoredStudioProjects()]),
+  );
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -239,16 +224,13 @@ function ProjectSwitcher({
   }, [projects]);
 
   useEffect(() => {
+    setProjects((current) => mergeStudioProjects([...knownProjects, ...current]));
+  }, [knownProjects]);
+
+  useEffect(() => {
     if (typeof window === "undefined") return;
     window.localStorage.setItem(selectedStudioProjectStorageKey, selectedProjectId);
   }, [selectedProjectId]);
-
-  useEffect(() => {
-    const input = directoryInputRef.current;
-    if (!input) return;
-    input.setAttribute("directory", "");
-    input.setAttribute("webkitdirectory", "");
-  }, []);
 
   const selectedProject = useMemo(
     () => projects.find((project) => project.id === selectedProjectId) ?? projects[0],
@@ -270,7 +252,7 @@ function ProjectSwitcher({
   );
 
   const selectProject = useCallback(
-    (project: StudioProject) => {
+    (project: WorkbenchProject) => {
       setProjects((current) =>
         moveStudioProjectToFront(upsertStudioProject(current, project), project.id),
       );
@@ -285,150 +267,163 @@ function ProjectSwitcher({
     setIsOpen(false);
   }, [onProjectChange]);
 
-  const addProject = useCallback(async () => {
-    if (typeof window === "undefined") return;
+  const openAddProject = useCallback(() => {
+    setIsOpen(false);
+    setIsAddProjectOpen(true);
+  }, []);
 
-    const directoryPicker = (window as DirectoryPickerCapableWindow).showDirectoryPicker;
-    if (directoryPicker) {
-      try {
-        const handle = await directoryPicker.call(window);
-        selectProject(createDirectoryStudioProject(handle.name));
-      } catch (error) {
-        if (!(error instanceof DOMException) || error.name !== "AbortError") {
-          throw error;
-        }
-      }
-      return;
-    }
+  const addProject = useCallback(
+    (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      const path = projectPath.trim();
+      if (!path) return;
 
-    directoryInputRef.current?.click();
-  }, [selectProject]);
-
-  const addProjectFromInput = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      const firstFile = event.currentTarget.files?.[0];
-      const projectName =
-        firstFile?.webkitRelativePath.split("/").filter(Boolean)[0] ?? firstFile?.name;
-
-      if (projectName) {
-        selectProject(createDirectoryStudioProject(projectName));
-      }
-
-      event.currentTarget.value = "";
+      selectProject(createDirectoryStudioProject(path));
+      setProjectPath("");
+      setIsAddProjectOpen(false);
     },
-    [selectProject],
+    [projectPath, selectProject],
   );
 
   return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <PopoverTrigger
-        render={
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            aria-label={m.studio_project_switcher({}, { locale })}
-            className="studio-floating-control studio-project-trigger justify-start"
-          />
-        }
-      >
-        <RiFolderLine />
-        <span className="truncate">{selectedProjectName}</span>
-      </PopoverTrigger>
-
-      <PopoverContent
-        align="start"
-        side="bottom"
-        sideOffset={4}
-        className="studio-project-menu w-(--studio-project-menu-width) gap-2 border-border bg-popover p-2"
-      >
-        <div className="relative">
-          <RiSearchLine className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            aria-label={m.studio_project_search_placeholder({}, { locale })}
-            className="studio-project-search h-8 pl-7 text-xs"
-            placeholder={m.studio_project_search_placeholder({}, { locale })}
-            value={query}
-            onChange={(event) => setQuery(event.currentTarget.value)}
-          />
-        </div>
-
-        <div
-          className="space-y-0.5 border-b border-border pb-2"
-          aria-label={m.studio_project_recent({}, { locale })}
+    <>
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <PopoverTrigger
+          render={
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              aria-label={m.studio_project_switcher({}, { locale })}
+              className="studio-floating-control studio-project-trigger justify-start"
+            />
+          }
         >
-          {visibleProjects.length > 0 ? (
-            visibleProjects.map((project) => (
-              <button
-                key={project.id}
-                type="button"
-                className={projectMenuItemClass}
-                data-selected={project.id === selectedProjectId}
-                onClick={() => selectProject(project)}
-              >
-                <RiFolderLine className="size-3.5 shrink-0 text-muted-foreground" />
-                <span className="min-w-0 flex-1 truncate">{project.name}</span>
-                {project.id === selectedProjectId ? (
-                  <RiCheckLine className="size-3.5 shrink-0 text-muted-foreground" />
-                ) : null}
-              </button>
-            ))
-          ) : (
-            <div className="px-1.5 py-2 text-xs text-muted-foreground">
-              {m.studio_project_no_results({}, { locale })}
-            </div>
-          )}
-        </div>
+          <RiFolderLine />
+          <span className="truncate">{selectedProjectName}</span>
+        </PopoverTrigger>
 
-        <div className="space-y-0.5">
-          <button type="button" className={projectMenuItemClass} onClick={addProject}>
-            <RiFolderAddLine className="size-3.5 shrink-0 text-muted-foreground" />
-            <span className="min-w-0 flex-1 truncate">{m.studio_project_add({}, { locale })}</span>
-            <RiArrowRightSLine className="size-3.5 shrink-0 text-muted-foreground" />
-          </button>
-          <button
-            type="button"
-            className={projectMenuItemClass}
-            data-selected={selectedProjectId === noStudioProjectId}
-            onClick={selectNoProject}
+        <PopoverContent
+          align="start"
+          side="bottom"
+          sideOffset={4}
+          className="studio-project-menu w-(--studio-project-menu-width) gap-2 border-border bg-popover p-2"
+        >
+          <div className="relative">
+            <RiSearchLine className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              aria-label={m.studio_project_search_placeholder({}, { locale })}
+              className="studio-project-search h-8 pl-7 text-xs"
+              placeholder={m.studio_project_search_placeholder({}, { locale })}
+              value={query}
+              onChange={(event) => setQuery(event.currentTarget.value)}
+            />
+          </div>
+
+          <div
+            className="space-y-0.5 border-b border-border pb-2"
+            aria-label={m.studio_project_recent({}, { locale })}
           >
-            <RiCloseLine className="size-3.5 shrink-0 text-muted-foreground" />
-            <span className="min-w-0 flex-1 truncate">{m.studio_project_none({}, { locale })}</span>
-            {selectedProjectId === noStudioProjectId ? (
-              <RiCheckLine className="size-3.5 shrink-0 text-muted-foreground" />
-            ) : null}
-          </button>
-        </div>
+            {visibleProjects.length > 0 ? (
+              visibleProjects.map((project) => (
+                <button
+                  key={project.id}
+                  type="button"
+                  className={projectMenuItemClass}
+                  data-selected={project.id === selectedProjectId}
+                  onClick={() => selectProject(project)}
+                >
+                  <RiFolderLine className="size-3.5 shrink-0 text-muted-foreground" />
+                  <span className="min-w-0 flex-1 truncate">{project.name}</span>
+                  {project.id === selectedProjectId ? (
+                    <RiCheckLine className="size-3.5 shrink-0 text-muted-foreground" />
+                  ) : null}
+                </button>
+              ))
+            ) : (
+              <div className="px-1.5 py-2 text-xs text-muted-foreground">
+                {m.studio_project_no_results({}, { locale })}
+              </div>
+            )}
+          </div>
 
-        <input
-          ref={directoryInputRef}
-          aria-hidden="true"
-          hidden
-          tabIndex={-1}
-          type="file"
-          onChange={addProjectFromInput}
-        />
-      </PopoverContent>
-    </Popover>
+          <div className="space-y-0.5">
+            <button type="button" className={projectMenuItemClass} onClick={openAddProject}>
+              <RiFolderAddLine className="size-3.5 shrink-0 text-muted-foreground" />
+              <span className="min-w-0 flex-1 truncate">
+                {m.studio_project_add({}, { locale })}
+              </span>
+              <RiArrowRightSLine className="size-3.5 shrink-0 text-muted-foreground" />
+            </button>
+            <button
+              type="button"
+              className={projectMenuItemClass}
+              data-selected={selectedProjectId === noStudioProjectId}
+              onClick={selectNoProject}
+            >
+              <RiCloseLine className="size-3.5 shrink-0 text-muted-foreground" />
+              <span className="min-w-0 flex-1 truncate">
+                {m.studio_project_none({}, { locale })}
+              </span>
+              {selectedProjectId === noStudioProjectId ? (
+                <RiCheckLine className="size-3.5 shrink-0 text-muted-foreground" />
+              ) : null}
+            </button>
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      <Dialog open={isAddProjectOpen} onOpenChange={setIsAddProjectOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{m.studio_project_add_title({}, { locale })}</DialogTitle>
+            <DialogDescription>
+              {m.studio_project_add_description({}, { locale })}
+            </DialogDescription>
+          </DialogHeader>
+          <form className="space-y-3" onSubmit={addProject}>
+            <div className="space-y-2">
+              <Label htmlFor="studio-project-path">
+                {m.studio_project_path_label({}, { locale })}
+              </Label>
+              <Input
+                id="studio-project-path"
+                value={projectPath}
+                placeholder={m.studio_project_path_placeholder({}, { locale })}
+                onChange={(event) => setProjectPath(event.currentTarget.value)}
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsAddProjectOpen(false)}>
+                {m.action_cancel({}, { locale })}
+              </Button>
+              <Button type="submit" disabled={!projectPath.trim()}>
+                {m.studio_project_add_submit({}, { locale })}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
 function readStoredStudioProjects() {
-  if (typeof window === "undefined") return defaultStudioProjects;
+  if (typeof window === "undefined") return fallbackWorkbenchProjects;
 
   const storedProjects = window.localStorage.getItem(studioProjectsStorageKey);
-  if (!storedProjects) return defaultStudioProjects;
+  if (!storedProjects) return fallbackWorkbenchProjects;
 
   try {
     const parsedProjects: unknown = JSON.parse(storedProjects);
-    if (!Array.isArray(parsedProjects)) return defaultStudioProjects;
+    if (!Array.isArray(parsedProjects)) return fallbackWorkbenchProjects;
     return mergeStudioProjects(parsedProjects.filter(isStudioProject));
   } catch {
-    return defaultStudioProjects;
+    return fallbackWorkbenchProjects;
   }
 }
 
-function readStoredSelectedProjectId(projects: StudioProject[]) {
+function readStoredSelectedProjectId(projects: WorkbenchProject[]) {
   if (typeof window === "undefined") return currentStudioProjectId;
 
   const storedProjectId = window.localStorage.getItem(selectedStudioProjectStorageKey);
@@ -440,7 +435,7 @@ function readStoredSelectedProjectId(projects: StudioProject[]) {
   return currentStudioProjectId;
 }
 
-function isStudioProject(value: unknown): value is StudioProject {
+function isStudioProject(value: unknown): value is WorkbenchProject {
   if (!value || typeof value !== "object") return false;
 
   const project = value as Record<string, unknown>;
@@ -452,42 +447,41 @@ function isStudioProject(value: unknown): value is StudioProject {
   );
 }
 
-function createDirectoryStudioProject(directoryName: string): StudioProject {
-  const name = directoryName.trim() || "Selected project";
-  const slug = name
-    .toLocaleLowerCase()
-    .replaceAll(/[^a-z0-9._-]+/g, "-")
-    .replaceAll(/(^-|-$)/g, "");
+function createDirectoryStudioProject(directoryPath: string): WorkbenchProject {
+  const path = directoryPath.trim().replaceAll(/\/+$/g, "") || "Selected project";
+  const name = path.split("/").filter(Boolean).at(-1) ?? path;
 
   return {
-    id: `directory:${slug || "project"}`,
+    id: `directory:${path}`,
     name,
-    path: name,
+    path,
     source: "directory",
   };
 }
 
-function mergeStudioProjects(projects: StudioProject[]) {
-  const projectsById = new Map<string, StudioProject>();
-  for (const project of [...defaultStudioProjects, ...projects]) {
+function mergeStudioProjects(projects: WorkbenchProject[]) {
+  const projectsById = new Map<string, WorkbenchProject>();
+  for (const project of [...fallbackWorkbenchProjects, ...projects]) {
     projectsById.set(project.id, project);
   }
   return [...projectsById.values()];
 }
 
-function upsertStudioProject(projects: StudioProject[], project: StudioProject) {
+function upsertStudioProject(projects: WorkbenchProject[], project: WorkbenchProject) {
   const mergedProjects = projects.filter((item) => item.id !== project.id);
   return [project, ...mergedProjects];
 }
 
-function moveStudioProjectToFront(projects: StudioProject[], projectId: string) {
+function moveStudioProjectToFront(projects: WorkbenchProject[], projectId: string) {
   const project = projects.find((item) => item.id === projectId);
   if (!project) return projects;
   return [project, ...projects.filter((item) => item.id !== projectId)];
 }
 
-function getStudioProjectName(projectId: string) {
-  const storedProject = readStoredStudioProjects().find((project) => project.id === projectId);
+function getStudioProjectName(projectId: string, knownProjects: WorkbenchProject[]) {
+  const storedProject = mergeStudioProjects([...knownProjects, ...readStoredStudioProjects()]).find(
+    (project) => project.id === projectId,
+  );
   if (storedProject) return storedProject.name;
   if (projectId === noStudioProjectId) return "";
   return projectId.replace(/^directory:/, "").replaceAll("-", " ") || "test-harness";
@@ -579,6 +573,11 @@ export function HarnessStudioPage({
   const [selectedProjectId, setSelectedProjectId] = useState(() =>
     readStoredSelectedProjectId(readStoredStudioProjects()),
   );
+  const queryClient = useQueryClient();
+  const { data: knownProjects = fallbackWorkbenchProjects } = useQuery({
+    queryKey: ["workbench-projects"],
+    queryFn: getWorkbenchProjects,
+  });
   const { data } = useQuery({
     queryKey: ["workbench-snapshot", selectedProjectId],
     queryFn: () => getWorkbenchSnapshotForProject(selectedProjectId),
@@ -590,6 +589,7 @@ export function HarnessStudioPage({
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(settingsOpenByDefault);
   const [hasReadQueryState, setHasReadQueryState] = useState(false);
+  const [runState, setRunState] = useState<StudioRunState>({ result: null, status: "idle" });
   const nodeTypes = useMemo(() => ({ studio: StudioGraphNode }), []);
 
   useEffect(() => {
@@ -657,7 +657,7 @@ export function HarnessStudioPage({
   const selectedProjectName =
     selectedProjectId === noStudioProjectId
       ? m.studio_project_none({}, { locale })
-      : getStudioProjectName(selectedProjectId);
+      : getStudioProjectName(selectedProjectId, knownProjects);
 
   const { edges, nodes } = useMemo(
     () =>
@@ -711,7 +711,23 @@ export function HarnessStudioPage({
     setSelectedModuleId(null);
     setSelectedPromiseId(null);
     setIsPanelCollapsed(true);
+    setRunState({ result: null, status: "idle" });
   }, []);
+
+  const runTests = useCallback(async () => {
+    setRunState((current) => ({ ...current, status: "running" }));
+    const result = await runWorkbenchTests(selectedProjectId);
+    if (!result) {
+      setRunState({ result: null, status: "failed" });
+      return;
+    }
+
+    setRunState({
+      result,
+      status: result.exitCode === 0 ? "success" : "failed",
+    });
+    await queryClient.invalidateQueries({ queryKey: ["workbench-snapshot", selectedProjectId] });
+  }, [queryClient, selectedProjectId]);
 
   return (
     <div className="studio-canvas-frame relative h-full min-h-0 overflow-hidden">
@@ -742,6 +758,7 @@ export function HarnessStudioPage({
             <div className="studio-top-bar">
               <div className="studio-top-controls">
                 <ProjectSwitcher
+                  knownProjects={knownProjects}
                   onProjectChange={changeProject}
                   selectedProjectId={selectedProjectId}
                 />
@@ -852,9 +869,13 @@ export function HarnessStudioPage({
             </Panel>
           ) : (
             <ContextPanel
+              canRunTests={data?.source === "daemon"}
+              isRunningTests={runState.status === "running"}
               module={selectedModule}
               onCollapse={() => setIsPanelCollapsed(true)}
+              onRunTests={runTests}
               promise={selectedPromise}
+              runState={runState}
               snapshot={data ?? null}
             />
           )}
@@ -951,14 +972,22 @@ function StudioSearchItem({
 }
 
 function ContextPanel({
+  canRunTests,
+  isRunningTests,
   module,
   onCollapse,
+  onRunTests,
   promise,
+  runState,
   snapshot,
 }: {
+  canRunTests: boolean;
+  isRunningTests: boolean;
   module: HarnessModule | null;
   onCollapse: () => void;
+  onRunTests: () => void;
   promise: HarnessPromise | null;
+  runState: StudioRunState;
   snapshot: HarnessSnapshot | null;
 }) {
   const { locale, m } = useI18n();
@@ -1001,10 +1030,54 @@ function ContextPanel({
             ) : snapshot ? (
               <StudioContext snapshot={snapshot} />
             ) : null}
+            <RunSummary runState={runState} />
           </div>
         </ScrollArea>
+
+        <div className="border-t border-border p-(--studio-panel-padding)">
+          <Button
+            type="button"
+            className="w-full"
+            disabled={!canRunTests || isRunningTests}
+            onClick={onRunTests}
+          >
+            {isRunningTests
+              ? m.studio_run_running({}, { locale })
+              : m.action_run_tests({}, { locale })}
+          </Button>
+          {!canRunTests ? (
+            <p className="mt-(--studio-panel-gap-sm) text-xs text-muted-foreground">
+              {m.studio_run_requires_daemon({}, { locale })}
+            </p>
+          ) : null}
+        </div>
       </div>
     </Panel>
+  );
+}
+
+function RunSummary({ runState }: { runState: StudioRunState }) {
+  const { locale, m } = useI18n();
+  if (runState.status === "idle" || runState.status === "running") return null;
+
+  const title =
+    runState.status === "success"
+      ? m.studio_run_succeeded({}, { locale })
+      : m.studio_run_failed({}, { locale });
+  const output = [runState.result?.stdout, runState.result?.stderr]
+    .filter((value): value is string => Boolean(value?.trim()))
+    .join("\n");
+
+  return (
+    <section className="studio-context-card mt-(--studio-panel-gap) border border-border bg-card p-(--studio-panel-padding)">
+      <h2 className="text-sm font-medium">{title}</h2>
+      <p className="mt-(--studio-panel-gap-xs) text-xs text-muted-foreground">
+        {m.studio_run_exit_code({}, { locale })}: {runState.result?.exitCode ?? 1}
+      </p>
+      <pre className="mt-(--studio-panel-gap-sm) max-h-40 overflow-auto whitespace-pre-wrap border border-border bg-background p-(--studio-panel-gap-sm) font-mono text-xs">
+        {output || m.studio_run_no_output({}, { locale })}
+      </pre>
+    </section>
   );
 }
 
@@ -1012,7 +1085,7 @@ function SnapshotSourceNotice() {
   const { locale, m } = useI18n();
 
   return (
-    <section className="mb-(--studio-panel-gap) rounded-md border border-destructive bg-destructive/10 p-(--studio-panel-padding) text-destructive">
+    <section className="studio-context-card mb-(--studio-panel-gap) border border-destructive bg-destructive/10 p-(--studio-panel-padding) text-destructive">
       <h2 className="text-sm font-medium">{m.studio_snapshot_fallback_title({}, { locale })}</h2>
       <p className="mt-(--studio-panel-gap-xs) text-xs">
         {m.studio_snapshot_fallback_body({}, { locale })}
@@ -1026,7 +1099,7 @@ function StudioContext({ snapshot }: { snapshot: HarnessSnapshot }) {
 
   return (
     <div className="space-y-(--studio-panel-gap)">
-      <section className="rounded-md border bg-muted p-(--studio-panel-padding)">
+      <section className="studio-context-card border bg-muted p-(--studio-panel-padding)">
         <h2 className="text-sm font-medium">{m.studio_context_empty_title({}, { locale })}</h2>
         <p className="mt-(--studio-panel-gap-sm) text-xs text-muted-foreground">
           {m.studio_context_empty_body({}, { locale })}
@@ -1668,7 +1741,7 @@ function CodeList({ items }: { items: string[] }) {
 
 function StatusRow({ label, value }: { label: string; value: number }) {
   return (
-    <div className="flex items-center justify-between gap-(--studio-panel-gap) rounded-md border bg-card p-(--studio-panel-gap-sm) shadow-xs">
+    <div className="studio-context-card flex items-center justify-between gap-(--studio-panel-gap) border bg-card p-(--studio-panel-gap-sm)">
       <span className="min-w-0 truncate">{label}</span>
       <span className="shrink-0 font-medium">{value === 0 ? "OK" : value}</span>
     </div>
