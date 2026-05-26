@@ -1,0 +1,18 @@
+apiVersion: 1
+id: web-dashboard
+title:
+  en: Harness Studio — canvas-first promise workbench
+  zh-CN: Harness Studio — Canvas-first Promise Workbench
+summary:
+  en: The Vite frontend that lets humans explore architecture modules, promises, evidence, and run status from one canvas without opening raw YAML first.
+  zh-CN: Vite 前端，让人无需先打开原始 YAML，就能从一个 canvas 浏览 architecture modules、promises、evidence 和 run status。
+purpose:
+  en: Harness Studio is the human-facing architecture and promise control surface; it must make review and navigation legible before daemon-backed writes exist.
+  zh-CN: Harness Studio 是面向人类的 architecture 与 promise 控制界面；在 daemon-backed 写入能力出现前，它也必须让 Review 和导航足够清晰。
+promises:
+  - harness.web_dashboard.renders_canvas_first_harness_studio
+  - harness.web_dashboard.i18n_switches_chrome_and_snapshot_text
+  - harness.web_dashboard.switches_recent_project_contexts
+covers:
+  - apps/web/**
+  - packages/i18n/**

@@ -1,0 +1,57 @@
+.backend-status {
+  --todo-status-border: #ededed;
+  --todo-status-error: #b83f45;
+  --todo-status-foreground: #777;
+  --todo-status-strong: #4d4d4d;
+}
+
+.visually-hidden {
+  border: 0;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+.toggle-all {
+  height: 60px !important;
+  right: auto !important;
+  width: 40px !important;
+}
+
+.toggle-all-label {
+  pointer-events: none;
+}
+
+.backend-status {
+  border-top: 1px solid var(--todo-status-border);
+  color: var(--todo-status-foreground);
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 10px 15px;
+}
+
+.backend-status strong {
+  color: var(--todo-status-strong);
+  font-weight: 400;
+}
+
+.backend-status button {
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  float: right;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.backend-status .error {
+  color: var(--todo-status-error);
+}

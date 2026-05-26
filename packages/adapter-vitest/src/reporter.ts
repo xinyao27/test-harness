@@ -34,6 +34,7 @@ export type TestResultStatus = "failing" | "passing" | "skipped";
 export type TestResult = {
   readonly failureMessage?: string;
   readonly file: string;
+  readonly labels?: Record<string, string>;
   readonly promiseId: string;
   readonly status: TestResultStatus;
   readonly testName: string;
@@ -63,6 +64,27 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const promiseIdOf = (meta: unknown): string | undefined => {
   if (!isRecord(meta)) return undefined;
   return typeof meta.promiseId === "string" ? meta.promiseId : undefined;
+};
+
+const labelsOf = (meta: unknown): Record<string, string> | undefined => {
+  if (!isRecord(meta)) return undefined;
+
+  const labels = isRecord(meta.labels)
+    ? Object.fromEntries(
+        Object.entries(meta.labels).filter(
+          (entry): entry is [string, string] =>
+            entry[0].trim().length > 0 &&
+            typeof entry[1] === "string" &&
+            entry[1].trim().length > 0,
+        ),
+      )
+    : {};
+
+  if (typeof meta.implementation === "string" && meta.implementation.trim().length > 0) {
+    labels.implementation = meta.implementation;
+  }
+
+  return Object.keys(labels).length > 0 ? labels : undefined;
 };
 
 const messageOf = (value: unknown): string | undefined => {
@@ -100,13 +122,16 @@ export const collectTestResultsFromModules = (
   for (const module of modules) {
     for (const testCase of module.children?.allTests?.() ?? []) {
       const result = testCase.result?.();
-      const promiseId = promiseIdOf(testCase.meta?.());
+      const meta = testCase.meta?.();
+      const promiseId = promiseIdOf(meta);
+      const labels = labelsOf(meta);
       const status = statusOf(result);
       if (!promiseId || !status) continue;
 
       results.push({
         ...(status === "failing" ? { failureMessage: failureMessageOf(result?.errors) } : {}),
         file: testCase.module?.moduleId ?? module.moduleId ?? module.relativeModuleId ?? "",
+        ...(labels ? { labels } : {}),
         promiseId,
         status,
         testName: testCase.fullName ?? testCase.name ?? "Unnamed test",

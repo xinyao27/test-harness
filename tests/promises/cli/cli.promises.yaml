@@ -1,0 +1,204 @@
+apiVersion: 1
+promises:
+  - id: harness.cli.check_validates_promises
+    feature: Seed Harness / CLI
+    title:
+      en: The check command validates canonical promises
+      zh-CN: check 命令会校验 canonical promises
+    purpose:
+      en: Protect the seed loop with a fast command that validates promise files before running tests.
+      zh-CN: 用一个快速命令在运行测试前校验 promise files，保护 seed loop。
+    priority: P0
+    boundary: integration
+    lifecycle: accepted
+    given:
+      - en: Canonical promise files exist in the workspace
+        zh-CN: workspace 中存在 canonical promise files
+    when:
+      - en: The user runs harness check
+        zh-CN: 用户运行 harness check
+    then:
+      - en: Valid promise files produce a successful check summary
+        zh-CN: 有效的 promise files 会产生成功的 check summary
+      - en: Invalid promise files produce typed errors and a non-zero exit code
+        zh-CN: 无效的 promise files 会产生 typed errors 和非 0 exit code
+    observes:
+      - harness check
+      - tests/harness.yaml
+      - tests/promises/**/*.promises.yaml
+    failureMeaning:
+      en: Humans and Agents cannot quickly tell whether reviewed promise files are structurally valid.
+      zh-CN: 人类和 Agent 无法快速判断已 review 的 promise files 是否结构有效。
+    review:
+      approvedBy: xinyao
+      approvedAt: "2026-05-24"
+
+  - id: harness.cli.report_summary_lists_promises_compactly
+    feature: Seed Harness / CLI
+    title:
+      en: Report --summary lists every promise in one line grouped by feature
+      zh-CN: report --summary 会按 feature 分组、每条 promise 一行地列出全部 promise
+    purpose:
+      en: Protect a one-screen scan of the project's reviewed behavior promises so a human can quickly see all current capabilities without expanding each promise.
+      zh-CN: 保护"一屏扫完项目全部已 review 行为承诺"的能力，让人无需逐条展开就能快速看到当前所有能力。
+    priority: P0
+    boundary: integration
+    lifecycle: accepted
+    given:
+      - en: Canonical promises and optional test results exist in the workspace
+        zh-CN: workspace 中存在 canonical promises 和可选的 test results
+    when:
+      - en: The user runs harness report --summary or harness verify --summary
+        zh-CN: 用户运行 harness report --summary 或 harness verify --summary
+    then:
+      - en: The CLI renders a header line with total promise, error, and warning counts
+        zh-CN: CLI 会渲染一行 header，显示 promise 总数、error 数和 warning 数
+      - en: Promises are grouped by feature in alphabetical order
+        zh-CN: promises 按 feature 字母序分组
+      - en: Each promise occupies exactly one line containing its priority, lifecycle, run status, and title
+        zh-CN: 每条 promise 占一行，包含 priority、lifecycle、run status 和 title
+      - en: No Given, When, Then, Evidence, Purpose, or Failure meaning details are expanded in summary mode
+        zh-CN: summary 模式下不展开 Given、When、Then、Evidence、Purpose 或 Failure meaning 细节
+    observes:
+      - harness report --summary
+      - harness verify --summary
+    failureMeaning:
+      en: A human cannot quickly review the project's full set of reviewed behavior promises, making promise review an expensive action and weakening the core value of the Harness.
+      zh-CN: 人类无法快速 review 项目全部已 review 行为承诺，promise review 变成高成本动作，削弱 Harness 的核心价值。
+    review:
+      approvedBy: xinyao
+      approvedAt: "2026-05-24"
+
+  - id: harness.cli.report_renders_promise_status
+    feature: Seed Harness / CLI
+    title:
+      en: Report commands render readable promise status
+      zh-CN: report 命令会渲染可读的 promise status
+    purpose:
+      en: Protect the human-facing CLI path for reading promise lifecycle and run status without opening test files.
+      zh-CN: 保护面向人类的 CLI 路径，让人无需打开测试文件就能读取 promise lifecycle 和 run status。
+    priority: P0
+    boundary: integration
+    lifecycle: accepted
+    given:
+      - en: Canonical promises and optional test results exist in the workspace
+        zh-CN: workspace 中存在 canonical promises 和可选的 test results
+    when:
+      - en: The user runs harness report or harness verify
+        zh-CN: 用户运行 harness report 或 harness verify
+    then:
+      - en: The CLI renders a Seed Harness Report
+        zh-CN: CLI 会渲染 Seed Harness Report
+      - en: Each promise shows lifecycle, run status, purpose, Given / When / Then, evidence, and failure meaning
+        zh-CN: 每条 promise 都会显示 lifecycle、run status、purpose、Given / When / Then、evidence 和 failure meaning
+    observes:
+      - harness report
+      - harness verify
+      - .harness/results.yaml
+    failureMeaning:
+      en: Humans cannot inspect the current promise status without reading implementation or test files.
+      zh-CN: 人类无法在不阅读实现或测试文件的情况下检查当前 promise status。
+    review:
+      approvedBy: xinyao
+      approvedAt: "2026-05-24"
+
+  - id: harness.cli.rejects_invalid_arguments_with_usage_hint
+    feature: Seed Harness / CLI
+    title:
+      en: Invalid CLI arguments are rejected with a clear error and a usage hint
+      zh-CN: 非法 CLI 参数会以明确错误信息加用法提示被拒绝
+    purpose:
+      en: Protect humans running the CLI from silent argument bugs — invalid usage should fail loudly, name the offending argument, and show the correct command shape.
+      zh-CN: 保护使用 CLI 的人 —— 非法用法应该明确失败、指出是哪个参数有问题，并展示正确的命令形态。
+    priority: P1
+    boundary: integration
+    lifecycle: accepted
+    given:
+      - en: The harness CLI is invoked with an invalid argument (for example a flag that requires a value but receives none)
+        zh-CN: harness CLI 被传入非法参数（例如某个 flag 需要 value 但没有提供）
+    when:
+      - en: The CLI parses its arguments
+        zh-CN: CLI 解析参数
+    then:
+      - en: The process exits with status 1
+        zh-CN: 进程以 status 1 退出
+      - en: stderr contains a specific error message naming the offending argument
+        zh-CN: stderr 包含具体错误信息，指出是哪个参数有问题
+      - en: "stderr contains a `Usage: harness ...` hint showing the correct command shape"
+        zh-CN: "stderr 包含 `Usage: harness ...` 提示，展示正确的命令形态"
+    observes:
+      - crates/harness-cli/src/lib.rs
+    failureMeaning:
+      en: Users mis-invoking the CLI may face cryptic errors or silent failures, slowing down adoption and weakening trust in the harness.
+      zh-CN: 误用 CLI 的人可能遇到难懂的错误或静默失败，影响 harness 的采用率和信任度。
+    review:
+      approvedBy: xinyao
+      approvedAt: "2026-05-25"
+
+  - id: harness.cli.test_reads_runner_config
+    feature: Seed Harness / CLI
+    title:
+      en: The test command reads its runner from Harness config
+      zh-CN: test 命令会从 Harness config 读取 runner
+    purpose:
+      en: Protect the CLI boundary by making the adapter runner an external command declared in tests/harness.yaml rather than a Vitest-specific CLI assumption.
+      zh-CN: 通过让 adapter runner 成为 tests/harness.yaml 中声明的外部命令，而不是 CLI 内部对 Vitest 的假设，保护 CLI 边界。
+    priority: P0
+    boundary: integration
+    lifecycle: accepted
+    given:
+      - en: The workspace contains a versioned tests/harness.yaml file with test.runner.command and test.runner.args
+        zh-CN: workspace 中存在带版本的 tests/harness.yaml 文件，包含 test.runner.command 和 test.runner.args
+    when:
+      - en: A user runs harness test without injecting an in-process test runner
+        zh-CN: 用户在没有注入进程内 test runner 的情况下运行 harness test
+    then:
+      - en: The CLI spawns the configured command with the configured args
+        zh-CN: CLI 会用配置里的 args 启动配置里的 command
+      - en: The spawned runner receives HARNESS_ROOT_DIR set to the workspace root
+        zh-CN: 被启动的 runner 会收到设置为 workspace root 的 HARNESS_ROOT_DIR
+      - en: The CLI remains independent from Vitest-specific runner details
+        zh-CN: CLI 保持独立于 Vitest 特定 runner 细节
+    observes:
+      - tests/harness.yaml
+      - crates/harness-cli/src/lib.rs
+      - crates/harness-core/src/config.rs
+    failureMeaning:
+      en: The CLI would need to preserve hidden runner assumptions instead of following a portable project config.
+      zh-CN: CLI 将不得不保留隐藏的 runner 假设，而不是遵循可移植的项目配置。
+    review:
+      approvedBy: xinyao
+      approvedAt: "2026-05-25"
+
+  - id: harness.cli.test_orchestrates_adapter_and_verify
+    feature: Seed Harness / CLI
+    title:
+      en: The test command runs an adapter and renders promise status
+      zh-CN: test 命令会运行 adapter 并渲染 promise 状态
+    purpose:
+      en: Protect the minimal self-bootstrapping loop behind a single human-facing command without making the protocol depend on a specific test framework.
+      zh-CN: 保护最小自举闭环可以通过一个面向人的命令运行，同时不让 protocol 依赖某个特定测试框架。
+    priority: P0
+    boundary: integration
+    lifecycle: accepted
+    given:
+      - en: Canonical promises exist and a configured adapter can produce Harness result YAML
+        zh-CN: canonical promises 存在，并且配置好的 adapter 可以产出 Harness result YAML
+    when:
+      - en: A user runs harness test
+        zh-CN: 用户运行 harness test
+    then:
+      - en: The CLI runs the configured adapter command
+        zh-CN: CLI 会运行配置好的 adapter 命令
+      - en: The verification report is rendered from .harness/results.yaml
+        zh-CN: verification report 会基于 .harness/results.yaml 渲染
+    observes:
+      - harness test
+      - .harness/results.yaml
+      - protocol/v1/results.schema.yaml
+    failureMeaning:
+      en: The Harness cannot provide a single command for the reviewed promise-to-test loop.
+      zh-CN: Harness 无法为已 review 的 promise-to-test 闭环提供单一命令。
+    review:
+      approvedBy: xinyao
+      approvedAt: "2026-05-24"

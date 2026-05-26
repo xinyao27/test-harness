@@ -1,9 +1,6 @@
-import { RiCheckboxCircleLine, RiLoopRightLine, RiSparklingLine } from "@remixicon/react";
 import { useQuery } from "@tanstack/react-query";
 
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
 import { getWorkbenchSnapshot } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { localizeText } from "@/lib/localized-text";
@@ -20,22 +17,18 @@ export function GeneratePage() {
     ) ?? [];
 
   return (
-    <div className="grid h-full min-h-0 grid-cols-1 gap-3 overflow-y-auto overflow-x-hidden p-3 sm:p-4 lg:grid-cols-3">
+    <div className="grid h-full min-h-0 grid-cols-1 gap-3 overflow-y-auto overflow-x-hidden p-3 sm:p-4 lg:grid-cols-2">
       <Card>
         <CardHeader>
           <CardTitle>{m.generate_step_context({}, { locale })}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Textarea
-            className="min-h-36"
-            defaultValue={m.generate_context_default({}, { locale })}
-          />
+          <p className="text-sm">{m.generate_context_default({}, { locale })}</p>
           <div className="space-y-2 text-xs text-muted-foreground">
             {relatedModules.map((module) => (
-              <label key={module.id} className="flex items-center gap-2">
-                <input type="checkbox" defaultChecked className="size-3 accent-foreground" />
+              <div key={module.id} className="border-l border-border pl-2">
                 {localizeText(module.title, locale)}
-              </label>
+              </div>
             ))}
           </div>
         </CardContent>
@@ -66,26 +59,6 @@ export function GeneratePage() {
             label={m.draft_then({}, { locale })}
             value={m.draft_then_value({}, { locale })}
           />
-          <Button variant="outline" size="sm">
-            <RiLoopRightLine />
-            {m.action_regenerate({}, { locale })}
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{m.generate_step_decision({}, { locale })}</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-2">
-          <Button>
-            <RiCheckboxCircleLine />
-            {m.action_approve_and_write({}, { locale })}
-          </Button>
-          <Button variant="outline">
-            <RiSparklingLine />
-            {m.action_save_draft({}, { locale })}
-          </Button>
         </CardContent>
       </Card>
     </div>
@@ -96,7 +69,7 @@ function DraftField({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <div className="mb-1 text-xs text-muted-foreground">{label}</div>
-      <div className="border-l pl-3 text-sm">{value}</div>
+      <div className="border-l border-border pl-3 text-sm">{value}</div>
     </div>
   );
 }

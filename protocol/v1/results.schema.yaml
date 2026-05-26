@@ -33,3 +33,10 @@ properties:
           type: string
         failureMessage:
           type: string
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+            minLength: 1
+          propertyNames:
+            minLength: 1

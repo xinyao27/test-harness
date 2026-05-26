@@ -5,6 +5,7 @@ members = [
   "crates/harness-cli",
   "crates/harness-adapter-runtime",
   "crates/harness-adapter-rust",
+  "examples/todo-backend/implementations/rust-axum",
 ]
 resolver = "2"
 

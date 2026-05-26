@@ -24,6 +24,24 @@
     "lint": "vp lint --fix",
     "fmt": "vp fmt",
     "test": "vp test",
+    "example:todo:check": "pnpm example:todo-spec-map:check && pnpm example:todo-feature-map:check",
+    "example:todo-client": "pnpm --dir examples/todo-backend/client/todomvc-react dev",
+    "example:todo-client:build": "pnpm --dir examples/todo-backend/client/todomvc-react build",
+    "example:todo:matrix": "node examples/todo-backend/tools/build-matrix.mjs",
+    "example:todo:report": "node examples/todo-backend/tools/run-harness-cli.mjs report --summary",
+    "example:todo:report:full": "node examples/todo-backend/tools/run-harness-cli.mjs report",
+    "example:todo:serve:rust": "cargo build --quiet -p todo-backend-rust-axum && HOST=127.0.0.1 PORT=3102 ./target/debug/todo-backend-rust-axum",
+    "example:todo:serve:typescript": "pnpm --dir examples/todo-backend/implementations/typescript-hono dev",
+    "example:todo-feature-map:check": "node examples/todo-backend/tools/check-feature-map.mjs",
+    "example:todo-spec-map:check": "node examples/todo-backend/tools/check-spec-map.mjs",
+    "example:todo:test": "node examples/todo-backend/tools/run-harness-cli.mjs test --summary",
+    "example:todo:test:browser:rust": "node examples/todo-backend/tools/run-browser-e2e.mjs --backend rust",
+    "example:todo:test:browser:typescript": "node examples/todo-backend/tools/run-browser-e2e.mjs --backend typescript",
+    "example:todo:test:contract": "pnpm --dir examples/todo-backend/contract-tests test",
+    "example:todo:test:rust": "node examples/todo-backend/tools/run-rust-contract.mjs",
+    "example:todo:test:showcase": "node examples/todo-backend/tools/run-showcase-tests.mjs",
+    "example:todo:test:typescript": "node examples/todo-backend/tools/run-typescript-contract.mjs",
+    "example:todo:test:typescript:native": "pnpm --dir examples/todo-backend/implementations/typescript-hono test",
     "ready": "vp check && vp run -r test && vp run -r build",
     "up": "taze major -Ir",
     "prepare": "vp config"
@@ -31,7 +49,8 @@
   "devDependencies": {
     "@test-harness/adapter-vitest": "workspace:*",
     "taze": "catalog:",
-    "vite-plus": "catalog:"
+    "vite-plus": "catalog:",
+    "yaml": "^2.9.0"
   },
   "engines": {
     "node": ">=22.12.0"

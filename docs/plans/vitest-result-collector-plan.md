@@ -106,8 +106,8 @@ Report generation can derive `PromiseRunStatus` from these results:
 1. Add self-promises for Vitest result collection and shared runtime merging:
 
 ```text
-promises/adapters/vitest/vitest.promises.yaml
-promises/adapter-runtime/adapter-runtime.promises.yaml
+tests/promises/adapters/vitest/vitest.promises.yaml
+tests/promises/adapter-runtime/adapter-runtime.promises.yaml
 ```
 
 They describe the promises that Vitest results can be mapped back to canonical promise ids and that adapter event shards can become protocol results.
@@ -148,7 +148,7 @@ The reporter should collect `promiseId`, file, test name, status, and failure me
 
 - `harness verify` reads `.harness/results.yaml` if it exists.
 - `harness report` can share the same behavior.
-- `harness test` runs the configured command from `harness.yaml`; in this repo, that command uses `harness-adapter-runtime` to wrap `vp test`.
+- `harness test` runs the configured command from `tests/harness.yaml`; in this repo, that command uses `harness-adapter-runtime` to wrap `vp test`.
 
 7. Add tests.
 

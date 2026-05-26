@@ -1,0 +1,25 @@
+apiVersion: 1
+id: todo-backend-api-contract
+title:
+  en: Todo-Backend API Contract
+  zh-CN: Todo-Backend API Contract
+summary:
+  en: The official Todo-Backend HTTP behavior, plus the spec-to-promise coverage map that defines what 100% means for this example.
+  zh-CN: 官方 Todo-Backend HTTP 行为，以及定义本 example 中“100% 覆盖”含义的 spec-to-promise coverage map。
+purpose:
+  en: This module lets reviewers inspect the API promises without reading the TypeScript or Rust implementations.
+  zh-CN: 这个 module 让 reviewer 不读 TypeScript 或 Rust implementation，也能检查 API promises。
+promises:
+  - todo_backend.api.create_returns_persisted_todo
+  - todo_backend.api.todo_urls_are_dereferenceable
+  - todo_backend.api.list_returns_current_collection
+  - todo_backend.api.update_changes_title_and_completed
+  - todo_backend.api.order_is_preserved_and_updateable
+  - todo_backend.api.delete_one_removes_only_that_todo
+  - todo_backend.api.delete_all_clears_collection
+  - todo_backend.api.cors_allows_todomvc_client
+  - todo_backend.spec.official_spec_map_is_complete
+covers:
+  - examples/todo-backend/tests/spec-map.yaml
+  - examples/todo-backend/contract-tests/**
+  - examples/todo-backend/tests/promises/contract.promises.yaml

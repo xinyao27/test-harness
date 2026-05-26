@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LifecycleBadge, PriorityBadge, RunStatusBadge } from "@/features/status/status-badge";
 import { getWorkbenchSnapshot } from "@/lib/api";
@@ -47,13 +46,10 @@ export function ModuleDetailPage({ moduleId }: { moduleId: string }) {
             <h1 className="text-lg">{m.module_detail_promises_title({}, { locale })}</h1>
             <div className="text-xs text-muted-foreground">{promises.length}</div>
           </div>
-          <Button variant="outline" size="sm">
-            {m.action_generate_new_promise({}, { locale })}
-          </Button>
         </div>
         {promises.map((promise) => (
           <Link key={promise.id} to="/promises/$promiseId" params={{ promiseId: promise.id }}>
-            <Card size="sm" className="transition-colors hover:bg-muted/40">
+            <Card size="sm" className="transition-colors hover:bg-muted">
               <CardContent className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
                 <div className="min-w-0">
                   <div className="truncate text-sm">{localizeText(promise.title, locale)}</div>
@@ -79,7 +75,7 @@ function InfoBlock({ title, items }: { title: string; items: string[] }) {
       <div className="mb-2 text-xs text-muted-foreground">{title}</div>
       <div className="space-y-1 text-xs text-muted-foreground">
         {items.map((item) => (
-          <div key={item} className="truncate border-l pl-2">
+          <div key={item} className="truncate border-l border-border pl-2">
             {item}
           </div>
         ))}

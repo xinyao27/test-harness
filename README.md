@@ -2,14 +2,18 @@
 
 A promise-driven Test Harness with a language-agnostic YAML protocol.
 
-The seed Harness stores reviewed behavior commitments as canonical `.promise.yaml` files, lets adapters bind executable tests to promise ids, collects adapter results into `.harness/results.yaml`, and renders a human-readable promise status report.
+The seed Harness stores reviewed behavior commitments as canonical `.promises.yaml` files, lets adapters bind executable tests to promise ids, collects adapter results into `.harness/results.yaml`, and renders a human-readable promise status report.
+
+`tests/modules/**/*.module.yaml` is the architecture map: each module should describe a reviewable project boundary, not a loose tag or folder mirror.
 
 The current repository provides a Rust core/CLI implementation and a thin TypeScript Vitest adapter. The stable layer is the `apiVersion: 1` protocol under `protocol/v1/`.
 
 ## Current Loop
 
 ```text
-promises/**/*.promise.yaml
+tests/harness.yaml
+tests/modules/**/*.module.yaml
+tests/promises/**/*.promises.yaml
   -> adapter tests
   -> harness test
   -> .harness/results.yaml

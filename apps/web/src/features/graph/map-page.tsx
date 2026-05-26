@@ -1,10 +1,7 @@
-import { RiFocus3Line, RiRouteLine } from "@remixicon/react";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getWorkbenchSnapshot } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { localizeText } from "@/lib/localized-text";
@@ -48,18 +45,10 @@ export function MapPage() {
   return (
     <div className="grid h-full min-h-0 grid-cols-1 gap-3 overflow-y-auto overflow-x-hidden p-3 sm:p-4 xl:grid-cols-[minmax(0,1fr)_280px] xl:overflow-hidden">
       <section className="flex min-h-[520px] min-w-0 flex-col gap-3 xl:min-h-0">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
           <div className="min-w-0">
             <h1 className="text-lg">{m.map_title({}, { locale })}</h1>
           </div>
-          <Tabs defaultValue="module">
-            <TabsList>
-              <TabsTrigger value="module">{m.map_view_module({}, { locale })}</TabsTrigger>
-              <TabsTrigger value="promise">{m.map_view_promise({}, { locale })}</TabsTrigger>
-              <TabsTrigger value="evidence">{m.map_view_evidence({}, { locale })}</TabsTrigger>
-              <TabsTrigger value="risk">{m.map_view_risk({}, { locale })}</TabsTrigger>
-            </TabsList>
-          </Tabs>
         </div>
         <div className="min-h-0 flex-1">{data ? <ProjectMap snapshot={data} /> : null}</div>
       </section>
@@ -78,22 +67,10 @@ export function MapPage() {
                 <p className="line-clamp-3 text-xs text-muted-foreground">{selectedSummary.body}</p>
               </>
             ) : (
-              <div className="border bg-muted/30 p-3 text-xs text-muted-foreground">
+              <div className="rounded-md border bg-muted p-3 text-xs text-muted-foreground">
                 {m.map_selected_empty({}, { locale })}
               </div>
             )}
-            {selectedSummary ? (
-              <div className="grid grid-cols-2 gap-2">
-                <Button variant="outline" size="sm">
-                  <RiFocus3Line />
-                  {m.action_focus({}, { locale })}
-                </Button>
-                <Button variant="outline" size="sm">
-                  <RiRouteLine />
-                  {m.action_find_path({}, { locale })}
-                </Button>
-              </div>
-            ) : null}
           </CardContent>
         </Card>
       </aside>

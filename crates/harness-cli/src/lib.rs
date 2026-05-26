@@ -401,8 +401,8 @@ promises:
     boundary: unit
     lifecycle: accepted
     given:
-      - en: A promise file exists under the promises root
-        zh-CN: promises/ 目录下存在一个 promise 文件
+      - en: A promise file exists under the tests/promises root
+        zh-CN: tests/promises/ 目录下存在一个 promise 文件
     when:
       - en: The seed Harness loads promise records
         zh-CN: seed Harness 加载 promise records
@@ -410,7 +410,7 @@ promises:
       - en: The promise is decoded into a PromiseRecord
         zh-CN: 该 promise 会被解码成 PromiseRecord
     observes:
-      - promises/**/*.promises.yaml
+      - tests/promises/**/*.promises.yaml
     failureMeaning:
       en: The Harness cannot trust its own reviewed behavior promises.
       zh-CN: Harness 无法信任自己已经 review 过的行为承诺。
@@ -420,10 +420,11 @@ promises:
 "#;
 
     fn write_minimal_workspace(root: &Path) {
-        fs::write(root.join("harness.yaml"), VALID_HARNESS_CONFIG).unwrap();
-        fs::create_dir_all(root.join("promises/promise-registry")).unwrap();
+        fs::create_dir_all(root.join("tests")).unwrap();
+        fs::write(root.join("tests/harness.yaml"), VALID_HARNESS_CONFIG).unwrap();
+        fs::create_dir_all(root.join("tests/promises/promise-registry")).unwrap();
         fs::write(
-            root.join("promises/promise-registry/promise-registry.promises.yaml"),
+            root.join("tests/promises/promise-registry/promise-registry.promises.yaml"),
             VALID_PROMISE_YAML,
         )
         .unwrap();
@@ -546,6 +547,7 @@ promises:
                 let results = harness_core::create_test_results_file(
                     vec![TestResult {
                         file: "crates/harness-cli/src/lib.rs".to_string(),
+                        labels: Default::default(),
                         promise_id: "harness.promise_registry.load_canonical_yaml_promises"
                             .to_string(),
                         status: harness_core::TestResultStatus::Passing,

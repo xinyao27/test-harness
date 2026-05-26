@@ -10,9 +10,10 @@ The Harness is a protocol first, not a TypeScript or Vitest feature.
 The stable layer is:
 
 ```text
-harness.yaml
+tests/harness.yaml
   -> configured adapter runner
-promises/**/*.promises.yaml
+tests/modules/**/*.module.yaml
+tests/promises/**/*.promises.yaml
   -> adapter execution
   -> .harness/runs/<run-id>/events/*.ndjson
   -> adapter runtime merge
@@ -29,7 +30,7 @@ Protocol contracts live under `protocol/v1/`:
 - `promise.schema.yaml`: canonical promise file shape.
 - `harness-config.schema.yaml`: project-level runner config shape.
 - `promises-file.schema.yaml`: canonical grouped promises wrapper shape.
-- `module.schema.yaml`: canonical module ownership file shape.
+- `module.schema.yaml`: canonical architecture-boundary ownership file shape.
 - `adapter-event.schema.yaml`: stream record shape emitted by adapters and merged by the runtime.
 - `results.schema.yaml`: adapter-produced result file shape.
 - `report.schema.yaml`: structured report shape.
@@ -46,15 +47,15 @@ These files are the cross-language contract. The Rust protocol crate is the curr
 - **Adapter**: a test-framework bridge that turns executable checks into adapter events.
 - **Vitest adapter**: the current adapter using `scenarioTest(...)` and a Vitest reporter.
 
-The protocol must not require Vitest task metadata, TypeScript imports, or Node process details. Those belong to adapter promises under `promises/adapters/vitest/`.
+The protocol must not require Vitest task metadata, TypeScript imports, or Node process details. Those belong to adapter promises under `tests/promises/adapters/vitest/`.
 
 ## Replacement Rule
 
 A replacement implementation is successful when it can satisfy the same protocol promises and conformance fixtures:
 
 1. Load the same `.promises.yaml` files.
-2. Load the same module ownership files.
-3. Load the same `harness.yaml` runner config shape.
+2. Load the same architecture-boundary module files.
+3. Load the same `tests/harness.yaml` runner config shape.
 4. Reject the same invalid config, module, promise, result, and report fixtures.
 5. Emit the same adapter event records or read/write the same `.harness/results.yaml` shape.
 6. Render equivalent promise status and match the golden CLI report fixtures for the pinned cases.

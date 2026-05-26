@@ -225,6 +225,7 @@ pub fn create_test_result_event(
         payload: AdapterTestResultPayload {
             failure_message: result.failure_message,
             file: result.file,
+            labels: result.labels,
             promise_id: result.promise_id,
             status: result.status,
             test_name: result.test_name,
@@ -535,6 +536,7 @@ fn test_result_from_event(event: AdapterEvent) -> TestResult {
     TestResult {
         failure_message: event.payload.failure_message,
         file: event.payload.file,
+        labels: event.payload.labels,
         promise_id: event.payload.promise_id,
         status: event.payload.status,
         test_name: event.payload.test_name,
@@ -546,8 +548,17 @@ fn result_identity(result: &TestResult) -> String {
         result.promise_id.as_str(),
         result.file.as_str(),
         result.test_name.as_str(),
+        &labels_identity(&result.labels),
     ]
     .join("\u{0}")
+}
+
+fn labels_identity(labels: &BTreeMap<String, String>) -> String {
+    labels
+        .iter()
+        .map(|(key, value)| format!("{key}={value}"))
+        .collect::<Vec<_>>()
+        .join("\u{1}")
 }
 
 fn is_event_shard(path: &Path) -> bool {
@@ -641,6 +652,7 @@ mod tests {
         TestResult {
             failure_message: failure_message.map(str::to_string),
             file: "crates/harness-adapter-runtime/tests/fixture.rs".to_string(),
+            labels: Default::default(),
             promise_id: "harness.adapter_runtime.collects_event_shards_into_results".to_string(),
             status,
             test_name: "runtime fixture".to_string(),

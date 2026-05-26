@@ -12,25 +12,29 @@ You do not need to know how the Harness is implemented internally. You only need
 ## The Mental Model
 
 ```text
-Module           ← navigation grouping — modules/*.module.yaml
-  Promise        ← review unit (what the system guarantees) — promises/**/*.promise.yaml
-    Evidence     ← what proves the promise is still satisfied
-      Adapter test ← the executable encoding (Vitest: scenarioTest)
+Harness config   ← runner entrypoint — tests/harness.yaml
+  Module         ← architecture boundary — tests/modules/*.module.yaml
+    Promise group ← related review units — tests/promises/**/*.promises.yaml
+      Promise    ← one behavior guarantee inside the file's `promises:` list
+        Evidence ← what proves the promise is still satisfied
+          Adapter test ← executable encoding (Vitest scenarioTest, Rust adapter metadata, etc.)
 ```
 
-Humans review **promises**. You write **tests and code** that prove them. The promise file is the canonical source of meaning — the test is just executable evidence for it.
+Humans review **promises**. You write **tests and code** that prove them. The grouped promise file is the canonical source of meaning — the test is just executable evidence for it. New promise files should use `apiVersion: 1` and a top-level `promises:` array.
+
+Modules are the project's architecture map. Do not create a module just because a feature needs a place to live; create or split a module only when the project's architecture boundary changes.
 
 ## Workflow
 
-1. **Find the existing promise first.** Look in `promises/**/*.promise.yaml`. If one already covers what you are about to change, use it. Also check `modules/*.module.yaml` to see which area it belongs to.
+1. **Find the existing promise first.** Look in `tests/promises/**/*.promises.yaml`. If one already covers what you are about to change, use it. Also check `tests/modules/*.module.yaml` to see which architecture boundary owns it.
 
-2. **Draft a new promise only if the behavior is genuinely new.** Each promise = one human-readable guarantee, not an implementation step. Use existing files under `promises/**/*.promise.yaml` as the shape template. Key invariants: `id` is permanent (renames require a new id plus `deprecatedBy` on the old file); natural-language fields can be plain English or a `{ en, zh-CN }` map; only a human moves `lifecycle` to `accepted` by filling in the `review` block.
+2. **Draft a new promise only if the behavior is genuinely new.** Each promise = one human-readable guarantee, not an implementation step. Add it to the most specific existing group file when it belongs with that behavior area; create a new `*.promises.yaml` group only when the existing groups would blur review ownership. Key invariants: `id` is permanent (renames require a new id plus `deprecatedBy` on the old promise); natural-language fields can be plain English or a `{ en, zh-CN }` map; only a human moves `lifecycle` to `accepted` by filling in the `review` block.
 
-3. **If the new promise needs a new module**, surface it to the human — that is a bigger move. Usually a new promise fits into an existing module under `modules/`.
+3. **If the new promise needs a new module**, surface it to the human as an architecture change — that is a bigger move. Usually a new promise fits into an existing module under `tests/modules/`.
 
 4. **Ask for human review when the meaning shifts.** Any change to `title`, `purpose`, `priority`, `boundary`, `given` / `when` / `then`, `observes`, or `lifecycle` is a review event — even if the test still passes. Do not set `lifecycle: accepted` yourself; the human does that by filling in `review.approvedBy` / `approvedAt`.
 
-5. **Bind tests with `scenarioTest`.** Once a promise is accepted, write Vitest tests that prove it, bound to the promise id from the YAML. Existing tests in the workspace show the `scenarioTest(promiseId, name, fn)` shape. Assert on what the promise's `observes` list names — DB state, UI text, files, events, exit codes — and prefer exact matchers (`toBe`, `toEqual`) over loose ones. If a test would weaken to "mock was called" or `toBeDefined()`, that is evidence drift; surface it in the PR rather than silently lowering the bar.
+5. **Bind tests to the promise id.** Once a promise is accepted, write adapter tests that prove it, bound to the promise id from the YAML. For Vitest, existing tests in the workspace show the `scenarioTest(promiseId, name, fn)` shape. Other adapters should emit the same canonical promise id in their result metadata. Assert on what the promise's `observes` list names — DB state, UI text, files, events, exit codes — and prefer exact matchers (`toBe`, `toEqual`) over loose ones. If a test would weaken to "mock was called" or `toBeDefined()`, that is evidence drift; surface it in the PR rather than silently lowering the bar.
 
 6. **Implement until the accepted promises pass.** Run `harness test` to confirm.
 

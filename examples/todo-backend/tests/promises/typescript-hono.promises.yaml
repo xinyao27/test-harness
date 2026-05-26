@@ -1,0 +1,65 @@
+apiVersion: 1
+promises:
+  - id: todo_backend.typescript_hono.server_implements_contract
+    feature: Todo-Backend / TypeScript Hono
+    title:
+      en: The TypeScript Hono backend implements the Todo-Backend contract
+      zh-CN: TypeScript Hono backend 实现 Todo-Backend contract
+    purpose:
+      en: Protect the TypeScript example as a real modern backend implementation that can power the TodoMVC client and produce Harness evidence.
+      zh-CN: 保护 TypeScript example，确保它是真实的现代 backend implementation，可以驱动 TodoMVC client 并产出 Harness evidence。
+    priority: P0
+    boundary: e2e
+    lifecycle: proposed
+    given:
+      - en: The TypeScript Hono implementation is started on its configured port
+        zh-CN: TypeScript Hono implementation 已在配置端口启动
+    when:
+      - en: The shared Todo-Backend contract tests run against it
+        zh-CN: 共享 Todo-Backend contract tests 针对它运行
+    then:
+      - en: Every P0 Todo-Backend API promise has passing Harness evidence for that implementation
+        zh-CN: 每个 P0 Todo-Backend API promise 都有该实现的 passing Harness evidence
+      - en: The TodoMVC client can use that implementation without configuration changes beyond the backend URL
+        zh-CN: TodoMVC client 除 backend URL 外无需其它配置即可使用该实现
+    observes:
+      - examples/todo-backend/implementations/typescript-hono/**
+      - examples/todo-backend/contract-tests/**
+      - .harness/results.yaml
+    failureMeaning:
+      en: The TypeScript example would be a partial server rather than a working Todo-Backend implementation.
+      zh-CN: TypeScript example 会只是一个不完整 server，而不是真正可用的 Todo-Backend implementation。
+    review:
+      notes: Pending user review before implementation.
+
+  - id: todo_backend.typescript_hono.native_tests_are_promise_bound
+    feature: Todo-Backend / TypeScript Hono
+    title:
+      en: TypeScript Hono native tests are bound to Todo-Backend promises
+      zh-CN: TypeScript Hono native tests 绑定到 Todo-Backend promises
+    purpose:
+      en: Protect the TypeScript implementation from being only black-box tested; native Vitest evidence should still map back to the same reviewed promises.
+      zh-CN: 避免 TypeScript implementation 只有黑盒测试；native Vitest evidence 也应该映射回同一批已 review promises。
+    priority: P1
+    boundary: adapter
+    lifecycle: proposed
+    given:
+      - en: The TypeScript Hono implementation has native Vitest tests
+        zh-CN: TypeScript Hono implementation 拥有 native Vitest tests
+    when:
+      - en: Those tests run through the Vitest adapter
+        zh-CN: 这些测试通过 Vitest adapter 运行
+    then:
+      - en: Each native test emits adapter events using canonical Todo-Backend promise ids
+        zh-CN: 每个 native test 都使用 canonical Todo-Backend promise ids 输出 adapter events
+      - en: The shared runtime can merge those events into the same Harness result model as the black-box contract tests
+        zh-CN: 共享 runtime 可以把这些 events 合并到与黑盒 contract tests 相同的 Harness result model 中
+    observes:
+      - examples/todo-backend/implementations/typescript-hono/**
+      - packages/adapter-vitest/src/**
+      - .harness/runs/*/events/*.ndjson
+    failureMeaning:
+      en: The example would show a working TypeScript server but not how native framework tests become Harness evidence.
+      zh-CN: example 会展示一个能工作的 TypeScript server，但无法展示 native framework tests 如何变成 Harness evidence。
+    review:
+      notes: Pending user review before implementation.

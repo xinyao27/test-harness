@@ -1,0 +1,122 @@
+apiVersion: 1
+promises:
+  - id: harness.web_dashboard.renders_canvas_first_harness_studio
+    feature: Harness Studio / Canvas
+    title:
+      en: Harness Studio opens as a canvas-first architecture map
+      zh-CN: Harness Studio 会以 canvas-first 架构图打开
+    purpose:
+      en: Protect the Studio direction by making modules the first visible architecture layer and keeping promise details contextual instead of returning to a sidebar dashboard.
+      zh-CN: 通过让 Module 成为第一层可见架构，并让 Promise 详情保持上下文关联，保护 Studio 方向不退回 sidebar dashboard。
+    priority: P0
+    boundary: browser
+    lifecycle: proposed
+    given:
+      - en: The user opens the Harness Studio root route
+        zh-CN: 用户打开 Harness Studio 的根路由
+      - en: The web snapshot includes architecture modules and their owned promises
+        zh-CN: Web snapshot 包含 architecture modules 以及它们拥有的 promises
+    when:
+      - en: The user selects modules and promises on the canvas
+        zh-CN: 用户在 canvas 上选择 modules 和 promises
+    then:
+      - en: The first screen shows module nodes as the project architecture map, without a top-level sidebar dashboard
+        zh-CN: 第一屏会把 module nodes 展示为项目 architecture map，而不是展示顶层 sidebar dashboard
+      - en: Selecting a module expands or focuses the promises owned by that module
+        zh-CN: 选中 module 后会展开或聚焦该 module 拥有的 promises
+      - en: Selecting a promise opens a collapsible right context panel with promise meaning, evidence, and implementation links
+        zh-CN: 选中 promise 后会打开可折叠的右侧 context panel，展示 promise meaning、evidence 和 implementation links
+      - en: Query-state URLs can restore the selected module or promise focus
+        zh-CN: query-state URL 可以恢复选中的 module 或 promise focus
+    observes:
+      - apps/web/src/router.tsx
+      - apps/web/src/components/layout/workbench-layout.tsx
+      - apps/web/src/features/studio/**
+      - apps/web/src/data/harness-snapshot.ts
+    failureMeaning:
+      en: The web surface would remain an ordinary dashboard, forcing humans back into navigation categories instead of architecture-first promise review.
+      zh-CN: Web 界面会停留在普通 dashboard，迫使人类回到导航分类，而不是 architecture-first 的 promise review。
+    review: {}
+
+  - id: harness.web_dashboard.i18n_switches_chrome_and_snapshot_text
+    feature: Harness Studio / I18N
+    title:
+      en: Harness Studio can switch UI chrome and readable snapshot text between Chinese and English
+      zh-CN: Harness Studio 可以在中文和英文之间切换 UI 框架文案与可读 snapshot 文本
+    purpose:
+      en: Protect the first visual workflow from becoming Chinese-only while the Harness protocol already supports localized promise text.
+      zh-CN: 保护第一版可视化 workflow 不退化成仅中文界面，因为 Harness 协议已经支持 localized promise text。
+    priority: P1
+    boundary: browser
+    lifecycle: accepted
+    given:
+      - en: The user opens Harness Studio
+        zh-CN: 用户打开 Harness Studio
+      - en: Studio copy and seed snapshot content have Chinese and English text available
+        zh-CN: Studio 文案与 seed snapshot 内容都有中文和英文文本
+    when:
+      - en: The user selects a supported locale
+        zh-CN: 用户选择一个受支持语言
+    then:
+      - en: Navigation, page headings, actions, status labels, and graph labels render in the selected locale
+        zh-CN: Navigation、page heading、action、status label 和 graph label 会使用所选语言渲染
+      - en: Module, promise, and review draft summaries render through LocalizedText instead of hardcoded UI strings
+        zh-CN: Module、Promise 和 Review Draft 摘要会通过 LocalizedText 渲染，而不是硬编码 UI string
+      - en: The selected locale is persisted for the next browser session
+        zh-CN: 所选语言会被保存，供下一次浏览器会话使用
+    observes:
+      - packages/i18n/messages/*.json
+      - packages/i18n/src/paraglide/**
+      - apps/web/src/lib/i18n.ts
+      - apps/web/src/lib/localized-text.ts
+      - apps/web/src/components/layout/workbench-layout.tsx
+      - apps/web/src/features/**
+    failureMeaning:
+      en: Non-Chinese reviewers would have to inspect raw YAML or source code, weakening Harness Studio as a human review surface.
+      zh-CN: 非中文 reviewer 将不得不查看原始 YAML 或源码，削弱 Harness Studio 作为人类 review 入口的价值。
+    review:
+      approvedBy: xinyao
+      approvedAt: "2026-05-25"
+
+  - id: harness.web_dashboard.switches_recent_project_contexts
+    feature: Harness Studio / Project Switcher
+    title:
+      en: Harness Studio can switch between recently opened project contexts
+      zh-CN: Harness Studio 可以在最近打开的 project context 之间切换
+    purpose:
+      en: Keep the Studio useful for debugging the current repository and example repositories without making users leave the canvas-first workflow.
+      zh-CN: 让 Studio 可以调试当前仓库和 example 仓库，同时不迫使用户离开 canvas-first workflow。
+    priority: P1
+    boundary: browser
+    lifecycle: proposed
+    given:
+      - en: The user opens Harness Studio from the current repository
+        zh-CN: 用户从当前仓库打开 Harness Studio
+      - en: The browser has a current project and may have recently opened project contexts
+        zh-CN: 浏览器有当前 project，也可能有最近打开过的 project contexts
+    when:
+      - en: The user opens the project switcher from the top-left canvas controls
+        zh-CN: 用户从 canvas 左上角 controls 打开 project switcher
+      - en: The user searches, selects a recent project, or chooses a directory to add
+        zh-CN: 用户搜索、选择最近 project，或者选择目录添加 project
+    then:
+      - en: The switcher shows a search field, recent project entries, the current selection marker, and an add-project action
+        zh-CN: Switcher 会展示搜索框、最近 project entries、当前选中标记，以及添加 project 的动作
+      - en: Selecting a project persists the chosen context for the next browser session
+        zh-CN: 选择 project 后会保存该 context，供下一次浏览器会话使用
+      - en: Selecting a known project replaces the canvas modules, promises, and evidence status with that project's Harness snapshot
+        zh-CN: 选择已知 project 后，canvas 的 modules、promises 和 evidence status 会切换为该 project 的 Harness snapshot
+      - en: Add project starts a browser directory selection flow when the runtime supports it
+        zh-CN: 当运行环境支持时，添加 project 会启动浏览器目录选择流程
+    observes:
+      - apps/web/src/features/studio/**
+      - apps/web/src/data/todo-backend-snapshot.ts
+      - apps/web/src/lib/api.ts
+      - apps/web/src/index.css
+      - examples/todo-backend/tests/**
+      - examples/todo-backend/.harness/results.yaml
+      - packages/i18n/messages/*.json
+    failureMeaning:
+      en: Harness Studio would stay bound to one repository context, making example-driven debugging and future daemon-backed project switching harder to trust.
+      zh-CN: Harness Studio 会被固定在单一仓库 context 上，让 example 调试和后续 daemon-backed project switching 更难可信。
+    review: {}

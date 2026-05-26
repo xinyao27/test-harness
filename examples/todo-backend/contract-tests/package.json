@@ -1,0 +1,16 @@
+{
+  "name": "@test-harness/example-todo-backend-contract-tests",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vp test run --config vitest.config.ts"
+  },
+  "devDependencies": {
+    "@test-harness/adapter-vitest": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
+  }
+}

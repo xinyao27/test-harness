@@ -1,0 +1,120 @@
+apiVersion: 1
+kind: TodoBackendSpecMap
+source:
+  name: Todo-Backend JavaScript Spec
+  repository: https://github.com/TodoBackend/todo-backend-js-spec
+  file: js/specs.js
+  url: https://github.com/TodoBackend/todo-backend-js-spec/blob/master/js/specs.js
+  commit: 9fdf6f9390d743116f232f08efc70e118d88c7a6
+  retrievedAt: "2026-05-25"
+coverage:
+  target: official-js-spec-cases
+  expectedCaseCount: 16
+  description:
+    en: Every behavior case from the official Todo-Backend JavaScript spec must map to at least one reviewed Harness promise.
+    zh-CN: 官方 Todo-Backend JavaScript spec 中的每条行为 case 都必须映射到至少一条已 review 的 Harness promise。
+cases:
+  - id: official.prerequisite.root_get_succeeds
+    sourceSection: the pre-requisites
+    sourceCase: the api root responds to a GET (i.e. the server is up and accessible, CORS headers are set up)
+    promiseIds:
+      - todo_backend.api.list_returns_current_collection
+      - todo_backend.api.cors_allows_todomvc_client
+
+  - id: official.prerequisite.root_post_echoes_title
+    sourceSection: the pre-requisites
+    sourceCase: the api root responds to a POST with the todo which was posted to it
+    promiseIds:
+      - todo_backend.api.create_returns_persisted_todo
+
+  - id: official.prerequisite.root_delete_succeeds
+    sourceSection: the pre-requisites
+    sourceCase: the api root responds successfully to a DELETE
+    promiseIds:
+      - todo_backend.api.delete_all_clears_collection
+
+  - id: official.prerequisite.root_delete_then_get_empty_array
+    sourceSection: the pre-requisites
+    sourceCase: after a DELETE the api root responds to a GET with a JSON representation of an empty array
+    promiseIds:
+      - todo_backend.api.delete_all_clears_collection
+      - todo_backend.api.list_returns_current_collection
+
+  - id: official.create.adds_new_todo_to_root_list
+    sourceSection: storing new todos by posting to the root url
+    sourceCase: adds a new todo to the list of todos at the root url
+    promiseIds:
+      - todo_backend.api.create_returns_persisted_todo
+      - todo_backend.api.list_returns_current_collection
+
+  - id: official.create.new_todo_initially_not_completed
+    sourceSection: storing new todos by posting to the root url
+    sourceCase: sets up a new todo as initially not completed
+    promiseIds:
+      - todo_backend.api.create_returns_persisted_todo
+
+  - id: official.create.new_todo_has_url
+    sourceSection: storing new todos by posting to the root url
+    sourceCase: each new todo has a url
+    promiseIds:
+      - todo_backend.api.create_returns_persisted_todo
+      - todo_backend.api.todo_urls_are_dereferenceable
+
+  - id: official.create.todo_url_returns_todo
+    sourceSection: storing new todos by posting to the root url
+    sourceCase: each new todo has a url, which returns a todo
+    promiseIds:
+      - todo_backend.api.todo_urls_are_dereferenceable
+
+  - id: official.existing.list_url_navigates_to_individual_todo
+    sourceSection: working with an existing todo
+    sourceCase: can navigate from a list of todos to an individual todo via urls
+    promiseIds:
+      - todo_backend.api.list_returns_current_collection
+      - todo_backend.api.todo_urls_are_dereferenceable
+
+  - id: official.existing.patch_title
+    sourceSection: working with an existing todo
+    sourceCase: can change the todo's title by PATCHing to the todo's url
+    promiseIds:
+      - todo_backend.api.update_changes_title_and_completed
+
+  - id: official.existing.patch_completed
+    sourceSection: working with an existing todo
+    sourceCase: can change the todo's completedness by PATCHing to the todo's url
+    promiseIds:
+      - todo_backend.api.update_changes_title_and_completed
+
+  - id: official.existing.patch_persists_to_item_and_list
+    sourceSection: working with an existing todo
+    sourceCase: changes to a todo are persisted and show up when re-fetching the todo
+    promiseIds:
+      - todo_backend.api.update_changes_title_and_completed
+      - todo_backend.api.todo_urls_are_dereferenceable
+      - todo_backend.api.list_returns_current_collection
+
+  - id: official.existing.delete_todo_by_url
+    sourceSection: working with an existing todo
+    sourceCase: can delete a todo making a DELETE request to the todo's url
+    promiseIds:
+      - todo_backend.api.delete_one_removes_only_that_todo
+
+  - id: official.order.create_with_order
+    sourceSection: tracking todo order
+    sourceCase: can create a todo with an order field
+    promiseIds:
+      - todo_backend.api.order_is_preserved_and_updateable
+      - todo_backend.api.create_returns_persisted_todo
+
+  - id: official.order.patch_order
+    sourceSection: tracking todo order
+    sourceCase: can PATCH a todo to change its order
+    promiseIds:
+      - todo_backend.api.order_is_preserved_and_updateable
+
+  - id: official.order.refetch_remembers_order
+    sourceSection: tracking todo order
+    sourceCase: remembers changes to a todo's order
+    promiseIds:
+      - todo_backend.api.order_is_preserved_and_updateable
+      - todo_backend.api.todo_urls_are_dereferenceable

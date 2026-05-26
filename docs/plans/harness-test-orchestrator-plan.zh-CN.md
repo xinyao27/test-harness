@@ -10,7 +10,7 @@
 harness test
 ```
 
-这个命令会运行 `harness.yaml` 中配置的 test runner，通过 `HARNESS_ROOT_DIR` 把 workspace root 传下去，要求产生 Harness result file，然后渲染 `harness verify` 已经在使用的同一份 verification report。在这个仓库里，配置好的 command 使用 Rust adapter runtime 包装 `vp test`，并把 adapter event shards 合并到 `.harness/results.yaml`。
+这个命令会运行 `tests/harness.yaml` 中配置的 test runner，通过 `HARNESS_ROOT_DIR` 把 workspace root 传下去，要求产生 Harness result file，然后渲染 `harness verify` 已经在使用的同一份 verification report。在这个仓库里，配置好的 command 使用 Rust adapter runtime 包装 `vp test`，并把 adapter event shards 合并到 `.harness/results.yaml`。
 
 这一步仍然不是 AI-generated implementation。它只是最小可用的自举闭环：
 
@@ -58,7 +58,7 @@ harness test --lang zh-CN
 
 1. 解析 workspace root。
 2. 删除或覆盖旧的 `.harness/results.yaml`。
-3. 运行 `harness.yaml` 中配置的 command。
+3. 运行 `tests/harness.yaml` 中配置的 command。
 4. 如果 test command 非 0，就失败；如果它仍然写出了 results，就继续渲染 results，让失败的 promises 仍然可见。
 5. 如果 test command 非 0 且没有 results，只报告 test command failure，不再额外报告 result file missing。
 6. 如果 test command 成功后仍然缺少 `.harness/results.yaml`，就失败。

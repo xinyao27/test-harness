@@ -13,11 +13,11 @@ P0  Accepted promises are loaded from canonical YAML files
     Run Status: unknown
     Purpose: Protect the seed Harness's reviewed behavior promises.
     Given:
-    - A promise file exists under the promises root
+    - A promise file exists under the tests/promises root
     When:
     - The seed Harness loads promise records
     Then:
     - The promise is decoded into a PromiseRecord
     Evidence:
-    - promises/**/*.promises.yaml
+    - tests/promises/**/*.promises.yaml
     Failure meaning: The Harness cannot trust its own reviewed behavior promises.

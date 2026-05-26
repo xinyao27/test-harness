@@ -59,7 +59,8 @@ When updating documentation, keep the English and Chinese versions aligned.
 ## Agent Working Notes
 
 - Treat promises as first-class project artifacts.
-- Treat `.promise.yaml` files as the canonical source of reviewed behavior promise meaning. `scenario(...)` in tests should bind to a promise id, not redefine the promise.
+- Treat modules as the first visible layer of project architecture. A module is a reviewable architecture boundary, not a loose tag, folder mirror, or UI grouping. Agent-authored modules must start from the project's architecture and ownership model.
+- Treat `.promises.yaml` files as the canonical source of reviewed behavior promise meaning. `scenario(...)` in tests should bind to a promise id, not redefine the promise.
 - Treat `protocol/v1/` as the cross-language contract. TypeScript Effect Schemas should match the protocol; they should not become the only source of truth.
 - Prefer YAML for Harness-owned artifacts, including result files such as `.harness/results.yaml`. Use JSON only when an external tool or protocol makes it necessary.
 - Persist `apiVersion: 1` in Harness-owned protocol YAML artifacts.
@@ -73,7 +74,7 @@ When updating documentation, keep the English and Chinese versions aligned.
 - Treat promise drift as a first-class review object. If a promise becomes weaker, narrower, less observable, or lower priority, preserve the old text, new text, initiator, reason, timestamp, and human acknowledgement state.
 - Do not assume a passing adapter test still proves a promise. Track N:M promise-to-test evidence mappings, capture assertion fingerprints, and preserve evidence deltas when tests are generated or edited.
 - For the seed Harness, use PR-based review metadata and allow checker warnings until the checker itself is accepted.
-- Keep adapter details under adapter-specific code and promises, such as `promises/adapters/vitest/`.
+- Keep adapter details under adapter-specific code and promises, such as `tests/promises/adapters/vitest/`.
 - Prefer `vitest run` for the current Vitest adapter and CI execution so test commands exit deterministically.
 - Use Vitest reporters, projects, annotations, browser mode, and Node API when working specifically on the Vitest adapter.
 - Do not weaken, remove, or blur high-priority promises without explicit human approval.

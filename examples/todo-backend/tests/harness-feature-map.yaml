@@ -1,0 +1,292 @@
+apiVersion: 1
+kind: TodoBackendHarnessFeatureMap
+source:
+  modulesDirectory: tests/modules
+  promisesDirectory: tests/promises
+coverage:
+  target: canonical-harness-modules-and-promises
+  expectedModuleCount: 12
+  expectedHarnessPromiseCount: 45
+  description:
+    en: Every canonical TestHarness module and module-owned promise must have an explicit application path in the Todo-Backend showcase.
+    zh-CN: 每个 canonical TestHarness module 及其拥有的 promise，都必须在 Todo-Backend showcase 中拥有明确应用路径。
+features:
+  - moduleId: adapter-runtime
+    harnessPromiseIds:
+      - harness.adapter_runtime.collects_event_shards_into_results
+      - harness.adapter_runtime.exposes_runner_for_non_cargo_users
+      - harness.adapter_runtime.preserves_framework_independent_evidence
+      - harness.adapter_runtime.uses_isolated_run_event_directories
+    showcasePromiseIds:
+      - todo_backend.showcase.cross_language_adapters_merge_evidence
+      - todo_backend.showcase.one_command_runs_full_demo
+    currentArtifacts:
+      - examples/todo-backend/tests/harness-feature-map.yaml
+      - examples/todo-backend/tests/harness.yaml
+      - examples/todo-backend/implementations.yaml
+      - examples/todo-backend/tests/promises/showcase.promises.yaml
+      - examples/todo-backend/tools/check-feature-map.mjs
+      - examples/todo-backend/tools/build-matrix.mjs
+      - examples/todo-backend/tools/lib/processes.mjs
+      - examples/todo-backend/tools/run-browser-e2e.mjs
+      - examples/todo-backend/tools/run-harness-cli.mjs
+      - examples/todo-backend/tools/run-rust-contract.mjs
+      - examples/todo-backend/tools/run-showcase-tests.mjs
+      - examples/todo-backend/tools/run-todo-backend-suite.mjs
+      - examples/todo-backend/tools/run-typescript-contract.mjs
+      - examples/todo-backend/showcase-tests
+      - examples/todo-backend/implementations/rust-axum
+      - examples/todo-backend/implementations/typescript-hono
+    plannedArtifacts:
+      - examples/todo-backend/.harness/runs/*/events/*.ndjson
+      - examples/todo-backend/.harness/results.yaml
+    implementedCommands:
+      - pnpm example:todo:check
+      - pnpm example:todo:test
+      - pnpm example:todo:test:browser:rust
+      - pnpm example:todo:test:browser:typescript
+      - pnpm example:todo:test:showcase
+      - pnpm example:todo:test:rust
+      - pnpm example:todo:test:typescript
+    plannedCommands: []
+
+  - moduleId: cli
+    harnessPromiseIds:
+      - harness.cli.check_validates_promises
+      - harness.cli.rejects_invalid_arguments_with_usage_hint
+      - harness.cli.report_renders_promise_status
+      - harness.cli.report_summary_lists_promises_compactly
+      - harness.cli.test_reads_runner_config
+      - harness.cli.test_orchestrates_adapter_and_verify
+    showcasePromiseIds:
+      - todo_backend.showcase.one_command_runs_full_demo
+      - todo_backend.showcase.cli_reports_bilingual_promise_status
+    currentArtifacts:
+      - package.json
+      - examples/todo-backend/tests/harness.yaml
+      - examples/todo-backend/README.md
+      - examples/todo-backend/README.zh-CN.md
+      - examples/todo-backend/showcase-tests
+    plannedArtifacts: []
+    implementedCommands:
+      - pnpm example:todo:check
+      - pnpm example:todo:test
+      - pnpm example:todo:report
+      - pnpm example:todo:report:full
+    plannedCommands: []
+
+  - moduleId: module-registry
+    harnessPromiseIds:
+      - harness.module_registry.load_canonical_yaml_modules
+    showcasePromiseIds:
+      - todo_backend.showcase.feature_map_covers_harness_capabilities
+      - todo_backend.showcase.validation_guards_promise_and_module_coverage
+    currentArtifacts:
+      - examples/todo-backend/tests/modules/api-contract.module.yaml
+      - examples/todo-backend/tests/modules/client.module.yaml
+      - examples/todo-backend/tests/modules/rust-axum.module.yaml
+      - examples/todo-backend/tests/modules/showcase.module.yaml
+      - examples/todo-backend/tests/modules/typescript-hono.module.yaml
+    plannedArtifacts: []
+    implementedCommands:
+      - pnpm example:todo-feature-map:check
+    plannedCommands: []
+
+  - moduleId: promise-registry
+    harnessPromiseIds:
+      - harness.promise_registry.load_canonical_yaml_promises
+      - harness.promise_registry.surfaces_per_record_decode_errors
+    showcasePromiseIds:
+      - todo_backend.showcase.feature_map_covers_harness_capabilities
+      - todo_backend.spec.official_spec_map_is_complete
+    currentArtifacts:
+      - examples/todo-backend/tests/promises/contract.promises.yaml
+      - examples/todo-backend/tests/promises/rust-axum.promises.yaml
+      - examples/todo-backend/tests/promises/showcase.promises.yaml
+      - examples/todo-backend/tests/promises/typescript-hono.promises.yaml
+      - examples/todo-backend/tests/spec-map.yaml
+    plannedArtifacts: []
+    implementedCommands:
+      - pnpm example:todo-spec-map:check
+      - pnpm example:todo-feature-map:check
+    plannedCommands: []
+
+  - moduleId: promise-schema
+    harnessPromiseIds:
+      - harness.promise.schema_supports_example_variants
+      - harness.promise.canonical_file_is_grouped
+      - harness.promise.schema_defines_required_fields
+    showcasePromiseIds:
+      - todo_backend.showcase.feature_map_covers_harness_capabilities
+      - todo_backend.showcase.validation_guards_promise_and_module_coverage
+    currentArtifacts:
+      - examples/todo-backend/tests/promises/contract.promises.yaml
+      - examples/todo-backend/tests/promises/showcase.promises.yaml
+      - examples/todo-backend/tests/promises/typescript-hono.promises.yaml
+      - examples/todo-backend/tests/promises/rust-axum.promises.yaml
+    plannedArtifacts: []
+    implementedCommands:
+      - pnpm example:todo-feature-map:check
+    plannedCommands: []
+
+  - moduleId: protocol
+    harnessPromiseIds:
+      - harness.protocol.cli_contract_is_versioned_and_enforced
+      - harness.protocol.cli_golden_outputs_lock_human_surface
+      - harness.protocol.conformance_fixtures_lock_reference_behavior
+      - harness.protocol.adapter_events_are_versioned_stream_records
+      - harness.protocol.module_schema_is_portable
+      - harness.protocol.promise_files_are_versioned
+      - harness.protocol.results_are_versioned_adapter_outputs
+      - harness.protocol.runner_config_is_versioned
+      - harness.protocol.schemas_define_language_agnostic_contract
+    showcasePromiseIds:
+      - todo_backend.showcase.cross_language_adapters_merge_evidence
+      - todo_backend.showcase.one_command_runs_full_demo
+      - todo_backend.spec.official_spec_map_is_complete
+    currentArtifacts:
+      - examples/todo-backend/tests/harness-feature-map.yaml
+      - examples/todo-backend/tests/harness.yaml
+      - examples/todo-backend/tests/spec-map.yaml
+      - examples/todo-backend/tests/promises/contract.promises.yaml
+      - examples/todo-backend/tests/modules/api-contract.module.yaml
+    plannedArtifacts:
+      - examples/todo-backend/.harness/results.yaml
+    implementedCommands:
+      - pnpm example:todo:check
+      - pnpm example:todo:test
+    plannedCommands: []
+
+  - moduleId: report
+    harnessPromiseIds:
+      - harness.report.computes_promise_run_status_from_results
+      - harness.report.falls_back_through_language_chain
+      - harness.report.renders_in_requested_language
+    showcasePromiseIds:
+      - todo_backend.report.matrix_compares_implementations_by_promise
+      - todo_backend.showcase.cli_reports_bilingual_promise_status
+    currentArtifacts:
+      - examples/todo-backend/tests/promises/contract.promises.yaml
+      - examples/todo-backend/tests/promises/showcase.promises.yaml
+      - examples/todo-backend/README.md
+      - examples/todo-backend/README.zh-CN.md
+      - examples/todo-backend/implementations.yaml
+      - examples/todo-backend/tools/build-matrix.mjs
+      - examples/todo-backend/showcase-tests
+    plannedArtifacts:
+      - examples/todo-backend/.harness/results.yaml
+      - examples/todo-backend/matrix.yaml
+    implementedCommands:
+      - pnpm example:todo-feature-map:check
+      - pnpm example:todo:matrix
+      - pnpm example:todo:test
+      - pnpm example:todo:report
+      - pnpm example:todo:report:full
+    plannedCommands: []
+
+  - moduleId: results-schema
+    harnessPromiseIds:
+      - harness.results.schema_defines_required_fields
+    showcasePromiseIds:
+      - todo_backend.showcase.cross_language_adapters_merge_evidence
+      - todo_backend.showcase.one_command_runs_full_demo
+    currentArtifacts:
+      - examples/todo-backend/tests/harness-feature-map.yaml
+      - examples/todo-backend/tests/promises/showcase.promises.yaml
+    plannedArtifacts:
+      - examples/todo-backend/.harness/runs/*/events/*.ndjson
+      - examples/todo-backend/.harness/results.yaml
+    implementedCommands:
+      - pnpm example:todo-feature-map:check
+      - pnpm example:todo:test
+    plannedCommands: []
+
+  - moduleId: rust-adapter
+    harnessPromiseIds:
+      - harness.adapters.rust.result_collector.maps_results_to_promises
+      - harness.adapters.rust.result_collector.writes_results_to_explicit_harness_root
+      - harness.adapters.rust.runner_merges_shards_after_cargo_test
+      - harness.adapters.rust.scenario_helper.binds_tests_to_canonical_promises
+    showcasePromiseIds:
+      - todo_backend.rust_axum.native_tests_are_promise_bound
+      - todo_backend.showcase.cross_language_adapters_merge_evidence
+    currentArtifacts:
+      - examples/todo-backend/tests/modules/rust-axum.module.yaml
+      - examples/todo-backend/tests/promises/rust-axum.promises.yaml
+      - examples/todo-backend/implementations/rust-axum
+      - examples/todo-backend/tools/run-rust-contract.mjs
+    plannedArtifacts:
+      - examples/todo-backend/.harness/runs/*/events/*.ndjson
+    implementedCommands:
+      - pnpm example:todo-feature-map:check
+      - pnpm example:todo:test:rust
+    plannedCommands: []
+
+  - moduleId: validation
+    harnessPromiseIds:
+      - harness.validation.checks_examples_table_shape
+      - harness.validation.flags_promises_without_test_results
+      - harness.validation.flags_uncovered_source_files
+      - harness.validation.flags_unknown_scenario_bindings
+      - harness.validation.rejects_unreadable_modules
+      - harness.validation.rejects_unreadable_promises
+      - harness.validation.warns_when_default_language_missing
+    showcasePromiseIds:
+      - todo_backend.showcase.validation_guards_promise_and_module_coverage
+      - todo_backend.showcase.feature_map_covers_harness_capabilities
+    currentArtifacts:
+      - examples/todo-backend/tests/modules/showcase.module.yaml
+      - examples/todo-backend/tests/promises/showcase.promises.yaml
+      - examples/todo-backend/tools/check-feature-map.mjs
+      - examples/todo-backend/tools/check-spec-map.mjs
+    plannedArtifacts: []
+    implementedCommands:
+      - pnpm example:todo:check
+      - pnpm example:todo-feature-map:check
+      - pnpm example:todo-spec-map:check
+    plannedCommands: []
+
+  - moduleId: vitest-adapter
+    harnessPromiseIds:
+      - harness.adapters.vitest.result_collector.maps_results_to_promises
+      - harness.adapters.vitest.result_collector.writes_results_to_explicit_harness_root
+      - harness.adapters.vitest.scenario_helper.binds_tests_to_canonical_promises
+    showcasePromiseIds:
+      - todo_backend.typescript_hono.native_tests_are_promise_bound
+      - todo_backend.showcase.cross_language_adapters_merge_evidence
+    currentArtifacts:
+      - examples/todo-backend/browser-tests
+      - examples/todo-backend/tests/modules/typescript-hono.module.yaml
+      - examples/todo-backend/tests/promises/typescript-hono.promises.yaml
+      - examples/todo-backend/contract-tests
+      - examples/todo-backend/implementations/typescript-hono
+      - examples/todo-backend/tools/run-browser-e2e.mjs
+      - examples/todo-backend/tools/run-typescript-contract.mjs
+    plannedArtifacts:
+      - examples/todo-backend/.harness/runs/*/events/*.ndjson
+    implementedCommands:
+      - pnpm example:todo-feature-map:check
+      - pnpm example:todo:test:browser:rust
+      - pnpm example:todo:test:browser:typescript
+      - pnpm example:todo:test:contract
+      - pnpm example:todo:test:typescript
+    plannedCommands: []
+
+  - moduleId: web-dashboard
+    harnessPromiseIds:
+      - harness.web_dashboard.renders_canvas_first_harness_studio
+      - harness.web_dashboard.i18n_switches_chrome_and_snapshot_text
+    showcasePromiseIds:
+      - todo_backend.client.uses_real_backend_api
+      - todo_backend.showcase.one_command_runs_full_demo
+    currentArtifacts:
+      - examples/todo-backend/browser-tests
+      - examples/todo-backend/client/todomvc-react
+      - examples/todo-backend/tests/harness-feature-map.yaml
+    plannedArtifacts: []
+    implementedCommands:
+      - pnpm example:todo-client
+      - pnpm example:todo:test
+      - pnpm example:todo:test:browser:rust
+      - pnpm example:todo:test:browser:typescript
+    plannedCommands: []

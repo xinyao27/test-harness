@@ -1,0 +1,15 @@
+{
+  "name": "@test-harness/example-todo-backend-browser-tests",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vp test run --config vitest.config.mjs"
+  },
+  "dependencies": {
+    "@test-harness/adapter-vitest": "workspace:*",
+    "playwright": "latest",
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
+  }
+}

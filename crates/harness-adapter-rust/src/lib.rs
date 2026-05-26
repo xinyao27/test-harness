@@ -59,6 +59,7 @@ where
             record_passing_result_or_panic(TestResult {
                 failure_message: None,
                 file,
+                labels: Default::default(),
                 promise_id: promise_id.to_string(),
                 status: TestResultStatus::Passing,
                 test_name: test_name.to_string(),
@@ -70,6 +71,7 @@ where
             if let Err(error) = write_scenario_result(TestResult {
                 failure_message: Some(failure_message),
                 file,
+                labels: Default::default(),
                 promise_id: promise_id.to_string(),
                 status: TestResultStatus::Failing,
                 test_name: test_name.to_string(),
@@ -350,6 +352,7 @@ mod tests {
                 let result = TestResult {
                     failure_message: None,
                     file: "crates/harness-adapter-rust/tests/sample.rs".to_string(),
+                    labels: Default::default(),
                     promise_id: "harness.adapters.rust.result_collector.maps_results_to_promises"
                         .to_string(),
                     status: TestResultStatus::Passing,
@@ -378,6 +381,7 @@ mod tests {
                 write_scenario_result(TestResult {
                     failure_message: None,
                     file: "crates/harness-adapter-rust/src/lib.rs".to_string(),
+                    labels: Default::default(),
                     promise_id:
                         "harness.adapters.rust.result_collector.writes_results_to_explicit_harness_root"
                             .to_string(),

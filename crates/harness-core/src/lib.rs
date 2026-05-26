@@ -12,15 +12,20 @@ mod validation;
 pub use config::{load_harness_config, HARNESS_CONFIG_PATH};
 pub use errors::{HarnessError, ModuleLoadError, PromiseLoadError};
 pub use localized_text::{resolve_localized_text, DEFAULT_LANGUAGE};
-pub use module_registry::{find_module_files, find_source_files, load_module_records};
+pub use module_registry::{
+    find_module_files, find_source_files, load_module_records, MODULES_DIRECTORY,
+};
 pub use programs::{build_seed_report, check_seed_harness, SeedCheckResult, SeedReportOptions};
-pub use promise_registry::{find_promise_files, load_promise_records};
+pub use promise_registry::{find_promise_files, load_promise_records, PROMISES_DIRECTORY};
 pub use report::{generate_seed_report, render_seed_report_markdown, render_seed_report_summary};
 pub use results::{
     create_test_results_file, get_promise_run_status, load_test_results, load_test_results_file,
     write_test_results_file, HARNESS_RESULTS_PATH, HARNESS_ROOT_ENV_VAR,
 };
-pub use validation::{validate_module_coverage, validate_promise_records, validate_test_results};
+pub use validation::{
+    validate_module_coverage, validate_module_records, validate_promise_records,
+    validate_test_results,
+};
 
 pub use harness_protocol::{
     FeatureReport, HarnessConfig, LocalizedText, ModuleRecord, PromiseLifecycle, PromiseRecord,
@@ -59,8 +64,8 @@ promises:
     boundary: unit
     lifecycle: accepted
     given:
-      - en: A promise file exists under the promises root
-        zh-CN: promises/ 目录下存在一个 promise 文件
+      - en: A promise file exists under the tests/promises root
+        zh-CN: tests/promises/ 目录下存在一个 promise 文件
     when:
       - en: The seed Harness loads promise records
         zh-CN: seed Harness 加载 promise records
@@ -68,7 +73,7 @@ promises:
       - en: The promise is decoded into a PromiseRecord
         zh-CN: 该 promise 会被解码成 PromiseRecord
     observes:
-      - promises/**/*.promises.yaml
+      - tests/promises/**/*.promises.yaml
     failureMeaning:
       en: The Harness cannot trust its own reviewed behavior promises.
       zh-CN: Harness 无法信任自己已经 review 过的行为承诺。
@@ -86,10 +91,11 @@ promises:
     }
 
     fn write_minimal_workspace(root: &Path) {
+        fs::create_dir_all(root.join("tests")).unwrap();
         fs::write(root.join(HARNESS_CONFIG_PATH), VALID_HARNESS_CONFIG).unwrap();
-        fs::create_dir_all(root.join("promises/promise-registry")).unwrap();
+        fs::create_dir_all(root.join("tests/promises/promise-registry")).unwrap();
         fs::write(
-            root.join("promises/promise-registry/promise-registry.promises.yaml"),
+            root.join("tests/promises/promise-registry/promise-registry.promises.yaml"),
             VALID_PROMISE_YAML,
         )
         .unwrap();
@@ -121,10 +127,25 @@ promises:
         }
     }
 
+    fn valid_module(id: &str) -> ModuleRecord {
+        ModuleRecord {
+            api_version: ProtocolVersion,
+            covers: vec!["crates/harness-core/src/validation.rs".to_string()],
+            id: id.to_string(),
+            promises: vec!["harness.validation.rejects_unreadable_modules".to_string()],
+            purpose: LocalizedText::Text(
+                "Preserve a concrete architecture boundary for review.".to_string(),
+            ),
+            summary: LocalizedText::Text("Owns validation behavior.".to_string()),
+            title: LocalizedText::Text("Validation".to_string()),
+        }
+    }
+
     fn result_for(promise_id: &str, status: TestResultStatus) -> TestResult {
         TestResult {
             failure_message: None,
             file: "crates/harness-core/src/lib.rs".to_string(),
+            labels: Default::default(),
             promise_id: promise_id.to_string(),
             status,
             test_name: "core evidence".to_string(),
@@ -147,10 +168,12 @@ promises:
     #[test]
     fn surfaces_per_record_decode_errors() {
         let temp = tempdir().unwrap();
+        fs::create_dir_all(temp.path().join("tests")).unwrap();
         fs::write(temp.path().join(HARNESS_CONFIG_PATH), VALID_HARNESS_CONFIG).unwrap();
-        fs::create_dir_all(temp.path().join("promises/grouped")).unwrap();
+        fs::create_dir_all(temp.path().join("tests/promises/grouped")).unwrap();
         fs::write(
-            temp.path().join("promises/grouped/grouped.promises.yaml"),
+            temp.path()
+                .join("tests/promises/grouped/grouped.promises.yaml"),
             r#"apiVersion: 1
 promises:
   - id: harness.promise_registry.load_canonical_yaml_promises
@@ -163,7 +186,7 @@ promises:
     given: [A grouped file exists]
     when: [The loader decodes children]
     then: [The valid child is retained]
-    observes: [promises/**/*.promises.yaml]
+    observes: [tests/promises/**/*.promises.yaml]
     failureMeaning: Valid children would be lost.
     review:
       approvedBy: xinyao
@@ -177,7 +200,7 @@ promises:
     given: [A grouped file exists]
     when: [The loader decodes children]
     then: [The invalid child is reported]
-    observes: [promises/**/*.promises.yaml]
+    observes: [tests/promises/**/*.promises.yaml]
     failureMeaning: Invalid children would be hidden.
     review:
       approvedBy: xinyao
@@ -193,9 +216,9 @@ promises:
     #[test]
     fn loads_canonical_yaml_modules() {
         let temp = tempdir().unwrap();
-        fs::create_dir_all(temp.path().join("modules")).unwrap();
+        fs::create_dir_all(temp.path().join("tests/modules")).unwrap();
         fs::write(
-            temp.path().join("modules/core.module.yaml"),
+            temp.path().join("tests/modules/core.module.yaml"),
             r#"apiVersion: 1
 id: core
 title: Core
@@ -310,6 +333,28 @@ covers:
 
         assert!(codes.contains(&"inconsistent_example_columns".to_string()));
         assert!(codes.contains(&"blank_example_row_name".to_string()));
+    }
+
+    #[test]
+    fn validation_rejects_unreadable_modules() {
+        let mut first = valid_module("utils");
+        first.title = LocalizedText::Text("Utils".to_string());
+        let mut second = valid_module("utils");
+        second.summary = LocalizedText::Text(" ".to_string());
+        second.purpose = LocalizedText::Localized(BTreeMap::from([(
+            "zh-CN".to_string(),
+            "缺少默认语言".to_string(),
+        )]));
+
+        let codes = validate_module_records(&[first, second])
+            .into_iter()
+            .map(|issue| issue.code)
+            .collect::<Vec<_>>();
+
+        assert!(codes.contains(&"duplicate_module_id".to_string()));
+        assert!(codes.contains(&"blank_required_field".to_string()));
+        assert!(codes.contains(&"missing_default_language".to_string()));
+        assert!(codes.contains(&"vague_architecture_module".to_string()));
     }
 
     #[test]

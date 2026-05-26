@@ -124,13 +124,13 @@ Seed Harness
 面向人类的可读管理层级是：
 
 ```text
-Feature
+Module（架构边界）
   -> Promise
     -> Evidence
       -> Adapter Tests
 ```
 
-Feature 是导航入口。Promise 是 review 单位。Evidence 解释为什么这个 promise 仍然可信。Adapter tests 是底层可执行编码。
+Module 是架构入口。Module 不是松散标签、文件夹镜像或 UI 分类，而是告诉人类“这个项目由什么组成”的可 review 边界。Promise 是这个边界里的 review 单位。Evidence 解释为什么这个 promise 仍然可信。Adapter tests 是底层可执行编码。
 
 默认 UX 应该汇总稳定绿色的 promises，只突出真正需要注意的东西：
 
@@ -410,7 +410,7 @@ Evidence drift:
 - evidence drift detection
 - quality checks
 - 按 promise id 归一化结果
-- feature 和 risk maps
+- module、feature 和 risk maps
 - Promise Review Console UX
 
 ## 七、可读性和可管理性规则
@@ -419,17 +419,18 @@ Harness 必须通过改变管理单位来让测试可读：人管理 promises，
 
 规则：
 
-1. 人类按 feature 导航，而不是按文件路径导航。
+1. 人类优先按 architecture module 导航，而不是按文件路径导航。
 2. 人类先 review promises，而不是先 review 测试实现。
 3. Promise card 默认只展示 title、priority、boundary、lifecycle、run status、Given / When / Then、observable evidence 和 failure meaning。
 4. 测试代码作为 drill-down 细节存在，不作为第一屏。
 5. 稳定通过的 promises 只做汇总；review 注意力集中在 changed、failing、drifted、weak 或 missing-evidence promises。
 6. 每个 promise 都必须映射到 observable evidence。
 7. 每个重要 evidence item 都应该映射到一个或多个 adapter assertions。
-8. Checker 必须拒绝不可读或不可管理的测试，包括模糊名称、缺少 purpose、缺少 Given / When / Then、缺少 observes，以及 adapter boundary 之外的 mock-call-only assertions。
-9. Promise files 是 canonical；测试里的 scenario bindings 不能静默重新定义已 review 的 promise meaning。
-10. Change view 应展示从上一次 review 以来新增的 promises、删除的 promises、rename 的 promises、弱化的 promises、被删除的 evidence，以及失败的已接受 promises。
-11. UI badge 必须明确区分 Promise Drift 和 Evidence Drift，不能只写 Drift。
+8. Checker 必须拒绝不可读或不可管理的 modules 和 tests，包括模糊 module bucket、模糊测试名称、缺少 purpose、缺少 Given / When / Then、缺少 observes，以及 adapter boundary 之外的 mock-call-only assertions。
+9. 生成 module 的 skills 必须从项目架构和 ownership model 出发，而不是从文件夹或方便的 UI 分类出发。
+10. Promise files 是 canonical；测试里的 scenario bindings 不能静默重新定义已 review 的 promise meaning。
+11. Change view 应展示从上一次 review 以来新增的 promises、删除的 promises、rename 的 promises、弱化的 promises、被删除的 evidence，以及失败的已接受 promises。
+12. UI badge 必须明确区分 Promise Drift 和 Evidence Drift，不能只写 Drift。
 
 这样即使测试数量增长，系统仍然可以被人类管理。
 
@@ -490,6 +491,7 @@ Right
 - 哪些测试是绿色的，但已经不能证明已接受的 promise？
 - 哪些 assertion fingerprints 从上一次 accepted review 后发生了变化？
 - 哪些已批准 promises 正在失败？
+- 哪个 architecture module 拥有这个行为？
 - 哪些 feature 变更影响了哪些 promises？
 - 我现在能运行相关 adapter checks 吗？
 
@@ -501,7 +503,7 @@ Right
    创建最小自托管循环：promise storage、按 promise id 收集 adapter results，以及针对这套 Harness 项目自身的可读报告。
 
 2. **Agent authoring skills**
-   教 Agent 如何起草 Harness-friendly promises、modules 和 tests。Skill 按场景切分 —— [../../skills/harness-add-feature/SKILL.md](../../skills/harness-add-feature/SKILL.md) 用于日常功能开发，[../../skills/harness-onboard-project/SKILL.md](../../skills/harness-onboard-project/SKILL.md) 用于首次接入，[../../skills/harness-troubleshoot/SKILL.md](../../skills/harness-troubleshoot/SKILL.md) 用于诊断命令失败。字段级别的规则放在 AGENTS.md 以及现有 `.promises.yaml` / `.module.yaml` 文件中作为模板，skill 本身专注于工作流。整体保持在 Harness runtime data model 之外。
+   教 Agent 如何起草 Harness-friendly promises、architecture modules 和 tests。Skill 按场景切分 —— [../../skills/harness-add-feature/SKILL.md](../../skills/harness-add-feature/SKILL.md) 用于日常功能开发，[../../skills/harness-onboard-project/SKILL.md](../../skills/harness-onboard-project/SKILL.md) 用于首次接入，[../../skills/harness-troubleshoot/SKILL.md](../../skills/harness-troubleshoot/SKILL.md) 用于诊断命令失败。字段级别的规则放在 AGENTS.md 以及现有 `.promises.yaml` / `.module.yaml` 文件中作为模板，skill 本身专注于工作流。所有 module 相关 skill 都必须把 module creation 当成 architecture modeling，而不是 metadata filing。整体保持在 Harness runtime data model 之外。
 
 3. **Promise registry**
    存储 promises、生命周期状态、review 状态、历史和 drift records。
@@ -525,11 +527,11 @@ Right
 
 这套 Harness 成功的标志是：
 
-1. 人类可以通过 promises 理解系统。
+1. 人类可以通过 architecture modules 及其 promises 理解系统。
 2. 人类主要 review promises，而不是实现代码。
 3. Agent 写出的测试可读、可 review。
 4. Adapter results 能清楚映射回已批准 promises。
 5. Promise drift 不能静默发生。
 6. Evidence drift 不能藏在绿色测试后面。
 7. Harness 可以使用自己的 promises 和 adapter checks 来验证自己的核心行为。
-8. 可以从 promises、tests 和 evidence 生成 feature map 与 risk map。
+8. 可以从 promises、tests 和 evidence 生成 module、feature 与 risk maps。

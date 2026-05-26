@@ -1,0 +1,175 @@
+apiVersion: 1
+promises:
+  - id: todo_backend.showcase.feature_map_covers_harness_capabilities
+    feature: Todo-Backend / Harness Showcase
+    title:
+      en: The Todo-Backend showcase maps every Harness capability
+      zh-CN: Todo-Backend showcase 映射每个 Harness 能力
+    purpose:
+      en: Protect the external demo from becoming a partial sample by requiring every canonical Harness module and promise to have an explicit Todo-Backend application path.
+      zh-CN: 防止对外 demo 变成局部样例；要求每个 canonical Harness module 和 promise 都有明确的 Todo-Backend 应用路径。
+    priority: P0
+    boundary: unit
+    lifecycle: proposed
+    given:
+      - en: The repository defines canonical Harness modules and promises
+        zh-CN: 仓库定义了 canonical Harness modules 和 promises
+      - en: The Todo-Backend example defines a Harness feature map
+        zh-CN: Todo-Backend example 定义了 Harness feature map
+    when:
+      - en: The feature-map checker validates the Todo-Backend showcase
+        zh-CN: feature-map checker 校验 Todo-Backend showcase
+    then:
+      - en: Every canonical Harness module is represented exactly once
+        zh-CN: 每个 canonical Harness module 都且只出现一次
+      - en: Every promise listed by those modules is represented in the matching feature entry
+        zh-CN: 每个 module 列出的 promise 都出现在对应 feature entry 中
+      - en: Every showcase promise id referenced by the map exists in the Todo-Backend promise files
+        zh-CN: map 引用的每个 showcase promise id 都存在于 Todo-Backend promise files 中
+    observes:
+      - examples/todo-backend/tests/harness-feature-map.yaml
+      - examples/todo-backend/tools/check-feature-map.mjs
+      - tests/modules/*.module.yaml
+      - tests/promises/**/*.promises.yaml
+    failureMeaning:
+      en: The example could advertise the whole Harness while quietly omitting an important product capability.
+      zh-CN: example 可能宣传完整 Harness，但悄悄遗漏重要产品能力。
+    review:
+      notes: Pending user review before implementation.
+
+  - id: todo_backend.showcase.one_command_runs_full_demo
+    feature: Todo-Backend / Harness Showcase
+    title:
+      en: One command runs the full Todo-Backend Harness demo
+      zh-CN: 一条命令运行完整 Todo-Backend Harness demo
+    purpose:
+      en: Protect the demo ergonomics so users can see the complete promise-first workflow without hand-orchestrating backends, adapters, result collection, and reports.
+      zh-CN: 保护 demo 的易用性，让用户无需手动编排 backend、adapter、result collection 和 report，就能看到完整 promise-first workflow。
+    priority: P0
+    boundary: e2e
+    lifecycle: proposed
+    given:
+      - en: The TodoMVC client, TypeScript backend, Rust backend, contract tests, and Harness configuration are present
+        zh-CN: TodoMVC client、TypeScript backend、Rust backend、contract tests 和 Harness configuration 都已存在
+    when:
+      - en: A user runs the documented Todo-Backend showcase command
+        zh-CN: 用户运行文档中的 Todo-Backend showcase command
+    then:
+      - en: The command validates promises and feature maps
+        zh-CN: 命令会校验 promises 和 feature maps
+      - en: The command runs contract and native tests for the configured implementations
+        zh-CN: 命令会为配置好的 implementations 运行 contract tests 和 native tests
+      - en: The command writes canonical Harness results and renders the report output
+        zh-CN: 命令会写出 canonical Harness results 并渲染 report output
+    observes:
+      - examples/todo-backend/tests/harness.yaml
+      - examples/todo-backend/tools/**
+      - examples/todo-backend/.harness/results.yaml
+    failureMeaning:
+      en: The demo would require expert local setup and would not be credible as a public entry point.
+      zh-CN: demo 会要求用户具备专家级本地配置能力，无法成为可信的公开入口。
+    review:
+      notes: Pending user review before implementation.
+
+  - id: todo_backend.showcase.cross_language_adapters_merge_evidence
+    feature: Todo-Backend / Harness Showcase
+    title:
+      en: Cross-language adapter evidence merges into one Harness result model
+      zh-CN: 跨语言 adapter evidence 合并到同一个 Harness result model
+    purpose:
+      en: Protect the core marketing claim that TypeScript and Rust tests can prove the same reviewed promises through the shared protocol and adapter runtime.
+      zh-CN: 保护核心宣传点：TypeScript 和 Rust tests 可以通过共享 protocol 和 adapter runtime 证明同一批已 review promises。
+    priority: P0
+    boundary: e2e
+    lifecycle: proposed
+    given:
+      - en: The TypeScript Hono implementation emits Vitest adapter evidence
+        zh-CN: TypeScript Hono implementation 输出 Vitest adapter evidence
+      - en: The Rust Axum implementation emits Rust adapter evidence
+        zh-CN: Rust Axum implementation 输出 Rust adapter evidence
+    when:
+      - en: The shared adapter runtime collects the Todo-Backend run
+        zh-CN: 共享 adapter runtime 收集 Todo-Backend run
+    then:
+      - en: Both languages contribute events using canonical Todo-Backend promise ids
+        zh-CN: 两种语言都使用 canonical Todo-Backend promise ids 贡献 events
+      - en: The merged result file keeps implementation and framework evidence distinct while sharing the same promise ids
+        zh-CN: merged result file 保留 implementation 和 framework evidence 的区分，同时共享同一批 promise ids
+    observes:
+      - examples/todo-backend/.harness/runs/*/events/*.ndjson
+      - examples/todo-backend/.harness/results.yaml
+      - examples/todo-backend/implementations/*/**
+    failureMeaning:
+      en: The example would look like separate test suites instead of a language-agnostic Harness workflow.
+      zh-CN: example 会看起来像几套分离测试，而不是语言无关的 Harness workflow。
+    review:
+      notes: Pending user review before implementation.
+
+  - id: todo_backend.showcase.cli_reports_bilingual_promise_status
+    feature: Todo-Backend / Harness Showcase
+    title:
+      en: The showcase renders bilingual promise status through the Harness CLI
+      zh-CN: showcase 通过 Harness CLI 渲染双语 promise status
+    purpose:
+      en: Protect the human-facing story of the demo by showing English and Chinese reviewers the same Todo-Backend promise status without reading source code.
+      zh-CN: 保护 demo 面向人的叙事：英文和中文 reviewer 都可以不读源码，看到同一套 Todo-Backend promise status。
+    priority: P1
+    boundary: e2e
+    lifecycle: proposed
+    given:
+      - en: Todo-Backend promises use LocalizedText fields
+        zh-CN: Todo-Backend promises 使用 LocalizedText fields
+      - en: Harness results have been collected for the Todo-Backend demo
+        zh-CN: Todo-Backend demo 的 Harness results 已经被收集
+    when:
+      - en: The documented report commands run in English and Chinese
+        zh-CN: 文档中的 report commands 以英文和中文运行
+    then:
+      - en: The report renders promise titles, purposes, and status in the requested language
+        zh-CN: report 会用请求语言渲染 promise title、purpose 和 status
+      - en: Summary output remains compact enough for release notes, README snippets, and CI logs
+        zh-CN: summary output 足够紧凑，可用于 release notes、README snippets 和 CI logs
+    observes:
+      - examples/todo-backend/tests/promises/*.promises.yaml
+      - examples/todo-backend/README.md
+      - examples/todo-backend/README.zh-CN.md
+      - examples/todo-backend/.harness/results.yaml
+    failureMeaning:
+      en: The demo would prove tests ran but would not show the human-review advantage of the Harness.
+      zh-CN: demo 能证明测试运行过，但无法展示 Harness 的 human-review 优势。
+    review:
+      notes: Pending user review before implementation.
+
+  - id: todo_backend.showcase.validation_guards_promise_and_module_coverage
+    feature: Todo-Backend / Harness Showcase
+    title:
+      en: Validation guards Todo-Backend promise and module coverage
+      zh-CN: validation 保护 Todo-Backend promise 和 module coverage
+    purpose:
+      en: Protect the showcase from drifting as files are added by requiring validation to catch unreadable promises, missing evidence, unknown bindings, and unmapped example areas.
+      zh-CN: 防止 showcase 随文件增加而漂移；要求 validation 捕获不可读 promise、缺失 evidence、未知 binding 和未映射 example 区域。
+    priority: P1
+    boundary: unit
+    lifecycle: proposed
+    given:
+      - en: The Todo-Backend example has modules, promises, contract tests, native tests, and result files
+        zh-CN: Todo-Backend example 拥有 modules、promises、contract tests、native tests 和 result files
+    when:
+      - en: The documented check command runs
+        zh-CN: 文档中的 check command 运行
+    then:
+      - en: Unreadable promises fail validation before implementation is considered complete
+        zh-CN: 不可读 promises 会在 implementation 被视为完成前让 validation 失败
+      - en: Unknown promise bindings and missing test results are visible in the report or check output
+        zh-CN: 未知 promise bindings 和缺失 test results 会在 report 或 check output 中可见
+      - en: Example modules list the promises and source areas they own
+        zh-CN: example modules 会列出自己负责的 promises 和 source areas
+    observes:
+      - examples/todo-backend/tests/modules/*.module.yaml
+      - examples/todo-backend/tests/promises/*.promises.yaml
+      - examples/todo-backend/tools/check-feature-map.mjs
+    failureMeaning:
+      en: The public demo could decay into an impressive run command with weak review metadata.
+      zh-CN: 公开 demo 可能退化成一个看起来很厉害的运行命令，但 review metadata 很弱。
+    review:
+      notes: Pending user review before implementation.

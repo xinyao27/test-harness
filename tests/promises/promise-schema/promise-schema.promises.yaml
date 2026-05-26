@@ -1,0 +1,115 @@
+apiVersion: 1
+promises:
+  - id: harness.promise.schema_supports_example_variants
+    feature: Seed Harness / Promise Schema
+    title:
+      en: Promise schema accepts an optional examples table for input variants
+      zh-CN: Promise schema 接受可选的 examples 表，用来表示输入变体
+    purpose:
+      en: Let one promise carry many concrete input/output variants of the same Given/When/Then template, so reviewers can see all variants on a single promise page instead of opening N near-duplicate promise files or accepting a vague "handles various cases" promise.
+      zh-CN: 让单个 promise 在同一个 Given/When/Then 模板下承载多个具体的输入/输出变体，reviewer 可以在一份 promise 页面上看到所有变体，不必打开 N 份几乎相同的 promise 文件，也不必接受一份含糊的"处理各种情况"的 promise。
+    priority: P1
+    boundary: unit
+    lifecycle: accepted
+    given:
+      - en: A promise YAML file optionally includes an `examples` field
+        zh-CN: 一份 promise YAML 文件可选地包含 `examples` 字段
+    when:
+      - en: The seed Harness decodes the promise record through the versioned protocol schema
+        zh-CN: seed Harness 通过版本化 protocol schema 解码这条 promise record
+    then:
+      - en: A promise without an `examples` field decodes successfully and is indistinguishable from today's promise shape
+        zh-CN: 没有 `examples` 字段的 promise 仍能正常解码，与今天的 promise 形状无法区分
+      - en: "A promise with `examples` declared but empty (`examples: []`) is rejected at decode time"
+        zh-CN: "声明了 `examples` 但内容为空（`examples: []`）的 promise 在解码阶段被拒绝"
+      - en: A promise with `examples` as a non-empty list of string→string maps is accepted, with each row required to carry a non-blank `name` key as the row label
+        zh-CN: 当 `examples` 是非空的 string→string map 列表时，promise 被接受；每行必须带有非空 `name` 键作为该行的标签
+      - en: All other row keys are arbitrary string→string entries that the reviewer chooses (for example `input`, `expected`, `note`)
+        zh-CN: 行内其余键名是任意 string→string 条目，由 reviewer 自行选取（例如 `input`、`expected`、`note`）
+    observes:
+      - protocol/v1/promise.schema.yaml
+      - crates/harness-protocol/src/lib.rs
+      - tests/promises/**/*.promises.yaml
+    failureMeaning:
+      en: Either the new optional field silently breaks loading of existing promise files, or the schema accepts table shapes that reviewers cannot scan as a table — defeating the whole reason for adding the field.
+      zh-CN: 要么新的可选字段悄悄破坏已有 promise 文件的加载，要么 schema 接受了 reviewer 无法按表格扫读的形状 —— 让新增字段本身失去意义。
+    review:
+      approvedBy: xinyao
+      approvedAt: "2026-05-25"
+
+  - id: harness.promise.canonical_file_is_grouped
+    feature: Seed Harness / Promise Schema
+    title:
+      en: The canonical promise file is a grouped wrapper that holds many promise records
+      zh-CN: canonical promise 文件是装着多条 promise records 的容器
+    purpose:
+      en: Keep the tests/promises/ tree manageable. The canonical and only supported promise file shape is a grouped wrapper — authors never write one promise per file. This protects reviewers from file-count sprawl as the project grows and forces related behaviors to live next to each other on disk.
+      zh-CN: 让 tests/promises/ 目录长期可管理。canonical 也是唯一受支持的 promise 文件形状是一个容器 —— 作者不再写"一文件一 promise"。这样可以避免项目变大后 reviewer 被文件数量淹没，并强制相关行为在磁盘上挨在一起。
+    priority: P0
+    boundary: unit
+    lifecycle: accepted
+    given:
+      - en: A YAML file exists somewhere under the tests/promises root
+        zh-CN: promises 根目录下某处存在一个 YAML 文件
+    when:
+      - en: The seed Harness decodes that file through the versioned protocol schema
+        zh-CN: seed Harness 通过版本化 protocol schema 解码该文件
+    then:
+      - en: Only files with the `.promises.yaml` suffix are recognized as promise files
+        zh-CN: 只有后缀为 `.promises.yaml` 的文件会被识别为 promise 文件
+      - en: Legacy single-record `.promises.yaml` files are no longer loaded and are reported as an unrecognized file shape error
+        zh-CN: 旧的单条 `.promises.yaml` 文件不再被加载，会被报告为不识别的文件形状错误
+      - en: "The wrapper requires `apiVersion: 1` and a non-empty `promises` array"
+        zh-CN: "容器必须带有 `apiVersion: 1` 和非空的 `promises` 数组"
+      - en: "Each entry in `promises` is decoded as a full PromiseRecord using the same field contract used today"
+        zh-CN: "`promises` 数组里每个条目都按现行字段契约被解码为完整 PromiseRecord"
+      - en: Two records inside the same wrapper file that share an `id` are rejected at decode time with a duplicate error
+        zh-CN: 同一个容器文件内 `id` 相同的两条记录在解码阶段就会以 duplicate 错误被拒绝
+    observes:
+      - protocol/v1/promise.schema.yaml
+      - protocol/v1/promises-file.schema.yaml
+      - crates/harness-protocol/src/lib.rs
+      - tests/promises/**/*.promises.yaml
+    failureMeaning:
+      en: Either the loader silently accepts malformed shapes (reviewers approve records they cannot actually read), or it keeps loading legacy single-file promises behind the project's back so the "one canonical shape" rule rots immediately.
+      zh-CN: 要么 loader 悄悄接受畸形形状（reviewer 批准了他们其实读不通的记录），要么继续在项目背后加载旧的单文件 promises，"一种 canonical 形状"的规则当场失效。
+    review:
+      approvedBy: xinyao
+      approvedAt: "2026-05-25"
+
+  - id: harness.promise.schema_defines_required_fields
+    feature: Seed Harness / Promise Schema
+    title:
+      en: Promise records are decoded through the versioned protocol schema
+      zh-CN: Promise records 会通过 versioned protocol schema 解码
+    purpose:
+      en: Protect the Harness from accepting promise files whose protocol shape is not explicitly defined.
+      zh-CN: 保护 Harness 不会接受 protocol shape 没有被明确定义的 promise 文件。
+    priority: P0
+    boundary: unit
+    lifecycle: accepted
+    given:
+      - en: A canonical promise YAML file is parsed as unknown data
+        zh-CN: 一个 canonical promise YAML 文件被解析成 unknown data
+    when:
+      - en: The seed Harness decodes the promise record
+        zh-CN: seed Harness 解码这个 promise record
+    then:
+      - en: Required per-record fields must be present (id, feature, title, purpose, priority, boundary, lifecycle, given, when, then, observes, failureMeaning, review)
+        zh-CN: per-record 必填字段必须存在（id、feature、title、purpose、priority、boundary、lifecycle、given、when、then、observes、failureMeaning、review）
+      - en: lifecycle, priority, and boundary must match the allowed values
+        zh-CN: lifecycle、priority 和 boundary 必须符合允许值
+      - en: Natural-language fields may be plain English strings or localized text maps
+        zh-CN: 自然语言字段可以是普通英文字符串，也可以是 localized text map
+      - en: apiVersion is a wrapper-file field and is not accepted at per-record level
+        zh-CN: apiVersion 是 wrapper 文件级别字段，per-record 不接受
+    observes:
+      - protocol/v1/promise.schema.yaml
+      - crates/harness-protocol/src/lib.rs
+      - tests/promises/**/*.promises.yaml
+    failureMeaning:
+      en: The Harness may treat malformed or ambiguous promise files as reviewed behavior commitments.
+      zh-CN: Harness 可能会把格式错误或含义模糊的 promise 文件当成已 review 的行为承诺。
+    review:
+      approvedBy: xinyao
+      approvedAt: "2026-05-24"

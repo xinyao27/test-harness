@@ -124,13 +124,13 @@ Tests will grow large over time. Humans should not manage the system by reading 
 The human-readable management hierarchy is:
 
 ```text
-Feature
+Module (architecture boundary)
   -> Promise
     -> Evidence
       -> Adapter Tests
 ```
 
-Features are the navigation entry point. Promises are the review unit. Evidence explains why a promise is still trusted. Adapter tests are the executable encoding underneath.
+Modules are the architecture entry point. A module is not a loose tag, folder mirror, or UI grouping; it is the reviewable boundary that tells a human what the project is made of. Promises are the review unit inside that boundary. Evidence explains why a promise is still trusted. Adapter tests are the executable encoding underneath.
 
 Default UX should summarize stable green promises and highlight only what needs attention:
 
@@ -410,7 +410,7 @@ Use the Harness for:
 - evidence drift detection
 - quality checks
 - result normalization by promise id
-- feature and risk maps
+- module, feature, and risk maps
 - Promise Review Console UX
 
 ## 7. Readability And Manageability Rules
@@ -419,17 +419,18 @@ The Harness must make tests readable by changing the unit of management from tes
 
 Rules:
 
-1. Humans navigate by feature, not by file path.
+1. Humans navigate by architecture module first, not by file path.
 2. Humans review promises, not test implementation first.
 3. Promise cards show only title, priority, boundary, lifecycle, run status, Given / When / Then, observable evidence, and failure meaning by default.
 4. Test code is available as drill-down detail, not the first screen.
 5. Stable passing promises are summarized; review attention goes to changed, failing, drifted, weak, or missing-evidence promises.
 6. Every promise must map to observable evidence.
 7. Every important evidence item should map to one or more adapter assertions.
-8. The checker must reject unreadable or unmanageable tests, including vague names, missing purpose, missing Given / When / Then, missing observes, and mock-call-only assertions outside adapter boundaries.
-9. Promise files are canonical; scenario bindings in tests must not silently redefine reviewed promise meaning.
-10. Change views should show new promises, removed promises, renamed promises, weakened promises, evidence removed, and failing accepted promises since the last review.
-11. UI badges must qualify drift as either Promise Drift or Evidence Drift.
+8. The checker must reject unreadable or unmanageable modules and tests, including vague module buckets, vague test names, missing purpose, missing Given / When / Then, missing observes, and mock-call-only assertions outside adapter boundaries.
+9. Skills that generate modules must start from the project's architecture and ownership model, not from folders or convenient UI categories.
+10. Promise files are canonical; scenario bindings in tests must not silently redefine reviewed promise meaning.
+11. Change views should show new promises, removed promises, renamed promises, weakened promises, evidence removed, and failing accepted promises since the last review.
+12. UI badges must qualify drift as either Promise Drift or Evidence Drift.
 
 This keeps the system manageable even when the number of tests grows.
 
@@ -490,6 +491,7 @@ Important UX questions:
 - Which tests are green but no longer prove the accepted promise?
 - Which assertion fingerprints changed since the last accepted review?
 - Which approved promises are failing?
+- Which architecture module owns this behavior?
 - Which feature changes affected which promises?
 - Can I run the relevant adapter checks now?
 
@@ -501,7 +503,7 @@ Build the smallest version that preserves the core model. The detailed seed plan
    Create the smallest self-hosting loop: promise storage, adapter result collection by promise id, and a readable report for this Harness project itself.
 
 2. **Agent authoring skills**
-   Teach Agents how to draft Harness-friendly promises, modules, and tests. The skills are scenario-shaped — [../../skills/harness-add-feature/SKILL.md](../../skills/harness-add-feature/SKILL.md) for routine feature work, [../../skills/harness-onboard-project/SKILL.md](../../skills/harness-onboard-project/SKILL.md) for first-time onboarding, [../../skills/harness-troubleshoot/SKILL.md](../../skills/harness-troubleshoot/SKILL.md) for diagnosing command failures. Field-level rules live in AGENTS.md and in existing `.promises.yaml` / `.module.yaml` files as templates; the skills stay workflow-focused. All of this stays outside the Harness runtime data model.
+   Teach Agents how to draft Harness-friendly promises, architecture modules, and tests. The skills are scenario-shaped — [../../skills/harness-add-feature/SKILL.md](../../skills/harness-add-feature/SKILL.md) for routine feature work, [../../skills/harness-onboard-project/SKILL.md](../../skills/harness-onboard-project/SKILL.md) for first-time onboarding, [../../skills/harness-troubleshoot/SKILL.md](../../skills/harness-troubleshoot/SKILL.md) for diagnosing command failures. Field-level rules live in AGENTS.md and in existing `.promises.yaml` / `.module.yaml` files as templates; the skills stay workflow-focused. All module-related skills must treat module creation as architecture modeling, not metadata filing. All of this stays outside the Harness runtime data model.
 
 3. **Promise registry**
    Store promises, lifecycle state, review state, history, and drift records.
@@ -525,11 +527,11 @@ Build the smallest version that preserves the core model. The detailed seed plan
 
 This Harness is successful when:
 
-1. Humans can understand the system through promises.
+1. Humans can understand the system through architecture modules and their promises.
 2. Humans mainly review promises, not implementation code.
 3. Agents write tests that are readable and reviewable.
 4. Adapter results map clearly back to approved promises.
 5. Promise drift cannot happen silently.
 6. Evidence drift cannot hide behind green tests.
 7. The Harness can use its own promises and adapter checks to validate its core behavior.
-8. Feature and risk maps can be generated from promises, tests, and evidence.
+8. Module, feature, and risk maps can be generated from promises, tests, and evidence.

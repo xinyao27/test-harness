@@ -26,7 +26,7 @@ The TypeScript core and CLI were removed after the Rust implementation matched t
 
 ## Boundaries
 
-- `harness.yaml` owns the external test runner command.
+- `tests/harness.yaml` owns the external test runner command.
 - `harness test` runs `test.runner.command` with `test.runner.args` and injects `HARNESS_ROOT_DIR`.
 - Rust core must not know Vitest-specific details.
 - The Vitest adapter must not depend on the Rust core.
@@ -36,7 +36,7 @@ The TypeScript core and CLI were removed after the Rust implementation matched t
 ## Migration Steps
 
 1. Add Rust crates for protocol types and fixture conformance.
-2. Implement Rust loaders for `harness.yaml`, promises, modules, and results.
+2. Implement Rust loaders for `tests/harness.yaml`, promises, modules, and results.
 3. Implement Rust report generation against the golden report fixtures.
 4. Implement Rust CLI commands: `check`, `report`, `verify`, and `test`.
 5. Add a shared Rust adapter runtime that can wrap arbitrary test commands and merge adapter event shards into `.harness/results.yaml`.

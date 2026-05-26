@@ -10,9 +10,10 @@ Harness 首先是一套 protocol，而不是 TypeScript 或 Vitest 的功能。
 稳定层是：
 
 ```text
-harness.yaml
+tests/harness.yaml
   -> configured adapter runner
-promises/**/*.promises.yaml
+tests/modules/**/*.module.yaml
+tests/promises/**/*.promises.yaml
   -> adapter execution
   -> .harness/runs/<run-id>/events/*.ndjson
   -> adapter runtime merge
@@ -29,7 +30,7 @@ Protocol contracts 放在 `protocol/v1/`：
 - `promise.schema.yaml`：canonical promise file shape。
 - `harness-config.schema.yaml`：project-level runner config shape。
 - `promises-file.schema.yaml`：canonical grouped promises wrapper shape。
-- `module.schema.yaml`：canonical module ownership file shape。
+- `module.schema.yaml`：canonical architecture-boundary ownership file shape。
 - `adapter-event.schema.yaml`：adapter 发出并由 runtime 合并的 stream record shape。
 - `results.schema.yaml`：adapter 产出的 result file shape。
 - `report.schema.yaml`：structured report shape。
@@ -46,15 +47,15 @@ Protocol contracts 放在 `protocol/v1/`：
 - **Adapter**：测试框架桥接层，把可执行检查转换成 adapter events。
 - **Vitest adapter**：当前 adapter，使用 `scenarioTest(...)` 和 Vitest reporter。
 
-Protocol 不能要求 Vitest task metadata、TypeScript imports 或 Node process details。这些属于 `promises/adapters/vitest/` 下的 adapter promises。
+Protocol 不能要求 Vitest task metadata、TypeScript imports 或 Node process details。这些属于 `tests/promises/adapters/vitest/` 下的 adapter promises。
 
 ## Replacement Rule
 
 替代实现成功的判断标准是：它能满足同一批 protocol promises 和 conformance fixtures：
 
 1. 加载同一批 `.promises.yaml` 文件。
-2. 加载同一批 module ownership files。
-3. 加载同一类 `harness.yaml` runner config shape。
+2. 加载同一批 architecture-boundary module files。
+3. 加载同一类 `tests/harness.yaml` runner config shape。
 4. 拒绝同一批无效 config、module、promise、result 和 report fixtures。
 5. 发出同样的 adapter event records，或读取/写出同样的 `.harness/results.yaml` shape。
 6. 渲染等价的 promise status，并在已固定的场景中匹配 CLI report golden fixtures。

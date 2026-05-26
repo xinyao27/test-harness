@@ -1,0 +1,20 @@
+{
+  "name": "@test-harness/example-todo-backend-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite --host 127.0.0.1 --port 3100 --strictPort",
+    "preview": "vite preview --host 127.0.0.1 --port 3100 --strictPort"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "todomvc-app-css": "^2.4.3",
+    "todomvc-common": "^1.0.5"
+  },
+  "devDependencies": {
+    "vite": "catalog:"
+  }
+}
