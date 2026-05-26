@@ -130,7 +130,10 @@ const studioGraphLayout = {
   edgeLabelSize: 11,
   edgeLabelWeight: 500,
   edgePrimaryStrokeWidth: 1.5,
-  edgeRelatedStrokeWidth: 1.2,
+  edgeOverviewStrokeOpacity: 0.42,
+  edgeOverviewStrokeWidth: 1,
+  edgeRelatedStrokeOpacity: 0.66,
+  edgeRelatedStrokeWidth: 1.15,
   fitViewPadding: 0.14,
   relatedModuleX: 0,
   relatedModuleYStart: 282,
@@ -140,6 +143,15 @@ const studioGraphLayout = {
   promiseX: 420,
   promiseYStart: 190,
   promiseYStep: 132,
+} as const;
+
+const studioNodeHandles = {
+  sourceBottom: "source-bottom",
+  sourceRight: "source-right",
+  sourceTop: "source-top",
+  targetBottom: "target-bottom",
+  targetLeft: "target-left",
+  targetTop: "target-top",
 } as const;
 
 const architectureLayerByModuleId: Record<string, number> = {
@@ -161,6 +173,26 @@ const architectureLayerByModuleId: Record<string, number> = {
   "todo-backend-client": 2,
   "todo-backend-showcase": 3,
 };
+
+const architectureOverviewRelationPairs = [
+  ["protocol", "promise-schema"],
+  ["protocol", "results-schema"],
+  ["protocol", "module-registry"],
+  ["promise-schema", "promise-registry"],
+  ["module-registry", "validation"],
+  ["results-schema", "adapter-runtime"],
+  ["cli", "adapter-runtime"],
+  ["adapter-runtime", "rust-adapter"],
+  ["adapter-runtime", "vitest-adapter"],
+  ["cli", "report"],
+  ["cli", "web-dashboard"],
+  ["todo-backend-api-contract", "todo-backend-client"],
+  ["todo-backend-api-contract", "todo-backend-typescript-hono"],
+  ["todo-backend-api-contract", "todo-backend-rust-axum"],
+  ["todo-backend-client", "todo-backend-showcase"],
+  ["todo-backend-typescript-hono", "todo-backend-showcase"],
+  ["todo-backend-rust-axum", "todo-backend-showcase"],
+] as const;
 
 function ProjectSwitcher({
   onProjectChange,
@@ -945,7 +977,24 @@ function StudioGraphNode({ data }: NodeProps<StudioNode>) {
         data.dimmed && "border-border text-muted-foreground",
       )}
     >
-      <Handle type="target" position={Position.Left} className="opacity-0" />
+      <Handle
+        id={studioNodeHandles.targetTop}
+        type="target"
+        position={Position.Top}
+        className="opacity-0"
+      />
+      <Handle
+        id={studioNodeHandles.sourceTop}
+        type="source"
+        position={Position.Top}
+        className="opacity-0"
+      />
+      <Handle
+        id={studioNodeHandles.targetLeft}
+        type="target"
+        position={Position.Left}
+        className="opacity-0"
+      />
       <div className="flex items-start justify-between gap-(--studio-panel-gap-sm)">
         <div className="min-w-0">
           <div className="line-clamp-2 text-sm font-medium">{data.title}</div>
@@ -958,7 +1007,24 @@ function StudioGraphNode({ data }: NodeProps<StudioNode>) {
       <div className="mt-(--studio-panel-gap) flex items-center justify-between gap-(--studio-panel-gap-sm) text-xs text-muted-foreground">
         <span className="truncate">{data.meta}</span>
       </div>
-      <Handle type="source" position={Position.Right} className="opacity-0" />
+      <Handle
+        id={studioNodeHandles.sourceRight}
+        type="source"
+        position={Position.Right}
+        className="opacity-0"
+      />
+      <Handle
+        id={studioNodeHandles.targetBottom}
+        type="target"
+        position={Position.Bottom}
+        className="opacity-0"
+      />
+      <Handle
+        id={studioNodeHandles.sourceBottom}
+        type="source"
+        position={Position.Bottom}
+        className="opacity-0"
+      />
     </div>
   );
 }
@@ -1058,8 +1124,10 @@ function buildStudioGraph(
   const ownershipEdges = activePromises.map((promise) => ({
     id: `owns:${promise.moduleId}:${promise.id}`,
     source: `module:${promise.moduleId}`,
+    sourceHandle: studioNodeHandles.sourceRight,
     target: `promise:${promise.id}`,
-    type: "smoothstep",
+    targetHandle: studioNodeHandles.targetLeft,
+    type: "default",
     label: messages.graph_edge_owns({}, { locale }),
     markerEnd: { type: MarkerType.ArrowClosed },
     labelBgPadding: studioGraphLayout.edgeLabelPadding,
@@ -1070,22 +1138,27 @@ function buildStudioGraph(
       fontWeight: studioGraphLayout.edgeLabelWeight,
     },
     style: { stroke: edgeColors.stroke, strokeWidth: studioGraphLayout.edgePrimaryStrokeWidth },
+    interactionWidth: 16,
   }));
 
   const relatedEdges = activeModule
     ? relatedModules.map((module) => ({
         id: `related:${activeModule.id}:${module.id}`,
         source: `module:${activeModule.id}`,
+        sourceHandle: studioNodeHandles.sourceBottom,
         target: `module:${module.id}`,
-        type: "smoothstep",
+        targetHandle: studioNodeHandles.targetTop,
+        type: "default",
         label: messages.graph_edge_related({}, { locale }),
         labelBgPadding: studioGraphLayout.edgeLabelPadding,
         labelBgStyle: { fill: edgeColors.labelMutedBackground },
         labelStyle: { fill: edgeColors.labelMutedText, fontSize: studioGraphLayout.edgeLabelSize },
         style: {
           stroke: edgeColors.relatedStroke,
+          strokeOpacity: studioGraphLayout.edgeRelatedStrokeOpacity,
           strokeWidth: studioGraphLayout.edgeRelatedStrokeWidth,
         },
+        interactionWidth: 16,
       }))
     : buildArchitectureRelationEdges(snapshot, edgeColors.relatedStroke);
 
@@ -1156,6 +1229,20 @@ function getFocusedModulePosition(
 
 function buildArchitectureRelationEdges(snapshot: HarnessSnapshot, stroke: string): Edge[] {
   const moduleById = new Map(snapshot.modules.map((module) => [module.id, module]));
+  const moduleLayerGroups = groupModulesByArchitectureLayer(snapshot.modules);
+  const overviewEdges: Edge[] = [];
+
+  for (const [sourceId, targetId] of architectureOverviewRelationPairs) {
+    const source = moduleById.get(sourceId);
+    const target = moduleById.get(targetId);
+    if (!source || !target || !hasModuleRelation(source, target)) continue;
+    overviewEdges.push(
+      createArchitectureRelationEdge(source, target, stroke, "overview", moduleLayerGroups),
+    );
+  }
+
+  if (overviewEdges.length > 0) return overviewEdges;
+
   const seenRelationIds = new Set<string>();
   const edges: Edge[] = [];
 
@@ -1169,20 +1256,73 @@ function buildArchitectureRelationEdges(snapshot: HarnessSnapshot, stroke: strin
       seenRelationIds.add(relationId);
 
       const [source, target] = orderRelationEndpoints(module, relatedModule);
-      edges.push({
-        id: `architecture:${source.id}:${target.id}`,
-        source: `module:${source.id}`,
-        target: `module:${target.id}`,
-        type: "smoothstep",
-        style: {
-          stroke,
-          strokeWidth: studioGraphLayout.edgeRelatedStrokeWidth,
-        },
-      });
+      edges.push(
+        createArchitectureRelationEdge(source, target, stroke, "related", moduleLayerGroups),
+      );
     }
   }
 
   return edges;
+}
+
+function hasModuleRelation(left: HarnessModule, right: HarnessModule) {
+  return left.relatedModuleIds.includes(right.id) || right.relatedModuleIds.includes(left.id);
+}
+
+function createArchitectureRelationEdge(
+  source: HarnessModule,
+  target: HarnessModule,
+  stroke: string,
+  edgeKind: string,
+  moduleLayerGroups: Map<number, HarnessModule[]>,
+): Edge {
+  const isOverview = edgeKind === "overview";
+  const handles = getArchitectureRelationHandles(source, target, moduleLayerGroups);
+
+  return {
+    id: `architecture:${edgeKind}:${source.id}:${target.id}`,
+    source: `module:${source.id}`,
+    sourceHandle: handles.sourceHandle,
+    target: `module:${target.id}`,
+    targetHandle: handles.targetHandle,
+    type: "default",
+    style: {
+      stroke,
+      strokeOpacity: isOverview
+        ? studioGraphLayout.edgeOverviewStrokeOpacity
+        : studioGraphLayout.edgeRelatedStrokeOpacity,
+      strokeWidth: isOverview
+        ? studioGraphLayout.edgeOverviewStrokeWidth
+        : studioGraphLayout.edgeRelatedStrokeWidth,
+    },
+    interactionWidth: 16,
+  };
+}
+
+function getArchitectureRelationHandles(
+  source: HarnessModule,
+  target: HarnessModule,
+  moduleLayerGroups: Map<number, HarnessModule[]>,
+) {
+  const sourcePosition = getArchitectureLayerPosition(source, moduleLayerGroups);
+  const targetPosition = getArchitectureLayerPosition(target, moduleLayerGroups);
+
+  if (sourcePosition.x === targetPosition.x) {
+    return sourcePosition.y <= targetPosition.y
+      ? {
+          sourceHandle: studioNodeHandles.sourceBottom,
+          targetHandle: studioNodeHandles.targetTop,
+        }
+      : {
+          sourceHandle: studioNodeHandles.sourceTop,
+          targetHandle: studioNodeHandles.targetBottom,
+        };
+  }
+
+  return {
+    sourceHandle: studioNodeHandles.sourceRight,
+    targetHandle: studioNodeHandles.targetLeft,
+  };
 }
 
 function orderRelationEndpoints(left: HarnessModule, right: HarnessModule) {
