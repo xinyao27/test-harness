@@ -67,6 +67,7 @@
   --studio-radius: var(--radius-lg);
   --studio-node-radius: var(--radius-lg);
   --studio-control-radius: var(--radius-md);
+  --studio-menu-item-radius: var(--radius-lg);
   --studio-shell-inset: 4px;
   --studio-control-inset: 4px;
   --studio-floating-inset: 0.75rem;
@@ -365,6 +366,33 @@
 
   .studio-project-trigger {
     max-width: min(var(--studio-project-trigger-max-width), calc(100vw - 4rem));
+  }
+
+  .studio-project-menu {
+    border-radius: var(--studio-radius) !important;
+  }
+
+  .studio-project-search {
+    border-radius: var(--studio-control-radius) !important;
+  }
+
+  .studio-project-menu-item {
+    border-radius: var(--studio-menu-item-radius) !important;
+    transition-duration: var(--studio-motion-duration);
+    transition-property: background-color, color;
+  }
+
+  .studio-project-menu-item:hover,
+  .studio-project-menu-item:focus-visible,
+  .studio-project-menu-item[data-selected="true"] {
+    color: var(--accent-foreground);
+    background: var(--accent);
+  }
+
+  .studio-project-menu-item:hover svg,
+  .studio-project-menu-item:focus-visible svg,
+  .studio-project-menu-item[data-selected="true"] svg {
+    color: var(--accent-foreground);
   }
 
   .studio-panel-expand-panel {

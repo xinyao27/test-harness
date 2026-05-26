@@ -102,6 +102,8 @@ const currentStudioProjectId = "current:test-harness";
 const noStudioProjectId = "none";
 const studioProjectsStorageKey = "harness-studio.projects";
 const selectedStudioProjectStorageKey = "harness-studio.selected-project";
+const projectMenuItemClass =
+  "studio-project-menu-item flex h-7 w-full items-center gap-2 px-1.5 text-left text-xs text-popover-foreground outline-none";
 
 const defaultStudioProjects: StudioProject[] = [
   {
@@ -261,13 +263,13 @@ function ProjectSwitcher({
         align="start"
         side="bottom"
         sideOffset={4}
-        className="w-(--studio-project-menu-width) gap-2 border-border bg-popover p-2"
+        className="studio-project-menu w-(--studio-project-menu-width) gap-2 border-border bg-popover p-2"
       >
         <div className="relative">
           <RiSearchLine className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             aria-label={m.studio_project_search_placeholder({}, { locale })}
-            className="h-8 pl-7 text-xs"
+            className="studio-project-search h-8 pl-7 text-xs"
             placeholder={m.studio_project_search_placeholder({}, { locale })}
             value={query}
             onChange={(event) => setQuery(event.currentTarget.value)}
@@ -283,7 +285,8 @@ function ProjectSwitcher({
               <button
                 key={project.id}
                 type="button"
-                className="flex h-7 w-full items-center gap-2 px-1.5 text-left text-xs text-popover-foreground hover:bg-muted"
+                className={projectMenuItemClass}
+                data-selected={project.id === selectedProjectId}
                 onClick={() => selectProject(project)}
               >
                 <RiFolderLine className="size-3.5 shrink-0 text-muted-foreground" />
@@ -301,18 +304,15 @@ function ProjectSwitcher({
         </div>
 
         <div className="space-y-0.5">
-          <button
-            type="button"
-            className="flex h-7 w-full items-center gap-2 px-1.5 text-left text-xs text-popover-foreground hover:bg-muted"
-            onClick={addProject}
-          >
+          <button type="button" className={projectMenuItemClass} onClick={addProject}>
             <RiFolderAddLine className="size-3.5 shrink-0 text-muted-foreground" />
             <span className="min-w-0 flex-1 truncate">{m.studio_project_add({}, { locale })}</span>
             <RiArrowRightSLine className="size-3.5 shrink-0 text-muted-foreground" />
           </button>
           <button
             type="button"
-            className="flex h-7 w-full items-center gap-2 px-1.5 text-left text-xs text-popover-foreground hover:bg-muted"
+            className={projectMenuItemClass}
+            data-selected={selectedProjectId === noStudioProjectId}
             onClick={selectNoProject}
           >
             <RiCloseLine className="size-3.5 shrink-0 text-muted-foreground" />
