@@ -42,4 +42,6 @@ promises:
     failureMeaning:
       en: Harness Studio would make promises first-class in storage but second-class in navigation, forcing reviewers back to file search or raw YAML for the fastest workflow.
       zh-CN: Harness Studio 会在存储上把 promises 当成一等对象，却在导航上把它们降级，迫使 reviewer 回到文件搜索或原始 YAML 才能最快工作。
-    review: {}
+    review:
+      state: pending
+      events: []

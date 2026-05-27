@@ -14,4 +14,10 @@ observes:
   - protocol/fixtures/promises/invalid/empty-given.promise.yaml
 failureMeaning: Empty Given lists should not be accepted.
 review:
-  approvedBy: xinyao
+  state: approved
+  decidedBy: xinyao
+  decidedAt: 2026-05-27
+  events:
+    - action: approved
+      by: xinyao
+      at: 2026-05-27

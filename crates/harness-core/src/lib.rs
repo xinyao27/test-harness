@@ -36,7 +36,10 @@ pub use harness_protocol::{
 #[cfg(test)]
 mod tests {
     use super::*;
-    use harness_protocol::{PromiseBoundary, PromiseExampleRow, PromisePriority, PromiseReview};
+    use harness_protocol::{
+        PromiseBoundary, PromiseExampleRow, PromisePriority, PromiseReview, PromiseReviewAction,
+        PromiseReviewEvent, PromiseReviewState,
+    };
     use std::collections::BTreeMap;
     use std::fs;
     use std::path::{Path, PathBuf};
@@ -78,8 +81,13 @@ promises:
       en: The Harness cannot trust its own reviewed behavior promises.
       zh-CN: Harness 无法信任自己已经 review 过的行为承诺。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-24"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: "2026-05-24"
+      events:
+        - action: approved
+          by: xinyao
+          at: "2026-05-24"
 "#;
 
     fn repo_root() -> PathBuf {
@@ -115,10 +123,16 @@ promises:
             priority: PromisePriority::P0,
             purpose: LocalizedText::Text("Protect a reviewed behavior.".to_string()),
             review: PromiseReview {
-                approved_at: Some("2026-05-25".to_string()),
-                approved_by: Some("xinyao".to_string()),
-                approved_in: None,
-                notes: None,
+                state: PromiseReviewState::Approved,
+                decided_by: Some("xinyao".to_string()),
+                decided_at: Some("2026-05-25".to_string()),
+                note: None,
+                events: vec![PromiseReviewEvent {
+                    action: PromiseReviewAction::Approved,
+                    by: "xinyao".to_string(),
+                    at: "2026-05-25".to_string(),
+                    note: None,
+                }],
             },
             supersedes: None,
             then_steps: vec![LocalizedText::Text("Then result.".to_string())],
@@ -189,7 +203,13 @@ promises:
     observes: [tests/promises/**/*.promises.yaml]
     failureMeaning: Valid children would be lost.
     review:
-      approvedBy: xinyao
+      state: approved
+      decidedBy: xinyao
+      decidedAt: "2026-05-24"
+      events:
+        - action: approved
+          by: xinyao
+          at: "2026-05-24"
   - id: INVALID ID
     feature: Seed Harness / Promise Registry
     title: Invalid promise
@@ -203,7 +223,13 @@ promises:
     observes: [tests/promises/**/*.promises.yaml]
     failureMeaning: Invalid children would be hidden.
     review:
-      approvedBy: xinyao
+      state: approved
+      decidedBy: xinyao
+      decidedAt: "2026-05-24"
+      events:
+        - action: approved
+          by: xinyao
+          at: "2026-05-24"
 "#,
         )
         .unwrap();

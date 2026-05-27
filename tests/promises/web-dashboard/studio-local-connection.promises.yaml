@@ -40,4 +40,6 @@ promises:
     failureMeaning:
       en: Harness Studio would either remain a static mock, require unnecessary login, or let project switching pretend to work without authenticated daemon-backed data.
       zh-CN: Harness Studio 要么停留在静态 mock，要么引入不必要登录，要么让 project switching 在没有认证 daemon 数据的情况下假装可用。
-    review: {}
+    review:
+      state: pending
+      events: []

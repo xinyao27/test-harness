@@ -34,8 +34,13 @@ promises:
       en: Either the new optional field silently breaks loading of existing promise files, or the schema accepts table shapes that reviewers cannot scan as a table — defeating the whole reason for adding the field.
       zh-CN: 要么新的可选字段悄悄破坏已有 promise 文件的加载，要么 schema 接受了 reviewer 无法按表格扫读的形状 —— 让新增字段本身失去意义。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-25"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-25
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-25
 
   - id: harness.promise.canonical_file_is_grouped
     feature: Seed Harness / Promise Schema
@@ -61,7 +66,7 @@ promises:
         zh-CN: 旧的单条 `.promises.yaml` 文件不再被加载，会被报告为不识别的文件形状错误
       - en: "The wrapper requires `apiVersion: 1` and a non-empty `promises` array"
         zh-CN: "容器必须带有 `apiVersion: 1` 和非空的 `promises` 数组"
-      - en: "Each entry in `promises` is decoded as a full PromiseRecord using the same field contract used today"
+      - en: Each entry in `promises` is decoded as a full PromiseRecord using the same field contract used today
         zh-CN: "`promises` 数组里每个条目都按现行字段契约被解码为完整 PromiseRecord"
       - en: Two records inside the same wrapper file that share an `id` are rejected at decode time with a duplicate error
         zh-CN: 同一个容器文件内 `id` 相同的两条记录在解码阶段就会以 duplicate 错误被拒绝
@@ -74,8 +79,13 @@ promises:
       en: Either the loader silently accepts malformed shapes (reviewers approve records they cannot actually read), or it keeps loading legacy single-file promises behind the project's back so the "one canonical shape" rule rots immediately.
       zh-CN: 要么 loader 悄悄接受畸形形状（reviewer 批准了他们其实读不通的记录），要么继续在项目背后加载旧的单文件 promises，"一种 canonical 形状"的规则当场失效。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-25"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-25
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-25
 
   - id: harness.promise.schema_defines_required_fields
     feature: Seed Harness / Promise Schema
@@ -111,5 +121,10 @@ promises:
       en: The Harness may treat malformed or ambiguous promise files as reviewed behavior commitments.
       zh-CN: Harness 可能会把格式错误或含义模糊的 promise 文件当成已 review 的行为承诺。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-24"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-24
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-24

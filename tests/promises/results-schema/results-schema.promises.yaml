@@ -31,5 +31,10 @@ promises:
       en: Malformed adapter results may flow into report rendering and silently misrepresent promise status.
       zh-CN: 畸形的 adapter results 可能流入 report 渲染，悄悄错误地呈现 promise 状态。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-25"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-25
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-25

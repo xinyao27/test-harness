@@ -36,7 +36,9 @@ promises:
     failureMeaning:
       en: The web surface would remain an ordinary dashboard, forcing humans back into navigation categories instead of architecture-first promise review.
       zh-CN: Web 界面会停留在普通 dashboard，迫使人类回到导航分类，而不是 architecture-first 的 promise review。
-    review: {}
+    review:
+      state: pending
+      events: []
 
   - id: harness.web_dashboard.i18n_switches_chrome_and_snapshot_text
     feature: Harness Studio / I18N
@@ -75,8 +77,13 @@ promises:
       en: Non-Chinese reviewers would have to inspect raw YAML or source code, weakening Harness Studio as a human review surface.
       zh-CN: 非中文 reviewer 将不得不查看原始 YAML 或源码，削弱 Harness Studio 作为人类 review 入口的价值。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-25"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-25
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-25
 
   - id: harness.web_dashboard.switches_recent_project_contexts
     feature: Harness Studio / Project Switcher
@@ -119,4 +126,6 @@ promises:
     failureMeaning:
       en: Harness Studio would stay bound to one repository context, making example-driven debugging and future daemon-backed project switching harder to trust.
       zh-CN: Harness Studio 会被固定在单一仓库 context 上，让 example 调试和后续 daemon-backed project switching 更难可信。
-    review: {}
+    review:
+      state: pending
+      events: []

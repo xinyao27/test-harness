@@ -32,6 +32,8 @@ pub struct StudioModule {
     pub promise_ids: Vec<String>,
     pub covers: Vec<String>,
     pub related_module_ids: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub package: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -39,9 +41,22 @@ pub struct StudioModule {
 pub struct StudioPromiseReview {
     pub state: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub approved_by: Option<String>,
+    pub decided_by: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub approved_at: Option<String>,
+    pub decided_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+    pub events: Vec<StudioPromiseReviewEvent>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StudioPromiseReviewEvent {
+    pub action: String,
+    pub by: String,
+    pub at: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -192,7 +207,7 @@ pub fn build_studio_snapshot(root: impl AsRef<Path>) -> Result<StudioSnapshot, H
         .collect::<BTreeMap<_, _>>();
     let studio_modules = modules
         .iter()
-        .map(|module| to_studio_module(module, &promise_records_by_id, &promises, &modules))
+        .map(|module| to_studio_module(root, module, &promise_records_by_id, &promises, &modules))
         .collect::<Vec<_>>();
     let studio_promises = promises
         .iter()
@@ -215,9 +230,21 @@ pub fn build_studio_snapshot(root: impl AsRef<Path>) -> Result<StudioSnapshot, H
             observes: promise.observes.clone(),
             failure_meaning: promise.failure_meaning.clone(),
             review: StudioPromiseReview {
-                state: review_state(promise).to_string(),
-                approved_by: promise.review.approved_by.clone(),
-                approved_at: promise.review.approved_at.clone(),
+                state: promise.review.state.to_string(),
+                decided_by: promise.review.decided_by.clone(),
+                decided_at: promise.review.decided_at.clone(),
+                note: promise.review.note.clone(),
+                events: promise
+                    .review
+                    .events
+                    .iter()
+                    .map(|event| StudioPromiseReviewEvent {
+                        action: event.action.to_string(),
+                        by: event.by.clone(),
+                        at: event.at.clone(),
+                        note: event.note.clone(),
+                    })
+                    .collect(),
             },
         })
         .collect::<Vec<_>>();
@@ -245,6 +272,7 @@ pub fn build_studio_snapshot(root: impl AsRef<Path>) -> Result<StudioSnapshot, H
 }
 
 fn to_studio_module(
+    root: &Path,
     module: &ModuleRecord,
     promises_by_id: &BTreeMap<&str, &PromiseRecord>,
     all_promises: &[PromiseRecord],
@@ -259,7 +287,49 @@ fn to_studio_module(
         promise_ids: module.promises.clone(),
         covers: module.covers.clone(),
         related_module_ids: related_module_ids(module, all_promises, all_modules),
+        package: derive_package(root, &module.covers),
     }
+}
+
+/// Derive the monorepo package a module belongs to from its covered paths: the
+/// nearest ancestor directory (under `root`, excluding the repo root itself) that
+/// is a workspace member, i.e. contains a `Cargo.toml` or `package.json`. Returns
+/// `None` for modules whose covers live outside any member (repo-level files).
+fn derive_package(root: &Path, covers: &[String]) -> Option<String> {
+    covers
+        .iter()
+        .find_map(|cover| package_for_cover(root, cover))
+}
+
+fn package_for_cover(root: &Path, cover: &str) -> Option<String> {
+    let literal = cover.split(['*', '?', '[']).next().unwrap_or(cover);
+    // Never let a cover escape the project root via "." / ".." segments.
+    if literal
+        .split(['/', '\\'])
+        .any(|segment| segment == "." || segment == "..")
+    {
+        return None;
+    }
+    let mut dir = root.join(literal);
+
+    while dir.as_path() != root && dir.starts_with(root) {
+        if dir.is_dir() && (dir.join("Cargo.toml").is_file() || dir.join("package.json").is_file())
+        {
+            // Use the path relative to root as a unique package id so members that share a
+            // leaf name (e.g. crates/client and packages/client) do not collapse together.
+            return dir
+                .strip_prefix(root)
+                .ok()
+                .and_then(|relative| relative.to_str())
+                .map(|relative| relative.replace('\\', "/"));
+        }
+        match dir.parent() {
+            Some(parent) => dir = parent.to_path_buf(),
+            None => break,
+        }
+    }
+
+    None
 }
 
 fn module_priority(
@@ -329,31 +399,6 @@ fn matches_cover_glob(path: &str, pattern: &str) -> bool {
         path == prefix || path.starts_with(&format!("{prefix}/"))
     } else {
         path == pattern
-    }
-}
-
-fn review_state(promise: &PromiseRecord) -> &'static str {
-    if promise
-        .review
-        .approved_by
-        .as_deref()
-        .is_some_and(|value| !value.trim().is_empty())
-        || promise
-            .review
-            .approved_at
-            .as_deref()
-            .is_some_and(|value| !value.trim().is_empty())
-        || promise
-            .review
-            .approved_in
-            .as_deref()
-            .is_some_and(|value| !value.trim().is_empty())
-    {
-        "approved"
-    } else if promise.lifecycle == PromiseLifecycle::ChangedRequiresReview {
-        "changes_requested"
-    } else {
-        "pending"
     }
 }
 
@@ -443,7 +488,13 @@ promises:
     observes: [crates/core/lib.rs]
     failureMeaning: Studio would show stale data.
     review:
-      approvedBy: xinyao
+      state: approved
+      decidedBy: xinyao
+      decidedAt: "2026-05-26"
+      events:
+        - action: approved
+          by: xinyao
+          at: "2026-05-26"
 "#,
                 )
                 .unwrap();
@@ -492,6 +543,48 @@ promises:
                 assert!(value.get("reviewDrafts").is_some());
                 assert!(value["project"].get("promiseCount").is_some());
                 assert!(value["project"].get("moduleCount").is_some());
+            }
+        );
+    }
+
+    #[test]
+    fn derives_module_package_from_workspace_members() {
+        harness_adapter_rust::scenario_test!(
+            "harness.daemon.snapshot_derives_module_package",
+            "modules map to the workspace member that owns their covered paths",
+            {
+                let temp = tempdir().unwrap();
+                let root = temp.path();
+                fs::create_dir_all(root.join("crates/foo/src")).unwrap();
+                fs::write(
+                    root.join("crates/foo/Cargo.toml"),
+                    "[package]\nname = \"foo\"\n",
+                )
+                .unwrap();
+                fs::create_dir_all(root.join("apps/bar")).unwrap();
+                fs::write(root.join("apps/bar/package.json"), "{\"name\":\"bar\"}\n").unwrap();
+                fs::create_dir_all(root.join("protocol/v1")).unwrap();
+
+                // A glob cover inside a crate resolves to the member's root-relative path
+                // (unique, so members that share a leaf name do not collapse).
+                assert_eq!(
+                    derive_package(root, &["crates/foo/**".to_string()]),
+                    Some("crates/foo".to_string())
+                );
+                // A file cover deeper inside the member walks up to the member directory.
+                assert_eq!(
+                    derive_package(root, &["crates/foo/src/lib.rs".to_string()]),
+                    Some("crates/foo".to_string())
+                );
+                // A JS workspace member is detected via package.json.
+                assert_eq!(
+                    derive_package(root, &["apps/bar/**".to_string()]),
+                    Some("apps/bar".to_string())
+                );
+                // Repo-level paths outside any workspace member have no package.
+                assert_eq!(derive_package(root, &["protocol/v1/**".to_string()]), None);
+                // A cover with ".." must not escape the project root.
+                assert_eq!(derive_package(root, &["../sibling/**".to_string()]), None);
             }
         );
     }

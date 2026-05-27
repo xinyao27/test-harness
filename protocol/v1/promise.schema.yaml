@@ -49,15 +49,36 @@ properties:
   review:
     type: object
     additionalProperties: false
+    required:
+      - state
+      - events
     properties:
-      approvedAt:
+      state:
+        enum: [pending, approved, changes_requested, rejected]
+      decidedBy:
         type: string
-      approvedBy:
+      decidedAt:
         type: string
-      approvedIn:
+      note:
         type: string
-      notes:
-        type: string
+      events:
+        type: array
+        items:
+          type: object
+          additionalProperties: false
+          required:
+            - action
+            - by
+            - at
+          properties:
+            action:
+              enum: [approved, changes_requested, rejected]
+            by:
+              type: string
+            at:
+              type: string
+            note:
+              type: string
   supersedes:
     type: array
     items:

@@ -59,9 +59,11 @@ When updating documentation, keep the English and Chinese versions aligned.
 ## Agent Working Notes
 
 - Treat promises as first-class project artifacts.
-- Treat modules as the first visible layer of project architecture. A module is a reviewable architecture boundary, not a loose tag, folder mirror, or UI grouping. Agent-authored modules must start from the project's architecture and ownership model.
+- Treat modules as the primary reviewable layer of project architecture. A module is a reviewable architecture boundary, not a loose tag, folder mirror, or UI grouping. Agent-authored modules must start from the project's architecture and ownership model.
+- Group modules under **Packages** — the outermost grouping, equal to a monorepo package (a workspace member such as a crate, app, or package), derived from the repo's workspace definition plus each module's `covers` paths. Packages are **optional**: a single-package repo has none, and the project shows modules directly. A Package is organizational only: it owns no promises, has no review state, and has no actions; modules remain the reviewable boundary inside it. The directory/folder grouping that a module must not be lives here, at the Package level.
 - Treat `.promises.yaml` files as the canonical source of reviewed behavior promise meaning. `scenario(...)` in tests should bind to a promise id, not redefine the promise.
 - Treat `protocol/v1/` as the cross-language contract. TypeScript Effect Schemas should match the protocol; they should not become the only source of truth.
+- This project is currently in a 0-to-1 development phase. Do not add compatibility layers for old protocol shapes, old YAML formats, old UI behavior, or legacy implementation details unless the user explicitly asks for compatibility. Prefer clean canonical designs, direct migrations of seed artifacts, and simpler code over preserving outdated behavior.
 - Prefer YAML for Harness-owned artifacts, including result files such as `.harness/results.yaml`. Use JSON only when an external tool or protocol makes it necessary.
 - Persist `apiVersion: 1` in Harness-owned protocol YAML artifacts.
 - Natural-language promise fields use `LocalizedText`: a plain string is treated as default English, while a language map such as `{ en, zh-CN }` can provide optional translations. Prefer bilingual `en` and `zh-CN` text for seed self-promises, but do not localize stable machine fields such as `id`, `priority`, `boundary`, `lifecycle`, `review`, or `observes`.

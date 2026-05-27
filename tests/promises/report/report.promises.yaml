@@ -31,8 +31,13 @@ promises:
       en: A reviewer requesting a missing language sees an empty promise field and cannot tell whether the promise is blank or merely untranslated.
       zh-CN: 请求缺失语言的 reviewer 会看到空的 promise 字段，无法判断 promise 本身就是空，还是只是没翻译。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-25"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-25
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-25
 
   - id: harness.report.renders_in_requested_language
     feature: Seed Harness / Report
@@ -61,8 +66,13 @@ promises:
       en: Bilingual promises may exist but reports may still force humans to review the wrong language.
       zh-CN: 即使存在双语 promises，report 仍可能迫使人类使用错误语言 review。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-24"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-24
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-24
 
   - id: harness.report.computes_promise_run_status_from_results
     feature: Seed Harness / Report
@@ -97,5 +107,10 @@ promises:
       en: A green report may hide a failing or unproven promise if the mapping drifts unnoticed.
       zh-CN: 若映射规则悄悄变化，绿色报告可能掩盖一个 failing 或 unproven 的 promise。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-25"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-25
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-25

@@ -1,0 +1,37 @@
+apiVersion: 1
+promises:
+  - id: harness.daemon.snapshot_derives_module_package
+    feature: Harness Daemon / Project Snapshot
+    title:
+      en: The daemon derives each module's package from the repo workspace structure
+      zh-CN: Daemon 从仓库 workspace 结构推导出每个 module 所属的 package
+    purpose:
+      en: Let Studio group modules by their monorepo package for any real project, not just hand-written snapshots, by computing the package while building the snapshot.
+      zh-CN: 通过在构建 snapshot 时计算 package，让 Studio 能为任意真实项目按 monorepo package 分组 module，而不只是手写 snapshot。
+    priority: P1
+    boundary: integration
+    lifecycle: proposed
+    given:
+      - en: A project whose modules cover files inside workspace members such as crates/*, apps/*, or packages/*
+        zh-CN: 一个项目，其 module 的 covers 落在 crates/*、apps/* 或 packages/* 等 workspace 成员目录内
+      - en: Some modules cover only repo-level files that are not inside any workspace member
+        zh-CN: 某些 module 只 cover 了不属于任何 workspace 成员的仓库级文件
+    when:
+      - en: The daemon builds a Studio project snapshot for that root
+        zh-CN: Daemon 为该 root 构建 Studio project snapshot
+    then:
+      - en: Each module's package is the nearest ancestor directory of its covered paths that is a workspace member (contains a Cargo.toml or package.json)
+        zh-CN: 每个 module 的 package 是其 covers 路径最近的、属于 workspace 成员（含 Cargo.toml 或 package.json）的祖先目录
+      - en: A module whose covered paths are not inside any workspace member has no package
+        zh-CN: covers 不在任何 workspace 成员内的 module 没有 package
+      - en: The derived package is carried on the snapshot module so Studio can group modules by it
+        zh-CN: 推导出的 package 会带在 snapshot module 上，供 Studio 用来分组
+    observes:
+      - crates/harness-daemon/src/lib.rs
+      - tests/modules/**/*.module.yaml
+    failureMeaning:
+      en: Studio could only group modules by package for hand-written snapshots, so a real paired monorepo would still show one undifferentiated wall of modules.
+      zh-CN: Studio 只能为手写 snapshot 按 package 分组，真实配对的 monorepo 仍然只能展示一整片没有区分的 module。
+    review:
+      state: pending
+      events: []

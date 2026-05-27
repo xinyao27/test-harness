@@ -1,0 +1,761 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>Promise Review Workbench — optimized (same 3-column structure)</title>
+    <style>
+      :root {
+        --fg: #18181b;
+        --fg-soft: #52525b;
+        --muted: #71717a;
+        --faint: #a1a1aa;
+        --line: #e7e7ea;
+        --line-strong: #d6d6da;
+        --surface: #fff;
+        --page: #f4f4f5;
+        --band: #fafafa;
+        --band-line: #f0f0f1;
+        --st-proposed: #c98a00;
+        --st-review: #b91c1c;
+        --st-ok: #3f8f5b;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        background: var(--page);
+        color: var(--fg);
+        font-family:
+          -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      .mono {
+        font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+      }
+      .page {
+        padding: 16px 16px 22px;
+      }
+      .cap {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 2px 9px;
+        font-size: 12.5px;
+        color: var(--fg-soft);
+      }
+      .cap .sub {
+        color: var(--faint);
+      }
+
+      .frame {
+        background: var(--surface);
+        border: 1px solid var(--line);
+      }
+
+      /* top bar */
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        height: 50px;
+        padding: 0 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      .tb-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .proj {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 29px;
+        padding: 0 10px;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        font-size: 13px;
+        color: var(--fg);
+      }
+      .crumbs {
+        font-size: 13px;
+        color: var(--fg-soft);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .crumbs .sep {
+        color: var(--faint);
+      }
+      .crumbs .here {
+        color: var(--fg);
+        font-weight: 600;
+      }
+      .search {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        height: 29px;
+        padding: 0 10px;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        font-size: 13px;
+        color: var(--muted);
+      }
+      kbd {
+        font:
+          11px "SF Mono",
+          ui-monospace,
+          Menlo,
+          monospace;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        padding: 1px 5px;
+        color: var(--muted);
+        background: #f8f8f8;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 24px;
+        padding: 0 9px;
+        border-radius: 999px;
+        font-size: 12px;
+        color: var(--fg-soft);
+        background: #f4f4f5;
+        border: 1px solid var(--line);
+      }
+      .pill .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--st-review);
+      }
+      .icon {
+        width: 29px;
+        height: 29px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        font-size: 15px;
+        color: var(--fg-soft);
+      }
+      .badge {
+        font-size: 10px;
+        line-height: 1;
+        font-weight: 600;
+        padding: 3px 6px;
+        border-radius: 999px;
+      }
+      .badge.p0 {
+        background: var(--fg);
+        color: #fff;
+      }
+      .badge.p1,
+      .badge.p2 {
+        background: var(--surface);
+        color: var(--fg-soft);
+        border: 1px solid var(--line);
+      }
+
+      /* 3 columns */
+      .body3 {
+        display: flex;
+        gap: 14px;
+        padding: 14px;
+        align-items: stretch;
+      }
+
+      /* ---- LEFT: Review Queue ---- */
+      .queue {
+        width: 246px;
+        flex: none;
+        border: 1px solid var(--line);
+        display: flex;
+        flex-direction: column;
+      }
+      .panel-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      .panel-title {
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .tabs {
+        display: flex;
+        gap: 14px;
+        padding: 9px 12px 0;
+      }
+      .tab {
+        font-size: 12px;
+        color: var(--muted);
+        padding-bottom: 8px;
+        border-bottom: 2px solid transparent;
+      }
+      .tab.on {
+        color: var(--fg);
+        font-weight: 600;
+        border-bottom-color: var(--fg);
+      }
+      .tab .c {
+        color: var(--faint);
+        font-weight: 400;
+      }
+      .qlist {
+        padding: 6px;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        border-top: 1px solid var(--line);
+        margin-top: -1px;
+      }
+      .qrow {
+        position: relative;
+        border: 1px solid var(--line);
+        border-left: 3px solid var(--faint);
+        padding: 8px 9px;
+      }
+      .qrow.s-proposed {
+        border-left-color: var(--st-proposed);
+      }
+      .qrow.s-review {
+        border-left-color: var(--st-review);
+      }
+      .qrow.sel {
+        border-color: var(--fg);
+        border-left-width: 3px;
+      }
+      .qrow-top {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .qrow-title {
+        font-size: 12.5px;
+        font-weight: 600;
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .qrow-sub {
+        margin-top: 3px;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .qrow-sub .reason {
+        color: var(--st-review);
+      }
+      .qrow-sub .reason.amber {
+        color: var(--st-proposed);
+      }
+      .qmore {
+        padding: 8px 10px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      /* ---- CENTER: module -> promise graph (faint per-module band = F) ---- */
+      .center {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .group {
+        background: var(--band);
+        border: 1px solid var(--band-line);
+        padding: 14px 16px;
+      }
+      .gcanvas {
+        position: relative;
+      }
+      .gcanvas svg {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      .mod {
+        position: absolute;
+        left: 0;
+        width: 150px;
+        border: 1px solid var(--line-strong);
+        background: var(--surface);
+        padding: 9px 11px;
+      }
+      .mod-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+      }
+      .mod-name {
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .mod-sub {
+        margin-top: 4px;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .mdot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--st-review);
+      }
+      .prom {
+        position: absolute;
+        left: 250px;
+        width: 360px;
+        display: flex;
+        gap: 9px;
+        align-items: flex-start;
+        border: 1px solid var(--line-strong);
+        border-left: 3px solid var(--faint);
+        background: var(--surface);
+        padding: 7px 10px;
+      }
+      .prom.s-proposed {
+        border-left-color: var(--st-proposed);
+      }
+      .prom.s-review {
+        border-left-color: var(--st-review);
+      }
+      .prom.s-ok {
+        border-left-color: var(--st-ok);
+      }
+      .prom.sel {
+        border-color: var(--fg);
+        border-left-width: 3px;
+      }
+      .prom-body {
+        flex: 1;
+        min-width: 0;
+      }
+      .prom-title {
+        font-size: 12.5px;
+        font-weight: 600;
+      }
+      .prom-meta {
+        margin-top: 2px;
+        font-size: 10.5px;
+        color: var(--muted);
+      }
+      .prom-status {
+        font-size: 10px;
+        white-space: nowrap;
+        align-self: center;
+      }
+      .stt-proposed {
+        color: var(--st-proposed);
+      }
+      .stt-review {
+        color: var(--st-review);
+      }
+      .stt-ok {
+        color: var(--st-ok);
+      }
+
+      /* ---- RIGHT: Promise Review ---- */
+      .review {
+        width: 332px;
+        flex: none;
+        border: 1px solid var(--line);
+        display: flex;
+        flex-direction: column;
+      }
+      .rv-body {
+        padding: 13px;
+        overflow: hidden;
+      }
+      .rv-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .rv-id {
+        margin-top: 3px;
+        font-size: 11.5px;
+        color: var(--muted);
+      }
+      .rv-meta {
+        margin-top: 9px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .tag {
+        font-size: 10.5px;
+        padding: 3px 7px;
+        border-radius: 999px;
+        background: #f4f4f5;
+        border: 1px solid var(--line);
+        color: var(--fg-soft);
+      }
+      .tag.review {
+        color: var(--st-review);
+        border-color: #f0d6d6;
+        background: #fcf4f4;
+      }
+      .rv-sec {
+        margin-top: 14px;
+      }
+      .rv-label {
+        font-size: 10.5px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--faint);
+        font-weight: 600;
+        margin-bottom: 6px;
+      }
+      .rv-sec p {
+        margin: 0;
+        font-size: 12.5px;
+        line-height: 1.5;
+        color: var(--fg-soft);
+      }
+      .gwt {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .gwt li {
+        font-size: 12px;
+        line-height: 1.55;
+        display: flex;
+        gap: 7px;
+      }
+      .gwt .k {
+        color: var(--faint);
+        font-weight: 600;
+        min-width: 40px;
+      }
+      .files {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .file {
+        font-size: 11.5px;
+        color: var(--fg-soft);
+        display: flex;
+        align-items: center;
+        gap: 7px;
+      }
+      .file .ch {
+        font-size: 10px;
+        color: var(--st-review);
+      }
+      .note {
+        margin-top: 6px;
+        border: 1px solid var(--line);
+        background: #fcfcfc;
+        padding: 8px 9px;
+        font-size: 11.5px;
+        color: var(--faint);
+      }
+      .rv-actions {
+        display: flex;
+        gap: 8px;
+        padding: 12px 13px;
+        border-top: 1px solid var(--line);
+        margin-top: 14px;
+      }
+      .btn {
+        flex: 1;
+        height: 32px;
+        border-radius: 4px;
+        font-size: 12.5px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .btn.primary {
+        background: var(--fg);
+        color: #fff;
+      }
+      .btn.ghost {
+        background: var(--surface);
+        color: var(--fg-soft);
+        border: 1px solid var(--line);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="cap">
+        优化版 — 保持你的三栏 review workbench 结构,只做可读性打磨
+        <span class="sub">(数字/状态示意)</span>
+      </div>
+      <div class="frame">
+        <!-- top bar -->
+        <div class="topbar">
+          <div class="tb-group">
+            <button class="proj">▣ test-harness ▾</button>
+            <nav class="crumbs">
+              <span>test-harness</span><span class="sep">›</span><span>Web Dashboard</span
+              ><span class="sep">›</span><span class="here">Dashboard loads</span>
+            </nav>
+          </div>
+          <button class="search">⌕&nbsp; Search <kbd>⌘K</kbd></button>
+          <div class="tb-group">
+            <span class="pill"><span class="dot"></span>Review 12</span>
+            <span class="pill">Modules 12</span>
+            <span class="pill">Promises 42</span>
+            <button class="icon">⚙</button>
+          </div>
+        </div>
+
+        <div class="body3">
+          <!-- ===== LEFT: Review Queue ===== -->
+          <div class="queue">
+            <div class="panel-head">
+              <span class="panel-title">Review Queue</span
+              ><span
+                class="badge p0"
+                style="background: #f4f4f5; color: var(--muted); border: 1px solid var(--line)"
+                >12</span
+              >
+            </div>
+            <div class="tabs">
+              <span class="tab on">Pending <span class="c">9</span></span>
+              <span class="tab">Changed <span class="c">3</span></span>
+              <span class="tab">All</span>
+            </div>
+            <div class="qlist">
+              <div class="qrow s-review sel">
+                <div class="qrow-top">
+                  <span class="qrow-title">Dashboard loads</span><span class="badge p0">P0</span>
+                </div>
+                <div class="qrow-sub">
+                  web-dashboard · <span class="reason">changed · pending review</span>
+                </div>
+              </div>
+              <div class="qrow s-proposed">
+                <div class="qrow-top">
+                  <span class="qrow-title">Results summary renders</span
+                  ><span class="badge p0">P0</span>
+                </div>
+                <div class="qrow-sub">
+                  web-dashboard · <span class="reason">missing reviewer</span>
+                </div>
+              </div>
+              <div class="qrow s-proposed">
+                <div class="qrow-top">
+                  <span class="qrow-title">Promise report</span><span class="badge p1">P1</span>
+                </div>
+                <div class="qrow-sub">
+                  web-dashboard · <span class="reason amber">proposed</span>
+                </div>
+              </div>
+              <div class="qrow s-review">
+                <div class="qrow-top">
+                  <span class="qrow-title">Service config</span><span class="badge p1">P1</span>
+                </div>
+                <div class="qrow-sub">
+                  core-services · <span class="reason">changed · pending review</span>
+                </div>
+              </div>
+              <div class="qrow s-proposed">
+                <div class="qrow-top">
+                  <span class="qrow-title">Promise navigation</span><span class="badge p2">P2</span>
+                </div>
+                <div class="qrow-sub">
+                  web-dashboard · <span class="reason amber">proposed</span>
+                </div>
+              </div>
+              <div class="qmore">Show all 12 →</div>
+            </div>
+          </div>
+
+          <!-- ===== CENTER: module -> promise graph ===== -->
+          <div class="center">
+            <!-- Web Dashboard group -->
+            <div class="group">
+              <div class="gcanvas" style="height: 270px">
+                <svg width="620" height="270" viewBox="0 0 620 270">
+                  <g stroke="#d3d3d7" stroke-width="1" fill="none">
+                    <path d="M150,135 C200,135 200,23 250,23" />
+                    <path d="M150,135 C200,135 200,79 250,79" />
+                    <path d="M150,135 L250,135" />
+                    <path d="M150,135 C200,135 200,191 250,191" />
+                    <path d="M150,135 C200,135 200,247 250,247" />
+                  </g>
+                </svg>
+                <div class="mod" style="top: 110px">
+                  <div class="mod-top">
+                    <span class="mod-name">Web Dashboard</span><span class="mdot"></span>
+                  </div>
+                  <div class="mod-top" style="margin-top: 5px">
+                    <span class="badge p0">P0</span>
+                  </div>
+                  <div class="mod-sub">5 promises · 2 covered</div>
+                </div>
+                <div class="prom s-review sel" style="top: 0">
+                  <div class="prom-body">
+                    <div class="prom-title">Dashboard loads</div>
+                    <div class="prom-meta">P0 · browser · changed</div>
+                  </div>
+                  <span class="prom-status stt-review">● pending review</span>
+                </div>
+                <div class="prom s-proposed" style="top: 56px">
+                  <div class="prom-body">
+                    <div class="prom-title">Results summary renders</div>
+                    <div class="prom-meta">P0 · unit · proposed</div>
+                  </div>
+                  <span class="prom-status stt-review">● missing reviewer</span>
+                </div>
+                <div class="prom s-ok" style="top: 112px">
+                  <div class="prom-body">
+                    <div class="prom-title">Filter by status</div>
+                    <div class="prom-meta">P1 · unit · accepted</div>
+                  </div>
+                  <span class="prom-status stt-ok">✓ passing</span>
+                </div>
+                <div class="prom s-proposed" style="top: 168px">
+                  <div class="prom-body">
+                    <div class="prom-title">Promise report</div>
+                    <div class="prom-meta">P1 · unit · proposed</div>
+                  </div>
+                  <span class="prom-status stt-proposed">● proposed</span>
+                </div>
+                <div class="prom s-ok" style="top: 224px">
+                  <div class="prom-body">
+                    <div class="prom-title">Promise navigation</div>
+                    <div class="prom-meta">P2 · browser · accepted</div>
+                  </div>
+                  <span class="prom-status stt-ok">✓ passing</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Core Services group -->
+            <div class="group">
+              <div class="gcanvas" style="height: 102px">
+                <svg width="620" height="102" viewBox="0 0 620 102">
+                  <g stroke="#d3d3d7" stroke-width="1" fill="none">
+                    <path d="M150,51 C200,51 200,23 250,23" />
+                    <path d="M150,51 C200,51 200,79 250,79" />
+                  </g>
+                </svg>
+                <div class="mod" style="top: 26px">
+                  <div class="mod-top">
+                    <span class="mod-name">Core Services</span><span class="mdot"></span>
+                  </div>
+                  <div class="mod-top" style="margin-top: 5px">
+                    <span class="badge p1">P1</span>
+                  </div>
+                  <div class="mod-sub">2 promises · 1 covered</div>
+                </div>
+                <div class="prom s-ok" style="top: 0">
+                  <div class="prom-body">
+                    <div class="prom-title">Health check</div>
+                    <div class="prom-meta">P1 · integration · accepted</div>
+                  </div>
+                  <span class="prom-status stt-ok">✓ passing</span>
+                </div>
+                <div class="prom s-review" style="top: 56px">
+                  <div class="prom-body">
+                    <div class="prom-title">Service config</div>
+                    <div class="prom-meta">P1 · unit · changed</div>
+                  </div>
+                  <span class="prom-status stt-review">● pending review</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Reporting group -->
+            <div class="group">
+              <div class="gcanvas" style="height: 46px">
+                <svg width="620" height="46" viewBox="0 0 620 46">
+                  <g stroke="#d3d3d7" stroke-width="1" fill="none">
+                    <path d="M150,23 L250,23" />
+                  </g>
+                </svg>
+                <div class="mod" style="top: 0; padding-top: 7px; padding-bottom: 7px">
+                  <div class="mod-top">
+                    <span class="mod-name">Reporting</span><span class="badge p1">P1</span>
+                  </div>
+                  <div class="mod-sub">1 promise · 1 covered</div>
+                </div>
+                <div class="prom s-ok" style="top: 0">
+                  <div class="prom-body">
+                    <div class="prom-title">Generate report</div>
+                    <div class="prom-meta">P1 · unit · accepted</div>
+                  </div>
+                  <span class="prom-status stt-ok">✓ passing</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== RIGHT: Promise Review ===== -->
+          <div class="review">
+            <div class="panel-head">
+              <span class="panel-title">Promise Review</span
+              ><span style="color: var(--faint); font-size: 14px">×</span>
+            </div>
+            <div class="rv-body">
+              <div class="rv-title">Dashboard loads <span class="badge p0">P0</span></div>
+              <div class="rv-id mono">harness.web-dashboard.dashboard_loads</div>
+              <div class="rv-meta">
+                <span class="tag">boundary: browser</span>
+                <span class="tag review">lifecycle: changed</span>
+                <span class="tag review">review: pending</span>
+              </div>
+
+              <div class="rv-sec">
+                <div class="rv-label">Purpose</div>
+                <p>Opening Studio shows the current project snapshot without a manual refresh.</p>
+              </div>
+              <div class="rv-sec">
+                <div class="rv-label">Scenario</div>
+                <ul class="gwt">
+                  <li><span class="k">Given</span><span>a paired local project</span></li>
+                  <li><span class="k">When</span><span>the user opens Studio</span></li>
+                  <li>
+                    <span class="k">Then</span
+                    ><span>modules and counts render from the live snapshot</span>
+                  </li>
+                </ul>
+              </div>
+              <div class="rv-sec">
+                <div class="rv-label">Changed data</div>
+                <div class="files">
+                  <div class="file mono">
+                    results.summary.json <span class="ch">~ then weakened</span>
+                  </div>
+                  <div class="file mono">results.host.json <span class="ch">+ added</span></div>
+                </div>
+              </div>
+              <div class="rv-sec">
+                <div class="rv-label">Review note</div>
+                <div class="note">Add a note for other reviewers…</div>
+              </div>
+            </div>
+            <div class="rv-actions">
+              <button class="btn primary">Approve</button>
+              <button class="btn ghost">Request changes</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

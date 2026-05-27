@@ -27,8 +27,13 @@ promises:
       en: Reviewers without the localized variant may see blank promise text when default-language fallback is missing.
       zh-CN: 没有本地化变体的 reviewer 在 default-language fallback 缺失时可能看到空白 promise 文本。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-25"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-25
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-25
 
   - id: harness.validation.checks_examples_table_shape
     feature: Seed Harness / Validation
@@ -50,7 +55,7 @@ promises:
     then:
       - en: Rows whose column key set differs from the first row produce an `inconsistent_example_columns` error
         zh-CN: 列键集合与首行不同的行会产生 `inconsistent_example_columns` error
-      - en: "Rows whose `name` value is missing or blank produce a `blank_example_row_name` error"
+      - en: Rows whose `name` value is missing or blank produce a `blank_example_row_name` error
         zh-CN: "`name` 值缺失或为空白的行会产生 `blank_example_row_name` error"
       - en: Two rows that share the same `name` within one promise produce a `duplicate_example_row_name` error
         zh-CN: 同一 promise 内两行 `name` 相同会产生 `duplicate_example_row_name` error
@@ -61,8 +66,13 @@ promises:
       en: Reviewers may approve an examples table they cannot actually read as a table — unnamed rows, divergent columns, or duplicate labels make the table no better than a paragraph of prose.
       zh-CN: reviewer 可能会批准他们其实读不成表格的 examples 表 —— 行没有名字、列不一致或者标签重复，这种表跟一段散文没区别。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-25"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-25
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-25
 
   - id: harness.validation.rejects_unreadable_promises
     feature: Seed Harness / Validation
@@ -93,8 +103,13 @@ promises:
       en: Humans may be asked to approve promises that are hard to read, unstable, or not reviewable.
       zh-CN: 人类可能会被要求批准难以阅读、不稳定或无法 review 的 promises。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-24"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-24
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-24
 
   - id: harness.validation.rejects_unreadable_modules
     feature: Seed Harness / Validation
@@ -124,7 +139,9 @@ promises:
     failureMeaning:
       en: Agents could create modules as arbitrary labels, hiding the real project architecture from reviewers.
       zh-CN: Agent 可能把 module 创建成任意标签，从而向 reviewer 隐藏真实项目架构。
-    review: {}
+    review:
+      state: pending
+      events: []
 
   - id: harness.validation.flags_unknown_scenario_bindings
     feature: Seed Harness / Validation
@@ -153,8 +170,13 @@ promises:
       en: A test bound to a non-existent promise id can pass without ever proving any reviewed behavior.
       zh-CN: 绑定到不存在 promise id 的测试可以通过，但从未真正证明任何已 review 的行为。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-25"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-25
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-25
 
   - id: harness.validation.flags_uncovered_source_files
     feature: Seed Harness / Validation
@@ -188,8 +210,13 @@ promises:
       en: New code can land without any architecture module taking review ownership, so reviewers cannot tell which system part is responsible for it.
       zh-CN: 新代码可能在没有任何 architecture module 接手 review 的情况下落地，reviewer 无法判断它归哪个系统部分负责。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-25"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-25
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-25
 
   - id: harness.validation.flags_promises_without_test_results
     feature: Seed Harness / Validation
@@ -220,5 +247,10 @@ promises:
       en: A promise can be marked implemented while no executable test result proves it.
       zh-CN: 一条 promise 可能已经 marked implemented，但没有任何可执行测试结果证明它。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-24"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-24
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-24

@@ -1,0 +1,81 @@
+apiVersion: 1
+promises:
+  - id: harness.web_dashboard.edits_canonical_harness_files_through_daemon
+    feature: Harness Studio / Authoring
+    title:
+      en: Harness Studio can edit canonical module and promise files through the local daemon
+      zh-CN: Harness Studio 可以通过本地 daemon 编辑 canonical module 与 promise files
+    purpose:
+      en: Turn Studio from a read-only canvas into the first real Harness authoring surface while keeping filesystem writes inside the local daemon boundary.
+      zh-CN: 让 Studio 从只读 canvas 变成第一个真实 Harness authoring surface，同时把文件系统写入留在本地 daemon 边界内。
+    priority: P0
+    boundary: browser
+    lifecycle: proposed
+    given:
+      - en: Harness Studio is connected to an authenticated local daemon session
+        zh-CN: Harness Studio 已连接到认证后的本地 daemon session
+      - en: The selected project contains canonical tests/modules and tests/promises files
+        zh-CN: 当前选中的 project 包含 canonical tests/modules 与 tests/promises files
+    when:
+      - en: The user edits a selected module or promise from the right context panel
+        zh-CN: 用户从右侧 context panel 编辑选中的 module 或 promise
+      - en: The user saves the edited record
+        zh-CN: 用户保存编辑后的 record
+    then:
+      - en: The Studio sends the edited record to the local daemon instead of writing files from the browser
+        zh-CN: Studio 会把编辑后的 record 发送给本地 daemon，而不是从浏览器直接写文件
+      - en: The daemon writes only the canonical YAML files under tests/modules or tests/promises for the selected Harness project
+        zh-CN: Daemon 只会写入当前 Harness project 的 tests/modules 或 tests/promises 下的 canonical YAML files
+      - en: The daemon runs the Harness checker after the write and reports the validation result back to Studio
+        zh-CN: Daemon 会在写入后运行 Harness checker，并把 validation result 返回给 Studio
+      - en: The Studio refreshes the live snapshot after a successful save so the canvas reflects the canonical files
+        zh-CN: 保存成功后 Studio 会刷新 live snapshot，让 canvas 反映 canonical files
+    observes:
+      - apps/web/src/features/studio/**
+      - apps/web/src/lib/api.ts
+      - crates/harness-daemon/**
+      - tests/modules/web-dashboard.module.yaml
+      - tests/promises/web-dashboard/**
+    failureMeaning:
+      en: Users would still need to leave Studio and manually edit raw YAML, breaking the promise-driven authoring loop.
+      zh-CN: 用户仍然需要离开 Studio 手动编辑原始 YAML，破坏 promise-driven authoring loop。
+    review:
+      state: pending
+      events: []
+
+  - id: harness.web_dashboard.rolls_back_invalid_authoring_writes
+    feature: Harness Studio / Authoring Validation
+    title:
+      en: Harness Studio authoring writes are rolled back when Harness validation fails
+      zh-CN: Harness Studio authoring 写入在 Harness validation 失败时会回滚
+    purpose:
+      en: Keep canonical Harness files trustworthy even when a browser form or agent-generated edit submits an invalid module or promise shape.
+      zh-CN: 即使浏览器表单或 agent 生成的修改提交了无效 module 或 promise shape，也要保持 canonical Harness files 可信。
+    priority: P0
+    boundary: integration
+    lifecycle: proposed
+    given:
+      - en: The daemon receives a module or promise authoring request from an authenticated Studio session
+        zh-CN: Daemon 收到来自已认证 Studio session 的 module 或 promise authoring request
+      - en: The requested change would make the selected Harness project fail validation
+        zh-CN: 请求的修改会导致当前 Harness project validation 失败
+    when:
+      - en: The daemon applies the write and runs the Harness checker
+        zh-CN: Daemon 应用写入并运行 Harness checker
+    then:
+      - en: The daemon restores the previous file contents for every file touched by the failed write
+        zh-CN: Daemon 会恢复失败写入涉及的每个文件的旧内容
+      - en: The Studio receives the checker output and can show why the save was rejected
+        zh-CN: Studio 会收到 checker output，并能展示保存被拒绝的原因
+      - en: The project snapshot remains based on the last valid canonical Harness files
+        zh-CN: Project snapshot 仍然基于最后一版有效 canonical Harness files
+    observes:
+      - crates/harness-daemon/**
+      - apps/web/src/features/studio/**
+      - apps/web/src/lib/api.ts
+    failureMeaning:
+      en: A malformed Studio edit could corrupt the canonical promise registry and make the canvas less trustworthy than manual file editing.
+      zh-CN: 畸形的 Studio 编辑可能污染 canonical promise registry，让 canvas 比手动编辑文件更不可信。
+    review:
+      state: pending
+      events: []

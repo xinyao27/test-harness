@@ -29,8 +29,13 @@ promises:
       en: Rust tests would become ordinary implementation tests instead of executable evidence for reviewed promises.
       zh-CN: Rust 测试会退化成普通实现测试，而不是已 review promises 的可执行证据。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-25"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-25
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-25
 
   - id: harness.adapters.rust.result_collector.maps_results_to_promises
     feature: Adapters / Rust / Result Collector
@@ -63,8 +68,13 @@ promises:
       en: Rust tests could pass in Cargo while the Harness cannot connect them back to reviewed promises.
       zh-CN: Rust 测试可能在 Cargo 中通过，但 Harness 无法把它们连接回已 review promises。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-25"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-25
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-25
 
   - id: harness.adapters.rust.result_collector.writes_results_to_explicit_harness_root
     feature: Adapters / Rust / Result Collector
@@ -97,8 +107,13 @@ promises:
       en: The Rust CLI may read one result file while Cargo tests write another, making Rust self-bootstrap reports untrustworthy.
       zh-CN: Rust CLI 可能读取一个 result file，而 Cargo tests 写入另一个，导致 Rust 自举报告不可信。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-25"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-25
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-25
 
   - id: harness.adapters.rust.runner_merges_shards_after_cargo_test
     feature: Adapters / Rust / Runner
@@ -129,5 +144,10 @@ promises:
       en: Rust could have promise-bound tests but still require framework-specific tooling to collect their results.
       zh-CN: Rust 可能已经有 promise-bound tests，却仍然需要框架特定 tooling 才能收集结果。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-25"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-25
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-25

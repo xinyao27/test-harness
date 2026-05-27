@@ -40,4 +40,6 @@ promises:
     failureMeaning:
       en: A local daemon could become a public attack surface that leaks project structure or lets a webpage trigger runs, file writes, or agent actions.
       zh-CN: 本地 daemon 可能变成公开攻击面，泄露项目结构，或让网页触发 run、文件写入、agent actions。
-    review: {}
+    review:
+      state: pending
+      events: []

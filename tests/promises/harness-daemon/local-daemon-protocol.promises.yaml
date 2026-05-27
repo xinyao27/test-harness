@@ -37,4 +37,6 @@ promises:
     failureMeaning:
       en: Any webpage or stale local client could keep controlling the daemon, or Harness Studio would drift back into a login/server-mediated model.
       zh-CN: 任意网页或过期本地 client 都可能继续控制 daemon，或者 Harness Studio 会退回需要登录 / server 中转的模型。
-    review: {}
+    review:
+      state: pending
+      events: []

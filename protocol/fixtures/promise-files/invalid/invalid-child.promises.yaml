@@ -18,5 +18,10 @@ promises:
     failureMeaning:
       en: Implementations may accept invalid child promises inside a valid wrapper.
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-24"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-24
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-24

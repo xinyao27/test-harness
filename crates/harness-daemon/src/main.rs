@@ -5,8 +5,13 @@ use axum::middleware::{from_fn_with_state, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
+use harness_core::{find_module_files, find_promise_files, MODULES_DIRECTORY, PROMISES_DIRECTORY};
 use harness_daemon::{
     build_studio_snapshot, empty_snapshot, known_projects, resolve_project_root, KnownProject,
+};
+use harness_protocol::{
+    LocalizedText, ModuleRecord, PromiseLifecycle, PromiseRecord, PromiseReviewAction,
+    PromiseReviewEvent, PromiseReviewState, PromisesFile, ProtocolVersion,
 };
 use rand::rngs::OsRng;
 use rand::RngCore;
@@ -14,10 +19,11 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 use std::env;
+use std::fs;
 use std::net::SocketAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tower_http::cors::{AllowOrigin, CorsLayer};
 
 const PAIRING_TTL: Duration = Duration::from_secs(5 * 60);
@@ -45,6 +51,31 @@ struct SnapshotQuery {
 #[serde(rename_all = "camelCase")]
 struct ProjectRequest {
     project_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UpsertModuleRequest {
+    project_id: Option<String>,
+    module: ModuleRecord,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UpsertPromiseRequest {
+    project_id: Option<String>,
+    module_id: String,
+    promise: PromiseRecord,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PromiseReviewRequest {
+    action: PromiseReviewAction,
+    note: Option<String>,
+    project_id: Option<String>,
+    promise_id: String,
+    reviewer: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -77,6 +108,21 @@ struct RunTestsResponse {
     exit_code: i32,
     stderr: String,
     stdout: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AuthoringWriteResponse {
+    exit_code: i32,
+    saved: bool,
+    stderr: String,
+    stdout: String,
+}
+
+#[derive(Debug, Clone)]
+struct FileBackup {
+    contents: Option<Vec<u8>>,
+    path: PathBuf,
 }
 
 #[derive(Debug, Clone)]
@@ -116,6 +162,9 @@ async fn run() -> Result<(), String> {
         .route("/api/snapshot", get(snapshot))
         .route("/api/run/tests", post(run_tests))
         .route("/api/session/revoke", post(revoke_session))
+        .route("/api/studio/module", post(upsert_module))
+        .route("/api/studio/promise", post(upsert_promise))
+        .route("/api/studio/promise-review", post(review_promise))
         .route_layer(from_fn_with_state(state.clone(), require_session));
     let app = Router::new()
         .route("/health", get(health))
@@ -240,6 +289,95 @@ async fn run_tests(
     }
 }
 
+async fn upsert_module(
+    State(state): State<AppState>,
+    Json(request): Json<UpsertModuleRequest>,
+) -> impl IntoResponse {
+    let Some(root) = resolve_project_root(&state.workspace_root, request.project_id.as_deref())
+    else {
+        return error_response(
+            StatusCode::NOT_FOUND,
+            format!(
+                "Unknown or unsupported project id \"{}\".",
+                request
+                    .project_id
+                    .as_deref()
+                    .unwrap_or("current:test-harness")
+            ),
+        );
+    };
+
+    match tokio::task::spawn_blocking(move || upsert_module_record(root, request.module)).await {
+        Ok(Ok(response)) => (StatusCode::OK, Json(response)).into_response(),
+        Ok(Err(error)) => error_response(StatusCode::BAD_REQUEST, error),
+        Err(error) => error_response(StatusCode::INTERNAL_SERVER_ERROR, error.to_string()),
+    }
+}
+
+async fn upsert_promise(
+    State(state): State<AppState>,
+    Json(request): Json<UpsertPromiseRequest>,
+) -> impl IntoResponse {
+    let Some(root) = resolve_project_root(&state.workspace_root, request.project_id.as_deref())
+    else {
+        return error_response(
+            StatusCode::NOT_FOUND,
+            format!(
+                "Unknown or unsupported project id \"{}\".",
+                request
+                    .project_id
+                    .as_deref()
+                    .unwrap_or("current:test-harness")
+            ),
+        );
+    };
+
+    match tokio::task::spawn_blocking(move || {
+        upsert_promise_record(root, &request.module_id, request.promise)
+    })
+    .await
+    {
+        Ok(Ok(response)) => (StatusCode::OK, Json(response)).into_response(),
+        Ok(Err(error)) => error_response(StatusCode::BAD_REQUEST, error),
+        Err(error) => error_response(StatusCode::INTERNAL_SERVER_ERROR, error.to_string()),
+    }
+}
+
+async fn review_promise(
+    State(state): State<AppState>,
+    Json(request): Json<PromiseReviewRequest>,
+) -> impl IntoResponse {
+    let Some(root) = resolve_project_root(&state.workspace_root, request.project_id.as_deref())
+    else {
+        return error_response(
+            StatusCode::NOT_FOUND,
+            format!(
+                "Unknown or unsupported project id \"{}\".",
+                request
+                    .project_id
+                    .as_deref()
+                    .unwrap_or("current:test-harness")
+            ),
+        );
+    };
+
+    match tokio::task::spawn_blocking(move || {
+        review_promise_record(
+            root,
+            &request.promise_id,
+            request.action,
+            &request.reviewer,
+            request.note,
+        )
+    })
+    .await
+    {
+        Ok(Ok(response)) => (StatusCode::OK, Json(response)).into_response(),
+        Ok(Err(error)) => error_response(StatusCode::BAD_REQUEST, error),
+        Err(error) => error_response(StatusCode::INTERNAL_SERVER_ERROR, error.to_string()),
+    }
+}
+
 async fn revoke_session(
     State(state): State<AppState>,
     Extension(session): Extension<AuthenticatedSession>,
@@ -296,6 +434,608 @@ fn error_response(status: StatusCode, message: String) -> Response {
         }),
     )
         .into_response()
+}
+
+fn upsert_module_record(
+    root: PathBuf,
+    module: ModuleRecord,
+) -> Result<AuthoringWriteResponse, String> {
+    ensure_safe_record_id(&module.id, "module id")?;
+    let path = find_module_path_by_id(&root, &module.id)?.unwrap_or_else(|| {
+        root.join(MODULES_DIRECTORY)
+            .join(format!("{}.module.yaml", module.id))
+    });
+    let backups = backup_files([path.clone()])?;
+
+    write_module_file(&path, &module)?;
+    let response = check_written_project(&root);
+    if response.exit_code == 0 {
+        Ok(response)
+    } else {
+        rollback_files(&backups)?;
+        Ok(AuthoringWriteResponse {
+            saved: false,
+            ..response
+        })
+    }
+}
+
+fn upsert_promise_record(
+    root: PathBuf,
+    module_id: &str,
+    mut promise: PromiseRecord,
+) -> Result<AuthoringWriteResponse, String> {
+    ensure_safe_record_id(module_id, "module id")?;
+    ensure_safe_record_id(&promise.id, "promise id")?;
+
+    let module_path = find_module_path_by_id(&root, module_id)?
+        .ok_or_else(|| format!("Module \"{module_id}\" does not exist."))?;
+    let promise_path = find_promise_path_by_id(&root, &promise.id)?.unwrap_or_else(|| {
+        root.join(PROMISES_DIRECTORY)
+            .join(module_id)
+            .join(format!("{module_id}.promises.yaml"))
+    });
+    // A promise belongs to exactly one module, so it must be pruned from any other module that
+    // currently lists it when it is (re)assigned to module_id.
+    let stale_module_paths = module_files_listing_promise(&root, &promise.id, &module_path)?;
+
+    let mut backup_paths = vec![promise_path.clone(), module_path.clone()];
+    backup_paths.extend(stale_module_paths.iter().cloned());
+    let backups = backup_files(backup_paths)?;
+
+    let baseline = check_written_project(&root);
+
+    let write_result = (|| -> Result<(), String> {
+        let mut promises_file = read_promises_file_or_default(&promise_path)?;
+        if let Some(existing) = promises_file
+            .promises
+            .iter_mut()
+            .find(|record| record.id == promise.id)
+        {
+            preserve_existing_promise_metadata(&mut promise, existing);
+            *existing = promise.clone();
+        } else {
+            promises_file.promises.push(promise.clone());
+        }
+        write_promises_file(&promise_path, &promises_file)?;
+
+        for stale_path in &stale_module_paths {
+            let mut stale_module = read_module_file(stale_path)?;
+            stale_module.promises.retain(|id| id != &promise.id);
+            write_module_file(stale_path, &stale_module)?;
+        }
+
+        let mut module = read_module_file(&module_path)?;
+        if !module.promises.iter().any(|id| id == &promise.id) {
+            module.promises.push(promise.id.clone());
+            write_module_file(&module_path, &module)?;
+        }
+        Ok(())
+    })();
+
+    finish_authored_write(&root, &backups, baseline, write_result)
+}
+
+// Module files (other than `target_module_path`) whose promises list contains `promise_id`.
+fn module_files_listing_promise(
+    root: &Path,
+    promise_id: &str,
+    target_module_path: &Path,
+) -> Result<Vec<PathBuf>, String> {
+    let mut paths = Vec::new();
+    for path in find_module_files(root).map_err(|error| error.to_string())? {
+        if path == target_module_path {
+            continue;
+        }
+        if read_module_file(&path)?
+            .promises
+            .iter()
+            .any(|id| id == promise_id)
+        {
+            paths.push(path);
+        }
+    }
+    Ok(paths)
+}
+
+// Re-check the project after an authored write and decide whether to keep it: roll back on a write
+// error, or when this write turned a previously-passing project into a failing one. A project that
+// was already failing before the write is not blocked on that pre-existing, unrelated error.
+fn finish_authored_write(
+    root: &Path,
+    backups: &[FileBackup],
+    baseline: AuthoringWriteResponse,
+    write_result: Result<(), String>,
+) -> Result<AuthoringWriteResponse, String> {
+    if let Err(error) = write_result {
+        rollback_files(backups)?;
+        return Err(error);
+    }
+
+    let after = check_written_project(root);
+    if after.exit_code == 0 || baseline.exit_code != 0 {
+        Ok(AuthoringWriteResponse {
+            saved: true,
+            ..after
+        })
+    } else {
+        rollback_files(backups)?;
+        Ok(AuthoringWriteResponse {
+            saved: false,
+            ..after
+        })
+    }
+}
+
+fn review_promise_record(
+    root: PathBuf,
+    promise_id: &str,
+    action: PromiseReviewAction,
+    reviewer: &str,
+    note: Option<String>,
+) -> Result<AuthoringWriteResponse, String> {
+    ensure_safe_record_id(promise_id, "promise id")?;
+    let reviewer = reviewer.trim();
+    if reviewer.is_empty() {
+        return Err("Reviewer must not be blank.".to_string());
+    }
+
+    let promise_path = find_promise_path_by_id(&root, promise_id)?
+        .ok_or_else(|| format!("Promise \"{promise_id}\" does not exist."))?;
+    let backups = backup_files([promise_path.clone()])?;
+    let baseline = check_written_project(&root);
+
+    let write_result = (|| -> Result<(), String> {
+        let mut promises_file = read_promises_file_or_default(&promise_path)?;
+        let promise = promises_file
+            .promises
+            .iter_mut()
+            .find(|record| record.id == promise_id)
+            .ok_or_else(|| format!("Promise \"{promise_id}\" does not exist."))?;
+        apply_review_decision(promise, action, reviewer, note);
+        write_promises_file(&promise_path, &promises_file)?;
+        Ok(())
+    })();
+
+    finish_authored_write(&root, &backups, baseline, write_result)
+}
+
+fn apply_review_decision(
+    promise: &mut PromiseRecord,
+    action: PromiseReviewAction,
+    reviewer: &str,
+    note: Option<String>,
+) {
+    let decided_at = review_timestamp();
+    let note = note.and_then(|value| {
+        let trimmed = value.trim();
+        (!trimmed.is_empty()).then(|| trimmed.to_string())
+    });
+    let state = review_state_for_action(&action);
+    promise.review.state = state;
+    promise.review.decided_by = Some(reviewer.to_string());
+    promise.review.decided_at = Some(decided_at.clone());
+    promise.review.note = note.clone();
+    promise.review.events.push(PromiseReviewEvent {
+        action: action.clone(),
+        by: reviewer.to_string(),
+        at: decided_at,
+        note,
+    });
+
+    match action {
+        PromiseReviewAction::Approved
+            if matches!(
+                promise.lifecycle,
+                PromiseLifecycle::Proposed | PromiseLifecycle::ChangedRequiresReview
+            ) =>
+        {
+            promise.lifecycle = PromiseLifecycle::Accepted;
+        }
+        PromiseReviewAction::ChangesRequested | PromiseReviewAction::Rejected
+            if matches!(
+                promise.lifecycle,
+                PromiseLifecycle::Accepted | PromiseLifecycle::Implemented
+            ) =>
+        {
+            // A previously accepted promise that is rejected or sent back for changes is no longer
+            // accepted; surface it as requiring review again rather than leaving it "accepted".
+            promise.lifecycle = PromiseLifecycle::ChangedRequiresReview;
+        }
+        _ => {}
+    }
+}
+
+fn review_state_for_action(action: &PromiseReviewAction) -> PromiseReviewState {
+    match action {
+        PromiseReviewAction::Approved => PromiseReviewState::Approved,
+        PromiseReviewAction::ChangesRequested => PromiseReviewState::ChangesRequested,
+        PromiseReviewAction::Rejected => PromiseReviewState::Rejected,
+    }
+}
+
+fn review_timestamp() -> String {
+    let seconds = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|elapsed| elapsed.as_secs() as i64)
+        .unwrap_or(0);
+    format_rfc3339_utc(seconds)
+}
+
+// Format a UTC RFC 3339 timestamp from Unix seconds, consistent with the dates used across the
+// promise corpus, without pulling in a date crate.
+fn format_rfc3339_utc(seconds: i64) -> String {
+    let days = seconds.div_euclid(86_400);
+    let secs_of_day = seconds.rem_euclid(86_400);
+    let (year, month, day) = civil_from_days(days);
+    let hour = secs_of_day / 3_600;
+    let minute = (secs_of_day % 3_600) / 60;
+    let second = secs_of_day % 60;
+    format!("{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}Z")
+}
+
+// Howard Hinnant's civil_from_days: days since 1970-01-01 -> (year, month, day).
+fn civil_from_days(days: i64) -> (i64, u32, u32) {
+    let z = days + 719_468;
+    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let doe = (z - era * 146_097) as u64;
+    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
+    let year = yoe as i64 + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = (doy - (153 * mp + 2) / 5 + 1) as u32;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 } as u32;
+    (if month <= 2 { year + 1 } else { year }, month, day)
+}
+
+fn preserve_existing_promise_metadata(incoming: &mut PromiseRecord, existing: &PromiseRecord) {
+    if incoming.supersedes.is_none() {
+        incoming.supersedes = existing.supersedes.clone();
+    }
+    if incoming.deprecated_by.is_none() {
+        incoming.deprecated_by = existing.deprecated_by.clone();
+    }
+    if incoming.examples.is_none() {
+        incoming.examples = existing.examples.clone();
+    }
+    if incoming.review.events.is_empty() && !existing.review.events.is_empty() {
+        incoming.review = existing.review.clone();
+    }
+}
+
+fn check_written_project(root: &Path) -> AuthoringWriteResponse {
+    let output = harness_cli::run_cli_collect(&["check".to_string()], root);
+    AuthoringWriteResponse {
+        exit_code: output.exit_code,
+        saved: output.exit_code == 0,
+        stderr: output.stderr,
+        stdout: output.stdout,
+    }
+}
+
+fn find_module_path_by_id(root: &Path, module_id: &str) -> Result<Option<PathBuf>, String> {
+    for path in find_module_files(root).map_err(|error| error.to_string())? {
+        if read_module_file(&path)?.id == module_id {
+            return Ok(Some(path));
+        }
+    }
+    Ok(None)
+}
+
+fn find_promise_path_by_id(root: &Path, promise_id: &str) -> Result<Option<PathBuf>, String> {
+    for path in find_promise_files(root).map_err(|error| error.to_string())? {
+        let file = read_promises_file_or_default(&path)?;
+        if file.promises.iter().any(|promise| promise.id == promise_id) {
+            return Ok(Some(path));
+        }
+    }
+    Ok(None)
+}
+
+fn read_module_file(path: &Path) -> Result<ModuleRecord, String> {
+    let raw = fs::read_to_string(path)
+        .map_err(|error| format!("Failed to read module file \"{}\": {error}", path.display()))?;
+    serde_yaml::from_str(&raw).map_err(|error| {
+        format!(
+            "Failed to decode module file \"{}\": {error}",
+            path.display()
+        )
+    })
+}
+
+fn read_promises_file_or_default(path: &Path) -> Result<PromisesFile, String> {
+    if !path.exists() {
+        return Ok(PromisesFile {
+            api_version: ProtocolVersion,
+            promises: Vec::new(),
+        });
+    }
+
+    let raw = fs::read_to_string(path).map_err(|error| {
+        format!(
+            "Failed to read promises file \"{}\": {error}",
+            path.display()
+        )
+    })?;
+    serde_yaml::from_str(&raw).map_err(|error| {
+        format!(
+            "Failed to decode promises file \"{}\": {error}",
+            path.display()
+        )
+    })
+}
+
+fn write_module_file(path: &Path, module: &ModuleRecord) -> Result<(), String> {
+    write_text_file(path, &render_module_file(module))
+}
+
+fn write_promises_file(path: &Path, file: &PromisesFile) -> Result<(), String> {
+    write_text_file(path, &render_promises_file(file))
+}
+
+fn write_text_file(path: &Path, raw: &str) -> Result<(), String> {
+    let parent = path.parent().ok_or_else(|| {
+        format!(
+            "Path \"{}\" does not have a parent directory.",
+            path.display()
+        )
+    })?;
+    fs::create_dir_all(parent).map_err(|error| {
+        format!(
+            "Failed to create directory \"{}\": {error}",
+            parent.display()
+        )
+    })?;
+    fs::write(path, raw)
+        .map_err(|error| format!("Failed to write file \"{}\": {error}", path.display()))
+}
+
+fn render_module_file(module: &ModuleRecord) -> String {
+    let mut output = String::new();
+    output.push_str("apiVersion: 1\n");
+    push_scalar(&mut output, 0, "id", &module.id);
+    push_localized_text(&mut output, 0, "title", &module.title);
+    push_localized_text(&mut output, 0, "summary", &module.summary);
+    push_localized_text(&mut output, 0, "purpose", &module.purpose);
+    push_string_list(&mut output, 0, "promises", &module.promises);
+    push_string_list(&mut output, 0, "covers", &module.covers);
+    output
+}
+
+fn render_promises_file(file: &PromisesFile) -> String {
+    let mut output = String::new();
+    output.push_str("apiVersion: 1\npromises:\n");
+    for promise in &file.promises {
+        push_promise_record(&mut output, promise);
+    }
+    output
+}
+
+fn push_promise_record(output: &mut String, promise: &PromiseRecord) {
+    output.push_str(&format!("  - id: {}\n", yaml_value(&promise.id)));
+    push_scalar(output, 4, "feature", &promise.feature);
+    push_localized_text(output, 4, "title", &promise.title);
+    push_localized_text(output, 4, "purpose", &promise.purpose);
+    push_scalar(output, 4, "priority", &promise.priority);
+    push_scalar(output, 4, "boundary", &promise.boundary);
+    push_scalar(output, 4, "lifecycle", &promise.lifecycle);
+    push_localized_text_list(output, 4, "given", &promise.given);
+    push_localized_text_list(output, 4, "when", &promise.when);
+    push_localized_text_list(output, 4, "then", &promise.then_steps);
+    push_string_list(output, 4, "observes", &promise.observes);
+    push_localized_text(output, 4, "failureMeaning", &promise.failure_meaning);
+    push_review(output, 4, &promise.review);
+    if let Some(supersedes) = &promise.supersedes {
+        push_string_list(output, 4, "supersedes", supersedes);
+    }
+    if let Some(deprecated_by) = &promise.deprecated_by {
+        push_scalar(output, 4, "deprecatedBy", deprecated_by);
+    }
+    if let Some(examples) = &promise.examples {
+        push_examples(output, 4, examples);
+    }
+}
+
+fn push_review(output: &mut String, indent: usize, review: &harness_protocol::PromiseReview) {
+    output.push_str(&format!("{}review:\n", " ".repeat(indent)));
+    push_scalar(output, indent + 2, "state", &review.state);
+    if let Some(value) = &review.decided_by {
+        push_scalar(output, indent + 2, "decidedBy", value);
+    }
+    if let Some(value) = &review.decided_at {
+        push_scalar(output, indent + 2, "decidedAt", value);
+    }
+    if let Some(value) = &review.note {
+        push_scalar(output, indent + 2, "note", value);
+    }
+    push_review_events(output, indent + 2, &review.events);
+}
+
+fn push_localized_text(output: &mut String, indent: usize, key: &str, value: &LocalizedText) {
+    let spaces = " ".repeat(indent);
+    match value {
+        LocalizedText::Text(text) => {
+            output.push_str(&format!("{spaces}{key}: {}\n", yaml_value(text)));
+        }
+        LocalizedText::Localized(values) => {
+            output.push_str(&format!("{spaces}{key}:\n"));
+            for (language, text) in values {
+                push_scalar(output, indent + 2, language, text);
+            }
+        }
+    }
+}
+
+fn push_localized_text_list(
+    output: &mut String,
+    indent: usize,
+    key: &str,
+    values: &[LocalizedText],
+) {
+    output.push_str(&format!("{}{}:\n", " ".repeat(indent), key));
+    for value in values {
+        match value {
+            LocalizedText::Text(text) => {
+                output.push_str(&format!(
+                    "{}- {}\n",
+                    " ".repeat(indent + 2),
+                    yaml_value(text)
+                ));
+            }
+            LocalizedText::Localized(values) => {
+                output.push_str(&format!("{}-\n", " ".repeat(indent + 2)));
+                for (language, text) in values {
+                    push_scalar(output, indent + 4, language, text);
+                }
+            }
+        }
+    }
+}
+
+fn push_string_list(output: &mut String, indent: usize, key: &str, values: &[String]) {
+    output.push_str(&format!("{}{}:\n", " ".repeat(indent), key));
+    for value in values {
+        output.push_str(&format!(
+            "{}- {}\n",
+            " ".repeat(indent + 2),
+            yaml_value(value)
+        ));
+    }
+}
+
+fn push_examples(
+    output: &mut String,
+    indent: usize,
+    examples: &[harness_protocol::PromiseExampleRow],
+) {
+    if examples.is_empty() {
+        return;
+    }
+
+    output.push_str(&format!("{}examples:\n", " ".repeat(indent)));
+    for example in examples {
+        output.push_str(&format!(
+            "{}- name: {}\n",
+            " ".repeat(indent + 2),
+            yaml_value(&example.name)
+        ));
+        for (key, value) in &example.values {
+            push_scalar(output, indent + 4, key, value);
+        }
+    }
+}
+
+fn push_review_events(
+    output: &mut String,
+    indent: usize,
+    events: &[harness_protocol::PromiseReviewEvent],
+) {
+    if events.is_empty() {
+        output.push_str(&format!("{}events: []\n", " ".repeat(indent)));
+        return;
+    }
+
+    output.push_str(&format!("{}events:\n", " ".repeat(indent)));
+    for event in events {
+        output.push_str(&format!(
+            "{}- action: {}\n",
+            " ".repeat(indent + 2),
+            yaml_value(&event.action)
+        ));
+        push_scalar(output, indent + 4, "by", &event.by);
+        push_scalar(output, indent + 4, "at", &event.at);
+        if let Some(note) = &event.note {
+            push_scalar(output, indent + 4, "note", note);
+        }
+    }
+}
+
+fn push_scalar<T: Serialize>(output: &mut String, indent: usize, key: &str, value: &T) {
+    output.push_str(&format!(
+        "{}{}: {}\n",
+        " ".repeat(indent),
+        key,
+        yaml_value(value)
+    ));
+}
+
+fn yaml_value<T: Serialize>(value: &T) -> String {
+    let raw = serde_yaml::to_string(value).expect("YAML scalar serialization should not fail");
+    let scalar = raw.trim_start_matches("---\n").trim_end();
+    // A multi-line value serializes as a block scalar whose body indentation will not match the
+    // key's nesting once spliced after "key: ", producing unparseable YAML. Emit a single-line
+    // double-quoted (JSON) scalar instead — valid YAML at any indent. Single-line values keep
+    // their plain form so existing files are unchanged.
+    if scalar.contains('\n') {
+        serde_json::to_string(value).expect("JSON scalar serialization should not fail")
+    } else {
+        scalar.to_string()
+    }
+}
+
+fn backup_files(paths: impl IntoIterator<Item = PathBuf>) -> Result<Vec<FileBackup>, String> {
+    paths
+        .into_iter()
+        .map(|path| {
+            let contents = if path.exists() {
+                Some(fs::read(&path).map_err(|error| {
+                    format!("Failed to back up file \"{}\": {error}", path.display())
+                })?)
+            } else {
+                None
+            };
+            Ok(FileBackup { contents, path })
+        })
+        .collect()
+}
+
+fn rollback_files(backups: &[FileBackup]) -> Result<(), String> {
+    for backup in backups {
+        match &backup.contents {
+            Some(contents) => {
+                if let Some(parent) = backup.path.parent() {
+                    fs::create_dir_all(parent).map_err(|error| {
+                        format!(
+                            "Failed to restore directory \"{}\": {error}",
+                            parent.display()
+                        )
+                    })?;
+                }
+                fs::write(&backup.path, contents).map_err(|error| {
+                    format!(
+                        "Failed to restore file \"{}\": {error}",
+                        backup.path.display()
+                    )
+                })?;
+            }
+            None => {
+                if backup.path.exists() {
+                    fs::remove_file(&backup.path).map_err(|error| {
+                        format!(
+                            "Failed to remove file \"{}\": {error}",
+                            backup.path.display()
+                        )
+                    })?;
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn ensure_safe_record_id(value: &str, label: &str) -> Result<(), String> {
+    if value.is_empty()
+        || value == "."
+        || value == ".."
+        || value.contains('/')
+        || value.contains('\\')
+        || !value.chars().all(|character| {
+            character.is_ascii_alphanumeric() || matches!(character, '.' | '_' | '-')
+        })
+    {
+        return Err(format!("{label} \"{value}\" is not a safe Harness id."));
+    }
+    Ok(())
 }
 
 struct Options {
@@ -574,6 +1314,14 @@ fn hex_encode(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use harness_protocol::{
+        LocalizedText, PromiseBoundary, PromiseExampleRow, PromiseLifecycle, PromisePriority,
+        PromiseReview, PromiseReviewAction, PromiseReviewEvent, PromiseReviewState,
+    };
+    use std::collections::BTreeMap;
+    use std::fs;
+    use std::path::Path;
+    use tempfile::tempdir;
 
     #[test]
     fn host_allowlist_accepts_only_local_daemon_hosts() {
@@ -634,6 +1382,130 @@ mod tests {
     }
 
     #[test]
+    fn authoring_writes_modules_and_promises_to_canonical_files() {
+        harness_adapter_rust::scenario_test!(
+            "harness.web_dashboard.edits_canonical_harness_files_through_daemon",
+            "daemon-backed Studio authoring writes canonical module and promise YAML",
+            {
+                let temp = tempdir().unwrap();
+                write_authoring_project(temp.path());
+
+                let mut promise = valid_authoring_promise("harness.demo.updated_promise");
+                promise.title = LocalizedText::Text("Updated promise title".to_string());
+                let response =
+                    upsert_promise_record(temp.path().to_path_buf(), "demo", promise).unwrap();
+
+                assert!(response.saved, "{}{}", response.stdout, response.stderr);
+                assert_eq!(response.exit_code, 0);
+
+                let promises = read_promises_file_or_default(
+                    &temp.path().join("tests/promises/demo/demo.promises.yaml"),
+                )
+                .unwrap();
+                assert!(promises
+                    .promises
+                    .iter()
+                    .any(|record| record.id == "harness.demo.updated_promise"));
+                let updated_record = promises
+                    .promises
+                    .iter()
+                    .find(|record| record.id == "harness.demo.valid_promise")
+                    .unwrap();
+                assert_eq!(
+                    updated_record.supersedes,
+                    Some(vec!["harness.demo.previous_promise".to_string()])
+                );
+                assert_eq!(
+                    updated_record.review.note.as_deref(),
+                    Some("Preserve this review note.")
+                );
+                assert_eq!(
+                    updated_record
+                        .examples
+                        .as_ref()
+                        .and_then(|examples| examples.first())
+                        .map(|example| example.name.as_str()),
+                    Some("happy path")
+                );
+
+                let module =
+                    read_module_file(&temp.path().join("tests/modules/demo.module.yaml")).unwrap();
+                assert!(module
+                    .promises
+                    .iter()
+                    .any(|id| id == "harness.demo.updated_promise"));
+            }
+        );
+    }
+
+    #[test]
+    fn authoring_rolls_back_invalid_writes() {
+        harness_adapter_rust::scenario_test!(
+            "harness.web_dashboard.rolls_back_invalid_authoring_writes",
+            "daemon-backed Studio authoring restores files when validation fails",
+            {
+                let temp = tempdir().unwrap();
+                write_authoring_project(temp.path());
+                let promise_path = temp.path().join("tests/promises/demo/demo.promises.yaml");
+                let before = fs::read_to_string(&promise_path).unwrap();
+
+                let mut promise = valid_authoring_promise("harness.demo.valid_promise");
+                promise.title = LocalizedText::Text(String::new());
+                let response =
+                    upsert_promise_record(temp.path().to_path_buf(), "demo", promise).unwrap();
+
+                assert!(!response.saved);
+                assert_ne!(response.exit_code, 0);
+                assert_eq!(fs::read_to_string(&promise_path).unwrap(), before);
+            }
+        );
+    }
+
+    #[test]
+    fn review_decisions_update_canonical_promise_metadata() {
+        harness_adapter_rust::scenario_test!(
+            "harness.web_dashboard.writes_review_decisions_through_daemon",
+            "daemon-backed Studio review decisions update canonical promise YAML",
+            {
+                let temp = tempdir().unwrap();
+                write_authoring_project(temp.path());
+
+                let response = review_promise_record(
+                    temp.path().to_path_buf(),
+                    "harness.demo.valid_promise",
+                    PromiseReviewAction::Approved,
+                    "xinyao",
+                    Some("Looks reviewable.".to_string()),
+                )
+                .unwrap();
+
+                assert!(response.saved, "{}{}", response.stdout, response.stderr);
+                assert_eq!(response.exit_code, 0);
+
+                let promises = read_promises_file_or_default(
+                    &temp.path().join("tests/promises/demo/demo.promises.yaml"),
+                )
+                .unwrap();
+                let promise = promises
+                    .promises
+                    .iter()
+                    .find(|record| record.id == "harness.demo.valid_promise")
+                    .unwrap();
+
+                assert_eq!(promise.lifecycle, PromiseLifecycle::Accepted);
+                assert_eq!(promise.review.state, PromiseReviewState::Approved);
+                assert_eq!(promise.review.decided_by.as_deref(), Some("xinyao"));
+                assert_eq!(promise.review.note.as_deref(), Some("Looks reviewable."));
+                assert_eq!(promise.review.events.len(), 2);
+                assert_eq!(
+                    promise.review.events.last().map(|event| &event.action),
+                    Some(&PromiseReviewAction::Approved)
+                );
+            }
+        );
+    }
+
+    #[test]
     fn pairing_issues_hashed_origin_bound_revocable_session_tokens() {
         let origin = "http://127.0.0.1:4100".to_string();
         let mut auth = DaemonAuth::default();
@@ -666,5 +1538,117 @@ mod tests {
 
         assert!(auth.complete_pairing(&pairing.pairing_code, None).is_some());
         assert!(auth.complete_pairing(&pairing.pairing_code, None).is_none());
+    }
+
+    fn write_authoring_project(root: &Path) {
+        fs::create_dir_all(root.join("tests/modules")).unwrap();
+        fs::create_dir_all(root.join("tests/promises/demo")).unwrap();
+        fs::create_dir_all(root.join("crates/demo/src")).unwrap();
+        fs::write(
+            root.join("tests/harness.yaml"),
+            "apiVersion: 1\ntest:\n  runner:\n    command: \"true\"\n    args: []\n",
+        )
+        .unwrap();
+        fs::write(root.join("crates/demo/src/lib.rs"), "pub fn demo() {}\n").unwrap();
+        write_module_file(
+            &root.join("tests/modules/demo.module.yaml"),
+            &valid_authoring_module(),
+        )
+        .unwrap();
+        write_promises_file(
+            &root.join("tests/promises/demo/demo.promises.yaml"),
+            &PromisesFile {
+                api_version: ProtocolVersion,
+                promises: vec![valid_authoring_promise("harness.demo.valid_promise")],
+            },
+        )
+        .unwrap();
+    }
+
+    fn valid_authoring_module() -> ModuleRecord {
+        ModuleRecord {
+            api_version: ProtocolVersion,
+            covers: vec!["crates/demo/src/lib.rs".to_string()],
+            id: "demo".to_string(),
+            promises: vec!["harness.demo.valid_promise".to_string()],
+            purpose: LocalizedText::Text(
+                "Keep demo authoring behavior represented as architecture.".to_string(),
+            ),
+            summary: LocalizedText::Text("Owns daemon authoring behavior.".to_string()),
+            title: LocalizedText::Text("Demo authoring".to_string()),
+        }
+    }
+
+    fn valid_authoring_promise(id: &str) -> PromiseRecord {
+        let is_existing = id == "harness.demo.valid_promise";
+
+        PromiseRecord {
+            boundary: PromiseBoundary::Integration,
+            deprecated_by: None,
+            examples: is_existing.then(|| {
+                vec![PromiseExampleRow {
+                    name: "happy path".to_string(),
+                    values: BTreeMap::from([("input".to_string(), "valid".to_string())]),
+                }]
+            }),
+            failure_meaning: LocalizedText::Text(
+                "The Studio authoring loop would be unsafe.".to_string(),
+            ),
+            feature: "Harness Studio / Authoring".to_string(),
+            given: vec![LocalizedText::Text(
+                "A connected Studio edits canonical Harness files.".to_string(),
+            )],
+            id: id.to_string(),
+            lifecycle: PromiseLifecycle::Proposed,
+            observes: vec!["crates/demo/src/lib.rs".to_string()],
+            priority: PromisePriority::P0,
+            purpose: LocalizedText::Text("Protect daemon-backed authoring behavior.".to_string()),
+            review: if is_existing {
+                PromiseReview {
+                    state: PromiseReviewState::Approved,
+                    decided_by: Some("manual-review".to_string()),
+                    decided_at: Some("2026-05-27".to_string()),
+                    note: Some("Preserve this review note.".to_string()),
+                    events: vec![PromiseReviewEvent {
+                        action: PromiseReviewAction::Approved,
+                        by: "manual-review".to_string(),
+                        at: "2026-05-27".to_string(),
+                        note: Some("Preserve this review note.".to_string()),
+                    }],
+                }
+            } else {
+                PromiseReview::default()
+            },
+            supersedes: is_existing.then(|| vec!["harness.demo.previous_promise".to_string()]),
+            then_steps: vec![LocalizedText::Text(
+                "The daemon validates the edited project.".to_string(),
+            )],
+            title: LocalizedText::Text("Readable authoring promise".to_string()),
+            when: vec![LocalizedText::Text(
+                "The user saves an edited promise.".to_string(),
+            )],
+        }
+    }
+
+    #[test]
+    fn formats_review_timestamps_as_rfc3339_utc() {
+        assert_eq!(format_rfc3339_utc(0), "1970-01-01T00:00:00Z");
+        assert_eq!(format_rfc3339_utc(1_700_000_000), "2023-11-14T22:13:20Z");
+    }
+
+    #[test]
+    fn renders_multiline_text_fields_as_parseable_yaml() {
+        // A multi-line authored value must serialize to YAML that parses back to the same value
+        // (regression: block scalars were emitted with mismatched indentation).
+        let value = LocalizedText::Text("line one\nline two".to_string());
+        let mut output = String::new();
+        push_localized_text(&mut output, 4, "purpose", &value);
+        let document = format!("root:\n{output}");
+        let parsed: serde_yaml::Value =
+            serde_yaml::from_str(&document).expect("rendered multi-line YAML must parse");
+        assert_eq!(
+            parsed["root"]["purpose"],
+            serde_yaml::Value::String("line one\nline two".to_string())
+        );
     }
 }

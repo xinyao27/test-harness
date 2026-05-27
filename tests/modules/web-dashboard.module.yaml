@@ -17,6 +17,12 @@ promises:
   - harness.web_dashboard.i18n_switches_chrome_and_snapshot_text
   - harness.web_dashboard.switches_recent_project_contexts
   - harness.web_dashboard.connects_to_local_daemon_without_login
+  - harness.web_dashboard.edits_canonical_harness_files_through_daemon
+  - harness.web_dashboard.rolls_back_invalid_authoring_writes
+  - harness.web_dashboard.shows_low_pressure_review_inbox
+  - harness.web_dashboard.presents_promise_review_without_editing_pressure
+  - harness.web_dashboard.writes_review_decisions_through_daemon
+  - harness.web_dashboard.highlights_changed_promises_with_minimal_diff
 covers:
   - apps/web/**
   - packages/i18n/**

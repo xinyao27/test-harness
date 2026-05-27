@@ -1,0 +1,616 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>Studio — packages as regions enclosing module cards</title>
+    <style>
+      :root {
+        --fg: #18181b;
+        --fg-soft: #52525b;
+        --muted: #71717a;
+        --faint: #a1a1aa;
+        --line: #e7e7ea;
+        --line-strong: #d6d6da;
+        --surface: #fff;
+        --page: #f4f4f5;
+        --band: #fafafa;
+        --band-line: #eededer;
+        --band-line: #eeeef0;
+        --st-proposed: #c98a00;
+        --st-review: #b91c1c;
+        --st-ok: #3f8f5b;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        background: var(--page);
+        color: var(--fg);
+        font-family:
+          -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      .mono {
+        font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+      }
+      .page {
+        padding: 16px 16px 24px;
+      }
+      .cap {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 2px 9px;
+        font-size: 12.5px;
+        color: var(--fg-soft);
+      }
+      .cap .sub {
+        color: var(--faint);
+      }
+      .frame {
+        background: var(--surface);
+        border: 1px solid var(--line);
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        height: 50px;
+        padding: 0 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      .tb-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .proj {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 29px;
+        padding: 0 10px;
+        border: 1px solid var(--line);
+        font-size: 13px;
+      }
+      .crumbs {
+        font-size: 13px;
+        color: var(--fg-soft);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .crumbs .sep {
+        color: var(--faint);
+      }
+      .crumbs .here {
+        color: var(--fg);
+        font-weight: 600;
+      }
+      .search {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        height: 29px;
+        padding: 0 10px;
+        border: 1px solid var(--line);
+        font-size: 13px;
+        color: var(--muted);
+      }
+      kbd {
+        font:
+          11px "SF Mono",
+          ui-monospace,
+          Menlo,
+          monospace;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        padding: 1px 5px;
+        color: var(--muted);
+        background: #f8f8f8;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 24px;
+        padding: 0 9px;
+        border-radius: 999px;
+        font-size: 12px;
+        color: var(--fg-soft);
+        background: #f4f4f5;
+        border: 1px solid var(--line);
+      }
+      .pill .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--st-review);
+      }
+      .icon {
+        width: 29px;
+        height: 29px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--line);
+        font-size: 15px;
+        color: var(--fg-soft);
+      }
+      .badge {
+        font-size: 10px;
+        line-height: 1;
+        font-weight: 600;
+        padding: 3px 6px;
+        border-radius: 999px;
+      }
+      .badge.p0 {
+        background: var(--fg);
+        color: #fff;
+      }
+      .badge.p1,
+      .badge.p2 {
+        background: var(--surface);
+        color: var(--fg-soft);
+        border: 1px solid var(--line);
+      }
+
+      .body3 {
+        display: flex;
+        gap: 14px;
+        padding: 14px;
+        align-items: stretch;
+      }
+
+      /* left queue */
+      .queue {
+        width: 236px;
+        flex: none;
+        border: 1px solid var(--line);
+        display: flex;
+        flex-direction: column;
+      }
+      .panel-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 9px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      .panel-title {
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .qlist {
+        padding: 6px;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+      .qrow {
+        border: 1px solid var(--line);
+        border-left: 3px solid var(--faint);
+        padding: 7px 9px;
+      }
+      .qrow.s-proposed {
+        border-left-color: var(--st-proposed);
+      }
+      .qrow.s-review {
+        border-left-color: var(--st-review);
+      }
+      .qrow-top {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .qrow-title {
+        font-size: 12px;
+        font-weight: 600;
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .qrow-sub {
+        margin-top: 3px;
+        font-size: 10.5px;
+        color: var(--muted);
+      }
+      .qrow-sub .reason {
+        color: var(--st-review);
+      }
+      .qrow-sub .reason.amber {
+        color: var(--st-proposed);
+      }
+      .qrow-sub .path {
+        color: var(--faint);
+      }
+      .qmore {
+        padding: 7px 9px;
+        font-size: 11.5px;
+        color: var(--muted);
+      }
+
+      /* center: package regions enclosing module cards */
+      .center {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .pkgregion {
+        border: 1px solid var(--band-line);
+        background: var(--band);
+        padding: 12px 14px 14px;
+      }
+      .pr-head {
+        display: flex;
+        align-items: baseline;
+        gap: 9px;
+        margin-bottom: 11px;
+      }
+      .pr-name {
+        font-size: 13px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .pr-path {
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .pr-count {
+        margin-left: auto;
+        font-size: 11px;
+        color: var(--faint);
+      }
+      .mwrap {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .mcard {
+        position: relative;
+        flex: 1 1 calc(33.333% - 7px);
+        max-width: calc(33.333% - 7px);
+        min-width: 0;
+        border: 1px solid var(--line-strong);
+        background: var(--surface);
+        padding: 9px 11px;
+      }
+      .mcard.sel {
+        border: 1.5px solid var(--fg);
+      }
+      .mc-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+      }
+      .mc-name {
+        font-size: 12.5px;
+        font-weight: 600;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .mc-right {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        flex: none;
+      }
+      .mc-sub {
+        margin-top: 4px;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .mc-sub .rev {
+        color: var(--st-review);
+      }
+      .rdot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--st-review);
+      }
+      .pr-chev {
+        color: var(--faint);
+        font-size: 10px;
+        width: 10px;
+        flex: none;
+      }
+      .pr-collapsed {
+        font-size: 11.5px;
+        color: var(--muted);
+      }
+      .pr-collapsed .rev {
+        color: var(--st-review);
+      }
+
+      /* right inspector: selected MODULE */
+      .review {
+        width: 316px;
+        flex: none;
+        border: 1px solid var(--line);
+        display: flex;
+        flex-direction: column;
+      }
+      .rv-body {
+        padding: 13px;
+      }
+      .rv-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .rv-id {
+        margin-top: 3px;
+        font-size: 11.5px;
+        color: var(--muted);
+      }
+      .rv-meta {
+        margin-top: 9px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .tag {
+        font-size: 10.5px;
+        padding: 3px 7px;
+        border-radius: 999px;
+        background: #f4f4f5;
+        border: 1px solid var(--line);
+        color: var(--fg-soft);
+      }
+      .tag.review {
+        color: var(--st-review);
+        border-color: #f0d6d6;
+        background: #fcf4f4;
+      }
+      .rv-sec {
+        margin-top: 14px;
+      }
+      .rv-label {
+        font-size: 10.5px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--faint);
+        font-weight: 600;
+        margin-bottom: 6px;
+      }
+      .rv-sec p {
+        margin: 0;
+        font-size: 12.5px;
+        line-height: 1.5;
+        color: var(--fg-soft);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="cap">
+        Package = 把 module 卡片框起来的命名区域(像目录,不评审、无 action)
+        <span class="sub">· 第一屏只到 module,不画 promise</span>
+      </div>
+      <div class="frame">
+        <div class="topbar">
+          <div class="tb-group">
+            <button class="proj">▣ test-harness ▾</button>
+            <nav class="crumbs">
+              <span>test-harness</span><span class="sep">›</span><span>Core</span
+              ><span class="sep">›</span><span class="here">Promise Registry</span>
+            </nav>
+          </div>
+          <button class="search">⌕&nbsp; Search <kbd>⌘K</kbd></button>
+          <div class="tb-group">
+            <span class="pill"><span class="dot"></span>Review 12</span>
+            <span class="pill">Packages 3</span>
+            <span class="pill">Modules 12</span>
+            <span class="pill">Promises 42</span>
+            <button class="icon">⚙</button>
+          </div>
+        </div>
+
+        <div class="body3">
+          <!-- left: review queue (module-level promises) -->
+          <div class="queue">
+            <div class="panel-head"><span class="panel-title">Review Queue</span></div>
+            <div class="qlist">
+              <div class="qrow s-proposed">
+                <div class="qrow-top">
+                  <span class="qrow-title">Snapshot diff is stable</span
+                  ><span class="badge p0">P0</span>
+                </div>
+                <div class="qrow-sub">
+                  <span class="path">core › promise-registry</span> ·
+                  <span class="reason amber">proposed</span>
+                </div>
+              </div>
+              <div class="qrow s-review">
+                <div class="qrow-top">
+                  <span class="qrow-title">Loads project snapshot</span
+                  ><span class="badge p0">P0</span>
+                </div>
+                <div class="qrow-sub">
+                  <span class="path">app › web-dashboard</span> ·
+                  <span class="reason">changed</span>
+                </div>
+              </div>
+              <div class="qrow s-review">
+                <div class="qrow-top">
+                  <span class="qrow-title">Rust results parse</span><span class="badge p2">P2</span>
+                </div>
+                <div class="qrow-sub">
+                  <span class="path">core › rust-adapter</span> ·
+                  <span class="reason">missing reviewer</span>
+                </div>
+              </div>
+              <div class="qrow s-review">
+                <div class="qrow-top">
+                  <span class="qrow-title">Report renders summary</span
+                  ><span class="badge p1">P1</span>
+                </div>
+                <div class="qrow-sub">
+                  <span class="path">cli › report</span> · <span class="reason">changed</span>
+                </div>
+              </div>
+              <div class="qmore">Show all 12 →</div>
+            </div>
+          </div>
+
+          <!-- center: package regions -->
+          <div class="center">
+            <div class="pkgregion">
+              <div class="pr-head">
+                <span class="pr-chev">▸</span><span class="pr-name">▣ CLI</span
+                ><span class="pr-path mono">crates/harness-cli</span
+                ><span class="pr-count">2 modules</span>
+              </div>
+              <div class="pr-collapsed">
+                collapsed · 7 promises · <span class="rev">1 need review</span> — 点击展开
+              </div>
+            </div>
+
+            <div class="pkgregion">
+              <div class="pr-head">
+                <span class="pr-chev">▾</span><span class="pr-name">▣ Core</span
+                ><span class="pr-path mono">crates/harness-core</span
+                ><span class="pr-count">9 modules</span>
+              </div>
+              <div class="mwrap">
+                <div class="mcard">
+                  <div class="mc-top">
+                    <span class="mc-name">Protocol</span
+                    ><span class="mc-right"><span class="badge p0">P0</span></span>
+                  </div>
+                  <div class="mc-sub">3 promises · 3 covered</div>
+                </div>
+                <div class="mcard">
+                  <div class="mc-top">
+                    <span class="mc-name">Promise Schema</span
+                    ><span class="mc-right"><span class="badge p0">P0</span></span>
+                  </div>
+                  <div class="mc-sub">2 promises · 2 covered</div>
+                </div>
+                <div class="mcard">
+                  <div class="mc-top">
+                    <span class="mc-name">Results Schema</span
+                    ><span class="mc-right"><span class="badge p0">P0</span></span>
+                  </div>
+                  <div class="mc-sub">2 promises · 2 covered</div>
+                </div>
+                <div class="mcard sel">
+                  <div class="mc-top">
+                    <span class="mc-name">Promise Registry</span
+                    ><span class="mc-right"
+                      ><span class="rdot"></span><span class="badge p0">P0</span></span
+                    >
+                  </div>
+                  <div class="mc-sub"><span class="rev">● 4 need review</span> · 10 covered</div>
+                </div>
+                <div class="mcard">
+                  <div class="mc-top">
+                    <span class="mc-name">Module Registry</span
+                    ><span class="mc-right"><span class="badge p1">P1</span></span>
+                  </div>
+                  <div class="mc-sub">1 promise · 1 covered</div>
+                </div>
+                <div class="mcard">
+                  <div class="mc-top">
+                    <span class="mc-name">Validation</span
+                    ><span class="mc-right"><span class="badge p1">P1</span></span>
+                  </div>
+                  <div class="mc-sub">2 promises · 2 covered</div>
+                </div>
+                <div class="mcard">
+                  <div class="mc-top">
+                    <span class="mc-name">Adapter Runtime</span
+                    ><span class="mc-right"><span class="badge p1">P1</span></span>
+                  </div>
+                  <div class="mc-sub">1 promise · 1 covered</div>
+                </div>
+                <div class="mcard">
+                  <div class="mc-top">
+                    <span class="mc-name">Rust Adapter</span
+                    ><span class="mc-right"
+                      ><span class="rdot"></span><span class="badge p2">P2</span></span
+                    >
+                  </div>
+                  <div class="mc-sub"><span class="rev">● 2 proposed</span> · 0 covered</div>
+                </div>
+                <div class="mcard">
+                  <div class="mc-top">
+                    <span class="mc-name">Vitest Adapter</span
+                    ><span class="mc-right"><span class="badge p1">P1</span></span>
+                  </div>
+                  <div class="mc-sub">2 promises · 2 covered</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="pkgregion">
+              <div class="pr-head">
+                <span class="pr-chev">▾</span><span class="pr-name">▣ App</span
+                ><span class="pr-path mono">apps/web</span><span class="pr-count">1 module</span>
+              </div>
+              <div class="mwrap">
+                <div class="mcard">
+                  <div class="mc-top">
+                    <span class="mc-name">Web Dashboard</span
+                    ><span class="mc-right"
+                      ><span class="rdot"></span><span class="badge p0">P0</span></span
+                    >
+                  </div>
+                  <div class="mc-sub"><span class="rev">● 2 need review</span> · 1 covered</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- right: selected MODULE summary -->
+          <div class="review">
+            <div class="panel-head">
+              <span class="panel-title">Module</span
+              ><span style="color: var(--faint); font-size: 14px">×</span>
+            </div>
+            <div class="rv-body">
+              <div class="rv-title">Promise Registry <span class="badge p0">P0</span></div>
+              <div class="rv-id mono">core › promise-registry</div>
+              <div class="rv-meta">
+                <span class="tag">14 promises</span><span class="tag">10 covered</span
+                ><span class="tag review">4 need review</span>
+              </div>
+              <div class="rv-sec">
+                <div class="rv-label">Purpose</div>
+                <p>Persist promise metadata, review state, lifecycle and change history.</p>
+              </div>
+              <div class="rv-sec">
+                <div class="rv-label">Coverage</div>
+                <div class="mono" style="font-size: 11.5px; color: var(--fg-soft)">
+                  crates/harness-core/src/registry/**
+                </div>
+              </div>
+              <div class="rv-sec">
+                <div class="rv-label">下一步</div>
+                <p>
+                  点这个 module 进去看它的 14 个 promise(按优先级分组 + 搜索 + 分页),再点单个
+                  promise 评审。
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

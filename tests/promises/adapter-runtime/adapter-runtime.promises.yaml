@@ -32,8 +32,13 @@ promises:
       en: Test frameworks could produce evidence that the Harness cannot turn into reviewed promise status.
       zh-CN: 测试框架可能产出 Harness 无法转成已 review promise 状态的证据。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-25"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-25
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-25
 
   - id: harness.adapter_runtime.uses_isolated_run_event_directories
     feature: Adapter Runtime / Run Isolation
@@ -67,8 +72,13 @@ promises:
       en: The Harness could report stale or cross-run evidence as if it belonged to the current test run.
       zh-CN: Harness 可能把陈旧或跨运行的证据当作当前测试运行的证据报告。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-25"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-25
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-25
 
   - id: harness.adapter_runtime.preserves_framework_independent_evidence
     feature: Adapter Runtime / Evidence Model
@@ -100,8 +110,13 @@ promises:
       en: Adding another language adapter would either lose useful evidence or pollute canonical results with framework-specific details.
       zh-CN: 添加另一种语言 adapter 时，要么会丢失有用证据，要么会让 canonical results 混入框架特定细节。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-25"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-25
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-25
 
   - id: harness.adapter_runtime.exposes_runner_for_non_cargo_users
     feature: Adapter Runtime / Runner
@@ -135,5 +150,10 @@ promises:
       en: The Rust runtime would still feel like a Cargo-only developer tool instead of a general Harness runtime for multiple languages.
       zh-CN: Rust runtime 仍会像 Cargo-only 的开发工具，而不是支持多语言的通用 Harness runtime。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-25"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-25
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-25

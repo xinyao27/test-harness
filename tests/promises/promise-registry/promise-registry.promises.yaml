@@ -28,8 +28,13 @@ promises:
       en: The Harness cannot trust its own reviewed behavior promises.
       zh-CN: Harness 无法信任自己已经 review 过的行为承诺。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-24"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-24
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-24
 
   - id: harness.promise_registry.surfaces_per_record_decode_errors
     feature: Seed Harness / Promise Registry
@@ -62,5 +67,10 @@ promises:
       en: Authors moving promises into grouped files may see records silently vanish from the registry whenever a sibling record in the same file has an error — reports, run status, and binding validation all become unreliable in ways that look like missing tests.
       zh-CN: 作者把 promises 搬进容器文件后，一旦同文件里有别的记录出错，可能会看到部分 records 从 registry 里悄悄消失 —— 报告、运行状态和绑定校验全都变得不可靠，看起来像测试缺失。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-25"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-25
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-25

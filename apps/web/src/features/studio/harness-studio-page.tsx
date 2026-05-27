@@ -1,9 +1,13 @@
+// oxlint-disable unicorn/no-thenable
+
 import {
   RiArrowRightSLine,
   RiCheckLine,
   RiCloseLine,
   RiFolderAddLine,
   RiFolderLine,
+  RiLightbulbLine,
+  RiPencilLine,
   RiSearchLine,
   RiSettings3Line,
   RiSidebarFoldLine,
@@ -21,7 +25,15 @@ import {
   type Node,
   type NodeProps,
 } from "@xyflow/react";
-import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 
 import "@xyflow/react/dist/style.css";
 
@@ -57,36 +69,43 @@ import {
 import { Input } from "@/components/ui/input";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { Label } from "@/components/ui/label";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type {
   HarnessModule,
   HarnessPromise,
   HarnessSnapshot,
+  PromiseBoundary,
+  PromiseLifecycle,
+  PromisePriority,
   ModulePriority,
   SnapshotSource,
 } from "@/data/harness-snapshot";
 import { SettingsPanel } from "@/features/settings/settings-page";
 import {
-  LifecycleBadge,
-  PriorityBadge,
-  ReviewStateBadge,
-  RunStatusBadge,
-} from "@/features/status/status-badge";
-import {
   fallbackWorkbenchProjects,
   getWorkbenchProjects,
   getWorkbenchSnapshotForProject,
   runWorkbenchTests,
+  saveWorkbenchModule,
+  saveWorkbenchPromise,
+  saveWorkbenchPromiseReview,
   type WorkbenchRunResult,
+  type WorkbenchModuleRecord,
   type WorkbenchProject,
+  type WorkbenchPromiseRecord,
+  type WorkbenchReviewAction,
+  type WorkbenchWriteResult,
 } from "@/lib/api";
 import { useI18n, type AppLocale } from "@/lib/i18n";
+import type { LocalizedText } from "@/lib/localized-text";
 import { localizeText, localizeTexts } from "@/lib/localized-text";
 import { cn } from "@/lib/utils";
 
-type StudioNodeKind = "module" | "promise";
+type StudioNodeKind = "module" | "promise" | "priorityLayer" | "packageRegion";
 
 type StudioNodeData = {
   caption: string;
@@ -119,16 +138,67 @@ type StudioRunState = {
   status: "idle" | "running" | "success" | "failed";
 };
 
+type StudioWriteState = {
+  result: WorkbenchWriteResult | null;
+  status: "idle" | "saving" | "success" | "rejected" | "failed";
+};
+
+type ModuleEditorDraft = {
+  covers: string;
+  id: string;
+  promiseIds: string;
+  purposeEn: string;
+  purposeZh: string;
+  summaryEn: string;
+  summaryZh: string;
+  titleEn: string;
+  titleZh: string;
+};
+
+type PromiseEditorDraft = {
+  boundary: PromiseBoundary;
+  failureMeaningEn: string;
+  failureMeaningZh: string;
+  feature: string;
+  given: string;
+  id: string;
+  lifecycle: PromiseLifecycle;
+  observes: string;
+  priority: PromisePriority;
+  purposeEn: string;
+  purposeZh: string;
+  review: HarnessPromise["review"];
+  thenSteps: string;
+  titleEn: string;
+  titleZh: string;
+  when: string;
+};
+
 const currentStudioProjectId = "current:test-harness";
 const noStudioProjectId = "none";
 const studioProjectsStorageKey = "harness-studio.projects";
+const studioReviewerStorageKey = "harness-studio.reviewer";
 const selectedStudioProjectStorageKey = "harness-studio.selected-project";
 const projectMenuItemClass =
   "studio-project-menu-item flex h-7 w-full items-center gap-2 px-1.5 text-left text-xs text-popover-foreground outline-none";
+const promisePriorityOptions: PromisePriority[] = ["P0", "P1", "P2"];
+const promiseBoundaryOptions: PromiseBoundary[] = [
+  "unit",
+  "integration",
+  "browser",
+  "e2e",
+  "adapter",
+];
+const promiseLifecycleOptions: PromiseLifecycle[] = [
+  "proposed",
+  "accepted",
+  "implemented",
+  "changed_requires_review",
+  "deprecated",
+];
 
 const studioGraphLayout = {
   activeModuleX: 0,
-  activeModuleY: 150,
   architectureLayerXStep: 320,
   architectureLayerYStart: 150,
   architectureLayerYStep: 150,
@@ -141,9 +211,9 @@ const studioGraphLayout = {
   edgeRelatedStrokeOpacity: 0.66,
   edgeRelatedStrokeWidth: 1.15,
   fitViewPadding: 0.14,
-  relatedModuleX: 0,
-  relatedModuleYStart: 282,
-  relatedModuleYStep: 132,
+  layerGap: 84,
+  layerNodeX: -38,
+  layerNodeYOffset: -54,
   maxZoom: 1.4,
   minZoom: 0.25,
   promiseX: 420,
@@ -179,26 +249,6 @@ const architectureLayerByModuleId: Record<string, number> = {
   "todo-backend-client": 2,
   "todo-backend-showcase": 3,
 };
-
-const architectureOverviewRelationPairs = [
-  ["protocol", "promise-schema"],
-  ["protocol", "results-schema"],
-  ["protocol", "module-registry"],
-  ["promise-schema", "promise-registry"],
-  ["module-registry", "validation"],
-  ["results-schema", "adapter-runtime"],
-  ["cli", "adapter-runtime"],
-  ["adapter-runtime", "rust-adapter"],
-  ["adapter-runtime", "vitest-adapter"],
-  ["cli", "report"],
-  ["cli", "web-dashboard"],
-  ["todo-backend-api-contract", "todo-backend-client"],
-  ["todo-backend-api-contract", "todo-backend-typescript-hono"],
-  ["todo-backend-api-contract", "todo-backend-rust-axum"],
-  ["todo-backend-client", "todo-backend-showcase"],
-  ["todo-backend-typescript-hono", "todo-backend-showcase"],
-  ["todo-backend-rust-axum", "todo-backend-showcase"],
-] as const;
 
 function ProjectSwitcher({
   knownProjects,
@@ -435,6 +485,13 @@ function readStoredSelectedProjectId(projects: WorkbenchProject[]) {
   return currentStudioProjectId;
 }
 
+function readStoredReviewerName() {
+  if (typeof window === "undefined") return "local-reviewer";
+
+  const storedReviewer = window.localStorage.getItem(studioReviewerStorageKey)?.trim();
+  return storedReviewer || "local-reviewer";
+}
+
 function isStudioProject(value: unknown): value is WorkbenchProject {
   if (!value || typeof value !== "object") return false;
 
@@ -587,9 +644,16 @@ export function HarnessStudioPage({
   const [selectedPromiseId, setSelectedPromiseId] = useState<string | null>(null);
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(true);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isInboxOpen, setIsInboxOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(settingsOpenByDefault);
   const [hasReadQueryState, setHasReadQueryState] = useState(false);
+  const [editingModule, setEditingModule] = useState<HarnessModule | null>(null);
+  const [editingPromiseContext, setEditingPromiseContext] = useState<{
+    module: HarnessModule;
+    promise: HarnessPromise | null;
+  } | null>(null);
   const [runState, setRunState] = useState<StudioRunState>({ result: null, status: "idle" });
+  const [writeState, setWriteState] = useState<StudioWriteState>({ result: null, status: "idle" });
   const nodeTypes = useMemo(() => ({ studio: StudioGraphNode }), []);
 
   useEffect(() => {
@@ -670,6 +734,10 @@ export function HarnessStudioPage({
     () => (data ? buildStudioSearchResults(data, locale, m) : []),
     [data, locale, m],
   );
+  const reviewInbox = useMemo(
+    () => (data ? buildReviewInbox(data.promises, locale) : []),
+    [data, locale],
+  );
 
   const selectModule = useCallback((moduleId: string) => {
     setSelectedModuleId(moduleId);
@@ -694,6 +762,13 @@ export function HarnessStudioPage({
     [data],
   );
 
+  const selectInboxPromise = useCallback(
+    (promiseId: string) => {
+      selectPromise(promiseId);
+    },
+    [selectPromise],
+  );
+
   const selectSearchResult = useCallback(
     (result: StudioSearchResult) => {
       if (result.kind === "promise" && result.promiseId) {
@@ -712,6 +787,7 @@ export function HarnessStudioPage({
     setSelectedPromiseId(null);
     setIsPanelCollapsed(true);
     setRunState({ result: null, status: "idle" });
+    setWriteState({ result: null, status: "idle" });
   }, []);
 
   const runTests = useCallback(async () => {
@@ -728,6 +804,75 @@ export function HarnessStudioPage({
     });
     await queryClient.invalidateQueries({ queryKey: ["workbench-snapshot", selectedProjectId] });
   }, [queryClient, selectedProjectId]);
+
+  const saveModule = useCallback(
+    async (module: WorkbenchModuleRecord) => {
+      setWriteState((current) => ({ ...current, status: "saving" }));
+      const result = await saveWorkbenchModule(selectedProjectId, module);
+      if (!result) {
+        setWriteState({ result: null, status: "failed" });
+        return false;
+      }
+
+      const status = result.saved ? "success" : "rejected";
+      setWriteState({ result, status });
+      if (result.saved) {
+        await queryClient.invalidateQueries({
+          queryKey: ["workbench-snapshot", selectedProjectId],
+        });
+      }
+      return result.saved;
+    },
+    [queryClient, selectedProjectId],
+  );
+
+  const savePromise = useCallback(
+    async (moduleId: string, promise: WorkbenchPromiseRecord) => {
+      setWriteState((current) => ({ ...current, status: "saving" }));
+      const result = await saveWorkbenchPromise(selectedProjectId, moduleId, promise);
+      if (!result) {
+        setWriteState({ result: null, status: "failed" });
+        return false;
+      }
+
+      const status = result.saved ? "success" : "rejected";
+      setWriteState({ result, status });
+      if (result.saved) {
+        await queryClient.invalidateQueries({
+          queryKey: ["workbench-snapshot", selectedProjectId],
+        });
+      }
+      return result.saved;
+    },
+    [queryClient, selectedProjectId],
+  );
+
+  const savePromiseReview = useCallback(
+    async (promiseId: string, action: WorkbenchReviewAction, note: string) => {
+      setWriteState((current) => ({ ...current, status: "saving" }));
+      const result = await saveWorkbenchPromiseReview({
+        action,
+        note: note.trim() || undefined,
+        projectId: selectedProjectId,
+        promiseId,
+        reviewer: readStoredReviewerName(),
+      });
+      if (!result) {
+        setWriteState({ result: null, status: "failed" });
+        return false;
+      }
+
+      const status = result.saved ? "success" : "rejected";
+      setWriteState({ result, status });
+      if (result.saved) {
+        await queryClient.invalidateQueries({
+          queryKey: ["workbench-snapshot", selectedProjectId],
+        });
+      }
+      return result.saved;
+    },
+    [queryClient, selectedProjectId],
+  );
 
   return (
     <div className="studio-canvas-frame relative h-full min-h-0 overflow-hidden">
@@ -756,12 +901,24 @@ export function HarnessStudioPage({
         >
           <Panel position="top-left" className="studio-flow-header-panel">
             <div className="studio-top-bar">
-              <div className="studio-top-controls">
+              <div className="studio-top-left">
                 <ProjectSwitcher
                   knownProjects={knownProjects}
                   onProjectChange={changeProject}
                   selectedProjectId={selectedProjectId}
                 />
+                <StudioBreadcrumbs
+                  module={selectedModule}
+                  onModuleClick={() => {
+                    if (selectedModule) selectModule(selectedModule.id);
+                  }}
+                  onProjectClick={selectProjectRoot}
+                  projectName={selectedProjectName}
+                  promise={selectedPromise}
+                />
+              </div>
+
+              <div className="studio-top-search">
                 <Tooltip>
                   <TooltipTrigger
                     render={
@@ -770,7 +927,7 @@ export function HarnessStudioPage({
                         size="sm"
                         variant="outline"
                         aria-label={m.studio_search_trigger({}, { locale })}
-                        className="studio-floating-control"
+                        className="studio-floating-control studio-search-trigger"
                         onClick={() => setIsSearchOpen(true)}
                       />
                     }
@@ -788,15 +945,6 @@ export function HarnessStudioPage({
                     {m.studio_search_title({}, { locale })}
                   </TooltipContent>
                 </Tooltip>
-                <StudioBreadcrumbs
-                  module={selectedModule}
-                  onModuleClick={() => {
-                    if (selectedModule) selectModule(selectedModule.id);
-                  }}
-                  onProjectClick={selectProjectRoot}
-                  projectName={selectedProjectName}
-                  promise={selectedPromise}
-                />
               </div>
 
               <div className="studio-top-stats">
@@ -807,6 +955,7 @@ export function HarnessStudioPage({
                         <Badge
                           size="xs"
                           variant={data.source === "daemon" ? "secondary" : "destructive"}
+                          className="studio-header-source"
                         />
                       }
                     >
@@ -819,10 +968,19 @@ export function HarnessStudioPage({
                     </TooltipContent>
                   </Tooltip>
                 ) : null}
-                <Badge variant="secondary">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={isInboxOpen ? "default" : "outline"}
+                  className="studio-floating-control"
+                  onClick={() => setIsInboxOpen((current) => !current)}
+                >
+                  {m.nav_inbox({}, { locale })} {reviewInbox.length}
+                </Button>
+                <Badge variant="secondary" className="studio-header-metric">
                   {m.metric_total_modules({}, { locale })}: {data?.project.moduleCount ?? 0}
                 </Badge>
-                <Badge variant="secondary">
+                <Badge variant="secondary" className="studio-header-metric">
                   {m.metric_total_promises({}, { locale })}: {data?.project.promiseCount ?? 0}
                 </Badge>
                 <Tooltip>
@@ -830,7 +988,7 @@ export function HarnessStudioPage({
                     render={
                       <Button
                         type="button"
-                        size="icon"
+                        size="icon-sm"
                         variant="outline"
                         aria-label={m.nav_settings({}, { locale })}
                         className="studio-floating-control"
@@ -846,6 +1004,16 @@ export function HarnessStudioPage({
             </div>
           </Panel>
 
+          {isInboxOpen && data ? (
+            <ReviewInboxPanel
+              promises={reviewInbox}
+              selectedPromiseId={selectedPromise?.id ?? null}
+              snapshot={data}
+              onClose={() => setIsInboxOpen(false)}
+              onSelectPromise={selectInboxPromise}
+            />
+          ) : null}
+
           <Controls showInteractive={false} />
           {isPanelCollapsed ? (
             <Panel position="top-right" className="studio-panel-expand-panel">
@@ -854,7 +1022,7 @@ export function HarnessStudioPage({
                   render={
                     <Button
                       type="button"
-                      size="icon"
+                      size="icon-sm"
                       variant="outline"
                       aria-label={m.action_expand_panel({}, { locale })}
                       className="studio-floating-control"
@@ -870,13 +1038,19 @@ export function HarnessStudioPage({
           ) : (
             <ContextPanel
               canRunTests={data?.source === "daemon"}
+              canWrite={data?.source === "daemon"}
               isRunningTests={runState.status === "running"}
+              isSaving={writeState.status === "saving"}
               module={selectedModule}
               onCollapse={() => setIsPanelCollapsed(true)}
+              onCreatePromise={(module) => setEditingPromiseContext({ module, promise: null })}
+              onEditModule={setEditingModule}
+              onReviewPromise={savePromiseReview}
               onRunTests={runTests}
               promise={selectedPromise}
               runState={runState}
               snapshot={data ?? null}
+              writeState={writeState}
             />
           )}
         </ReactFlow>
@@ -899,6 +1073,24 @@ export function HarnessStudioPage({
         onOpenChange={setIsSearchOpen}
         onSelectResult={selectSearchResult}
         results={searchResults}
+      />
+
+      <ModuleEditorDialog
+        isOpen={Boolean(editingModule)}
+        module={editingModule}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setEditingModule(null);
+        }}
+        onSave={saveModule}
+      />
+
+      <PromiseEditorDialog
+        context={editingPromiseContext}
+        isOpen={Boolean(editingPromiseContext)}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setEditingPromiseContext(null);
+        }}
+        onSave={savePromise}
       />
     </div>
   );
@@ -971,24 +1163,628 @@ function StudioSearchItem({
   );
 }
 
+function ModuleEditorDialog({
+  isOpen,
+  module,
+  onOpenChange,
+  onSave,
+}: {
+  isOpen: boolean;
+  module: HarnessModule | null;
+  onOpenChange: (isOpen: boolean) => void;
+  onSave: (module: WorkbenchModuleRecord) => Promise<boolean>;
+}) {
+  const { locale, m } = useI18n();
+  const [draft, setDraft] = useState<ModuleEditorDraft | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (!module || !isOpen) return;
+    setDraft(moduleToEditorDraft(module));
+  }, [isOpen, module]);
+
+  const updateDraft = useCallback((key: keyof ModuleEditorDraft, value: string) => {
+    setDraft((current) => (current ? { ...current, [key]: value } : current));
+  }, []);
+
+  const submitModule = useCallback(
+    async (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      if (!draft) return;
+
+      setIsSaving(true);
+      try {
+        const saved = await onSave(moduleDraftToRecord(draft));
+        if (saved) onOpenChange(false);
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [draft, onOpenChange, onSave],
+  );
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{m.studio_authoring_edit_module({}, { locale })}</DialogTitle>
+          <DialogDescription>
+            {m.studio_authoring_dialog_description({}, { locale })}
+          </DialogDescription>
+        </DialogHeader>
+        {draft ? (
+          <form className="space-y-(--studio-panel-gap)" onSubmit={submitModule}>
+            <div className="grid gap-(--studio-panel-gap-sm) sm:grid-cols-2">
+              <TextField
+                label={m.studio_authoring_id({}, { locale })}
+                value={draft.id}
+                disabled
+                onChange={(value) => updateDraft("id", value)}
+              />
+              <TextField
+                label={m.studio_authoring_title_en({}, { locale })}
+                value={draft.titleEn}
+                onChange={(value) => updateDraft("titleEn", value)}
+              />
+              <TextField
+                label={m.studio_authoring_title_zh({}, { locale })}
+                value={draft.titleZh}
+                onChange={(value) => updateDraft("titleZh", value)}
+              />
+              <TextField
+                label={m.studio_authoring_summary_en({}, { locale })}
+                value={draft.summaryEn}
+                onChange={(value) => updateDraft("summaryEn", value)}
+              />
+              <TextField
+                label={m.studio_authoring_summary_zh({}, { locale })}
+                value={draft.summaryZh}
+                onChange={(value) => updateDraft("summaryZh", value)}
+              />
+            </div>
+            <TextAreaField
+              label={m.studio_authoring_purpose_en({}, { locale })}
+              value={draft.purposeEn}
+              onChange={(value) => updateDraft("purposeEn", value)}
+            />
+            <TextAreaField
+              label={m.studio_authoring_purpose_zh({}, { locale })}
+              value={draft.purposeZh}
+              onChange={(value) => updateDraft("purposeZh", value)}
+            />
+            <TextAreaField
+              label={m.studio_authoring_promise_ids({}, { locale })}
+              value={draft.promiseIds}
+              onChange={(value) => updateDraft("promiseIds", value)}
+            />
+            <TextAreaField
+              label={m.studio_authoring_covers({}, { locale })}
+              value={draft.covers}
+              onChange={(value) => updateDraft("covers", value)}
+            />
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                {m.action_cancel({}, { locale })}
+              </Button>
+              <Button type="submit" disabled={isSaving || !draft.titleEn.trim()}>
+                {isSaving
+                  ? m.studio_authoring_saving({}, { locale })
+                  : m.studio_authoring_save({}, { locale })}
+              </Button>
+            </DialogFooter>
+          </form>
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function PromiseEditorDialog({
+  context,
+  isOpen,
+  onOpenChange,
+  onSave,
+}: {
+  context: { module: HarnessModule; promise: HarnessPromise | null } | null;
+  isOpen: boolean;
+  onOpenChange: (isOpen: boolean) => void;
+  onSave: (moduleId: string, promise: WorkbenchPromiseRecord) => Promise<boolean>;
+}) {
+  const { locale, m } = useI18n();
+  const [draft, setDraft] = useState<PromiseEditorDraft | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (!context || !isOpen) return;
+    setDraft(promiseToEditorDraft(context.module, context.promise));
+  }, [context, isOpen]);
+
+  const updateDraft = useCallback((key: keyof PromiseEditorDraft, value: string) => {
+    setDraft((current) => (current ? { ...current, [key]: value } : current));
+  }, []);
+
+  const submitPromise = useCallback(
+    async (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      if (!context || !draft) return;
+
+      setIsSaving(true);
+      try {
+        const saved = await onSave(context.module.id, promiseDraftToRecord(draft));
+        if (saved) onOpenChange(false);
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [context, draft, onOpenChange, onSave],
+  );
+
+  const title = context?.promise
+    ? m.studio_authoring_edit_promise({}, { locale })
+    : m.studio_authoring_new_promise({}, { locale });
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>
+            {m.studio_authoring_dialog_description({}, { locale })}
+          </DialogDescription>
+        </DialogHeader>
+        {draft ? (
+          <form className="space-y-(--studio-panel-gap)" onSubmit={submitPromise}>
+            <div className="grid gap-(--studio-panel-gap-sm) sm:grid-cols-2">
+              <TextField
+                label={m.studio_authoring_id({}, { locale })}
+                value={draft.id}
+                disabled={Boolean(context?.promise)}
+                onChange={(value) => updateDraft("id", value)}
+              />
+              <TextField
+                label={m.studio_authoring_feature({}, { locale })}
+                value={draft.feature}
+                onChange={(value) => updateDraft("feature", value)}
+              />
+              <TextField
+                label={m.studio_authoring_title_en({}, { locale })}
+                value={draft.titleEn}
+                onChange={(value) => updateDraft("titleEn", value)}
+              />
+              <TextField
+                label={m.studio_authoring_title_zh({}, { locale })}
+                value={draft.titleZh}
+                onChange={(value) => updateDraft("titleZh", value)}
+              />
+              <SelectField
+                label={m.studio_authoring_priority({}, { locale })}
+                value={draft.priority}
+                options={promisePriorityOptions}
+                onChange={(value) => updateDraft("priority", value)}
+              />
+              <SelectField
+                label={m.studio_authoring_boundary({}, { locale })}
+                value={draft.boundary}
+                options={promiseBoundaryOptions}
+                onChange={(value) => updateDraft("boundary", value)}
+              />
+              <SelectField
+                label={m.studio_authoring_lifecycle({}, { locale })}
+                value={draft.lifecycle}
+                options={promiseLifecycleOptions}
+                onChange={(value) => updateDraft("lifecycle", value)}
+              />
+            </div>
+            <TextAreaField
+              label={m.studio_authoring_purpose_en({}, { locale })}
+              value={draft.purposeEn}
+              onChange={(value) => updateDraft("purposeEn", value)}
+            />
+            <TextAreaField
+              label={m.studio_authoring_purpose_zh({}, { locale })}
+              value={draft.purposeZh}
+              onChange={(value) => updateDraft("purposeZh", value)}
+            />
+            <div className="grid gap-(--studio-panel-gap-sm) sm:grid-cols-3">
+              <TextAreaField
+                label={m.promise_detail_given({}, { locale })}
+                value={draft.given}
+                onChange={(value) => updateDraft("given", value)}
+              />
+              <TextAreaField
+                label={m.promise_detail_when({}, { locale })}
+                value={draft.when}
+                onChange={(value) => updateDraft("when", value)}
+              />
+              <TextAreaField
+                label={m.promise_detail_then({}, { locale })}
+                value={draft.thenSteps}
+                onChange={(value) => updateDraft("thenSteps", value)}
+              />
+            </div>
+            <TextAreaField
+              label={m.studio_authoring_observes({}, { locale })}
+              value={draft.observes}
+              onChange={(value) => updateDraft("observes", value)}
+            />
+            <TextAreaField
+              label={m.studio_authoring_failure_en({}, { locale })}
+              value={draft.failureMeaningEn}
+              onChange={(value) => updateDraft("failureMeaningEn", value)}
+            />
+            <TextAreaField
+              label={m.studio_authoring_failure_zh({}, { locale })}
+              value={draft.failureMeaningZh}
+              onChange={(value) => updateDraft("failureMeaningZh", value)}
+            />
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                {m.action_cancel({}, { locale })}
+              </Button>
+              <Button
+                type="submit"
+                disabled={
+                  isSaving ||
+                  !draft.id.trim() ||
+                  !draft.titleEn.trim() ||
+                  !draft.purposeEn.trim() ||
+                  !draft.given.trim() ||
+                  !draft.when.trim() ||
+                  !draft.thenSteps.trim() ||
+                  !draft.observes.trim()
+                }
+              >
+                {isSaving
+                  ? m.studio_authoring_saving({}, { locale })
+                  : m.studio_authoring_save({}, { locale })}
+              </Button>
+            </DialogFooter>
+          </form>
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function TextField({
+  disabled,
+  label,
+  onChange,
+  value,
+}: {
+  disabled?: boolean;
+  label: string;
+  onChange: (value: string) => void;
+  value: string;
+}) {
+  const id = useStableFieldId();
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id}>{label}</Label>
+      <Input
+        id={id}
+        disabled={disabled}
+        value={value}
+        onChange={(event) => onChange(event.currentTarget.value)}
+      />
+    </div>
+  );
+}
+
+function TextAreaField({
+  label,
+  onChange,
+  value,
+}: {
+  label: string;
+  onChange: (value: string) => void;
+  value: string;
+}) {
+  const id = useStableFieldId();
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id}>{label}</Label>
+      <Textarea id={id} value={value} onChange={(event) => onChange(event.currentTarget.value)} />
+    </div>
+  );
+}
+
+function SelectField<T extends string>({
+  label,
+  onChange,
+  options,
+  value,
+}: {
+  label: string;
+  onChange: (value: T) => void;
+  options: T[];
+  value: T;
+}) {
+  const id = useStableFieldId();
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id}>{label}</Label>
+      <NativeSelect
+        id={id}
+        className="w-full"
+        value={value}
+        onChange={(event) => onChange(event.currentTarget.value as T)}
+      >
+        {options.map((option) => (
+          <NativeSelectOption key={option} value={option}>
+            {option}
+          </NativeSelectOption>
+        ))}
+      </NativeSelect>
+    </div>
+  );
+}
+
+function useStableFieldId() {
+  return `field-${useId().replaceAll(":", "")}`;
+}
+
+function moduleToEditorDraft(module: HarnessModule): ModuleEditorDraft {
+  return {
+    covers: module.covers.join("\n"),
+    id: module.id,
+    promiseIds: module.promiseIds.join("\n"),
+    purposeEn: localizedDraftValue(module.purpose, "en"),
+    purposeZh: localizedDraftValue(module.purpose, "zh-CN"),
+    summaryEn: localizedDraftValue(module.summary, "en"),
+    summaryZh: localizedDraftValue(module.summary, "zh-CN"),
+    titleEn: localizedDraftValue(module.title, "en"),
+    titleZh: localizedDraftValue(module.title, "zh-CN"),
+  };
+}
+
+function moduleDraftToRecord(draft: ModuleEditorDraft): WorkbenchModuleRecord {
+  return {
+    apiVersion: 1,
+    covers: splitLines(draft.covers),
+    id: draft.id.trim(),
+    promises: splitLines(draft.promiseIds),
+    purpose: localizedDraftText(draft.purposeEn, draft.purposeZh),
+    summary: localizedDraftText(draft.summaryEn, draft.summaryZh),
+    title: localizedDraftText(draft.titleEn, draft.titleZh),
+  };
+}
+
+function promiseToEditorDraft(
+  module: HarnessModule,
+  promise: HarnessPromise | null,
+): PromiseEditorDraft {
+  if (!promise) {
+    return {
+      boundary: "browser",
+      failureMeaningEn: "",
+      failureMeaningZh: "",
+      feature: localizeText(module.title, "en"),
+      given: "",
+      id: `harness.${module.id}.new_promise`,
+      lifecycle: "proposed",
+      observes: module.covers.join("\n"),
+      priority: module.priority === "none" ? "P1" : module.priority,
+      purposeEn: "",
+      purposeZh: "",
+      review: { state: "pending", events: [] },
+      thenSteps: "",
+      titleEn: "",
+      titleZh: "",
+      when: "",
+    };
+  }
+
+  return {
+    boundary: promise.boundary,
+    failureMeaningEn: localizedDraftValue(promise.failureMeaning, "en"),
+    failureMeaningZh: localizedDraftValue(promise.failureMeaning, "zh-CN"),
+    feature: promise.feature,
+    given: localizedDraftLines(promise.given),
+    id: promise.id,
+    lifecycle: promise.lifecycle,
+    observes: promise.observes.join("\n"),
+    priority: promise.priority,
+    purposeEn: localizedDraftValue(promise.purpose, "en"),
+    purposeZh: localizedDraftValue(promise.purpose, "zh-CN"),
+    review: promise.review,
+    thenSteps: localizedDraftLines(promise.then),
+    titleEn: localizedDraftValue(promise.title, "en"),
+    titleZh: localizedDraftValue(promise.title, "zh-CN"),
+    when: localizedDraftLines(promise.when),
+  };
+}
+
+function promiseDraftToRecord(draft: PromiseEditorDraft): WorkbenchPromiseRecord {
+  return {
+    boundary: draft.boundary,
+    failureMeaning: localizedDraftText(draft.failureMeaningEn, draft.failureMeaningZh),
+    feature: draft.feature.trim(),
+    given: splitLines(draft.given),
+    id: draft.id.trim(),
+    lifecycle: draft.lifecycle,
+    observes: splitLines(draft.observes),
+    priority: draft.priority,
+    purpose: localizedDraftText(draft.purposeEn, draft.purposeZh),
+    review: draft.review,
+    ["then"]: splitLines(draft.thenSteps),
+    title: localizedDraftText(draft.titleEn, draft.titleZh),
+    when: splitLines(draft.when),
+  };
+}
+
+function localizedDraftValue(value: LocalizedText, language: "en" | "zh-CN") {
+  if (typeof value === "string") return value;
+  return value[language] ?? value.en ?? value["zh-CN"] ?? "";
+}
+
+function localizedDraftText(en: string, zhCn: string): LocalizedText {
+  const fallback = en.trim() || zhCn.trim();
+  return {
+    en: en.trim() || fallback,
+    "zh-CN": zhCn.trim() || fallback,
+  };
+}
+
+function localizedDraftLines(values: LocalizedText[]) {
+  return values.map((value) => localizedDraftValue(value, "en")).join("\n");
+}
+
+function splitLines(value: string) {
+  return value
+    .split("\n")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function ReviewInboxPanel({
+  onClose,
+  onSelectPromise,
+  promises,
+  selectedPromiseId,
+  snapshot,
+}: {
+  onClose: () => void;
+  onSelectPromise: (promiseId: string) => void;
+  promises: HarnessPromise[];
+  selectedPromiseId: string | null;
+  snapshot: HarnessSnapshot;
+}) {
+  const { locale, m } = useI18n();
+  const [filter, setFilter] = useState<"changed" | "pending">("pending");
+  const modulesById = useMemo(
+    () => new Map(snapshot.modules.map((module) => [module.id, module])),
+    [snapshot.modules],
+  );
+  // `promises` is the review inbox (everything needing attention); partition it so the two tab
+  // counts always sum to the inbox badge and changes-requested items remain visible.
+  const isChanged = (promise: HarnessPromise) =>
+    promise.lifecycle === "changed_requires_review" || promise.review.state === "changes_requested";
+  const changedPromises = promises.filter(isChanged);
+  const pendingPromises = promises.filter((promise) => !isChanged(promise));
+  const filteredPromises = filter === "changed" ? changedPromises : pendingPromises;
+  const canScroll = filteredPromises.length > 5;
+
+  return (
+    <Panel position="top-left" className="studio-review-inbox-panel">
+      <div className="studio-review-inbox">
+        <div className="flex items-center justify-between gap-(--studio-panel-gap-sm)">
+          <h2 className="text-base font-medium">{m.review_title({}, { locale })}</h2>
+          <Button
+            type="button"
+            size="icon-sm"
+            variant="ghost"
+            aria-label={m.sidebar_close({}, { locale })}
+            className="studio-panel-icon-control"
+            onClick={onClose}
+          >
+            <RiCloseLine />
+          </Button>
+        </div>
+
+        <div className="mt-(--studio-panel-gap) flex gap-(--studio-panel-gap-sm)">
+          <Button
+            type="button"
+            size="sm"
+            variant={filter === "pending" ? "default" : "outline"}
+            onClick={() => setFilter("pending")}
+          >
+            {m.filter_pending_review({}, { locale })} {pendingPromises.length}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={filter === "changed" ? "default" : "outline"}
+            onClick={() => setFilter("changed")}
+          >
+            {m.studio_review_filter_changed({}, { locale })} {changedPromises.length}
+          </Button>
+        </div>
+
+        <div className="studio-review-inbox-list mt-(--studio-panel-gap) overflow-hidden border border-border">
+          <ScrollArea className="studio-review-inbox-scroll" data-scrollable={canScroll}>
+            <div className="divide-y divide-border">
+              {filteredPromises.length > 0 ? (
+                filteredPromises.map((promise) => {
+                  const module = modulesById.get(promise.moduleId);
+                  const isSelected = promise.id === selectedPromiseId;
+                  return (
+                    <button
+                      key={promise.id}
+                      type="button"
+                      className="studio-review-inbox-item w-full text-left"
+                      data-selected={isSelected}
+                      onClick={() => onSelectPromise(promise.id)}
+                    >
+                      <div className="flex items-start gap-(--studio-panel-gap-sm)">
+                        <PriorityTag priority={promise.priority} />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-(--studio-panel-gap-sm)">
+                            <div className="line-clamp-2 text-sm font-medium">
+                              {localizeText(promise.title, locale)}
+                            </div>
+                          </div>
+                          <div className="mt-(--studio-panel-gap-xs) truncate text-xs text-muted-foreground">
+                            {module ? localizeText(module.title, locale) : promise.moduleId}
+                          </div>
+                          <div className="mt-(--studio-panel-gap-xs) text-xs text-muted-foreground">
+                            {reviewInboxReason(promise, m, locale)}
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })
+              ) : (
+                <div className="p-(--studio-panel-padding) text-sm text-muted-foreground">
+                  {m.studio_review_inbox_empty({}, { locale })}
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+        </div>
+      </div>
+    </Panel>
+  );
+}
+
 function ContextPanel({
   canRunTests,
+  canWrite,
   isRunningTests,
+  isSaving,
   module,
   onCollapse,
+  onCreatePromise,
+  onEditModule,
+  onReviewPromise,
   onRunTests,
   promise,
   runState,
   snapshot,
+  writeState,
 }: {
   canRunTests: boolean;
+  canWrite: boolean;
   isRunningTests: boolean;
+  isSaving: boolean;
   module: HarnessModule | null;
   onCollapse: () => void;
+  onCreatePromise: (module: HarnessModule) => void;
+  onEditModule: (module: HarnessModule) => void;
+  onReviewPromise: (
+    promiseId: string,
+    action: WorkbenchReviewAction,
+    note: string,
+  ) => Promise<boolean>;
   onRunTests: () => void;
   promise: HarnessPromise | null;
   runState: StudioRunState;
   snapshot: HarnessSnapshot | null;
+  writeState: StudioWriteState;
 }) {
   const { locale, m } = useI18n();
 
@@ -999,7 +1795,9 @@ function ContextPanel({
           <div className="flex min-w-0 items-center gap-(--studio-panel-gap-sm)">
             <RiSidebarUnfoldLine className="size-4 shrink-0 text-muted-foreground" />
             <div className="truncate text-sm font-medium">
-              {m.studio_context_panel({}, { locale })}
+              {promise
+                ? m.studio_review_panel_title({}, { locale })
+                : m.studio_context_panel({}, { locale })}
             </div>
           </div>
           <Tooltip>
@@ -1007,50 +1805,70 @@ function ContextPanel({
               render={
                 <Button
                   type="button"
-                  size="icon"
+                  size="icon-sm"
                   variant="ghost"
                   aria-label={m.action_collapse_panel({}, { locale })}
+                  className="studio-panel-icon-control"
                   onClick={onCollapse}
                 />
               }
             >
-              <RiSidebarFoldLine />
+              {promise ? <RiCloseLine /> : <RiSidebarFoldLine />}
             </TooltipTrigger>
             <TooltipContent side="left">{m.action_collapse_panel({}, { locale })}</TooltipContent>
           </Tooltip>
         </div>
 
-        <ScrollArea className="min-h-0 flex-1">
-          <div className="studio-context-body">
-            {snapshot?.source === "static" ? <SnapshotSourceNotice /> : null}
-            {promise && module ? (
-              <PromiseContext promise={promise} module={module} />
-            ) : module && snapshot ? (
-              <ModuleContext module={module} snapshot={snapshot} />
-            ) : snapshot ? (
-              <StudioContext snapshot={snapshot} />
-            ) : null}
-            <RunSummary runState={runState} />
-          </div>
-        </ScrollArea>
+        {promise && module && snapshot ? (
+          <PromiseContext
+            canWrite={canWrite}
+            isSaving={isSaving}
+            promise={promise}
+            module={module}
+            onReviewPromise={onReviewPromise}
+            snapshot={snapshot}
+            writeState={writeState}
+          />
+        ) : (
+          <ScrollArea className="min-h-0 flex-1">
+            <div className="studio-context-body">
+              {module && snapshot ? (
+                <ModuleContext
+                  canWrite={canWrite}
+                  isSaving={isSaving}
+                  module={module}
+                  onCreatePromise={onCreatePromise}
+                  onEditModule={onEditModule}
+                  snapshot={snapshot}
+                />
+              ) : snapshot ? (
+                <StudioContext snapshot={snapshot} />
+              ) : null}
+              <WriteSummary writeState={writeState} />
+              <RunSummary runState={runState} />
+            </div>
+          </ScrollArea>
+        )}
 
-        <div className="border-t border-border p-(--studio-panel-padding)">
-          <Button
-            type="button"
-            className="w-full"
-            disabled={!canRunTests || isRunningTests}
-            onClick={onRunTests}
-          >
-            {isRunningTests
-              ? m.studio_run_running({}, { locale })
-              : m.action_run_tests({}, { locale })}
-          </Button>
-          {!canRunTests ? (
-            <p className="mt-(--studio-panel-gap-sm) text-xs text-muted-foreground">
-              {m.studio_run_requires_daemon({}, { locale })}
-            </p>
-          ) : null}
-        </div>
+        {!promise ? (
+          <div className="border-t border-border p-(--studio-panel-padding)">
+            <Button
+              type="button"
+              className="w-full"
+              disabled={!canRunTests || isRunningTests}
+              onClick={onRunTests}
+            >
+              {isRunningTests
+                ? m.studio_run_running({}, { locale })
+                : m.action_run_tests({}, { locale })}
+            </Button>
+            {!canRunTests ? (
+              <p className="mt-(--studio-panel-gap-sm) text-xs text-muted-foreground">
+                {m.studio_run_requires_daemon({}, { locale })}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </Panel>
   );
@@ -1081,15 +1899,29 @@ function RunSummary({ runState }: { runState: StudioRunState }) {
   );
 }
 
-function SnapshotSourceNotice() {
+function WriteSummary({ writeState }: { writeState: StudioWriteState }) {
   const { locale, m } = useI18n();
+  if (writeState.status === "idle" || writeState.status === "saving") return null;
+
+  const title =
+    writeState.status === "success"
+      ? m.studio_authoring_save_succeeded({}, { locale })
+      : writeState.status === "rejected"
+        ? m.studio_authoring_save_rejected({}, { locale })
+        : m.studio_authoring_save_failed({}, { locale });
+  const output = [writeState.result?.stdout, writeState.result?.stderr]
+    .filter((value): value is string => Boolean(value?.trim()))
+    .join("\n");
 
   return (
-    <section className="studio-context-card mb-(--studio-panel-gap) border border-destructive bg-destructive/10 p-(--studio-panel-padding) text-destructive">
-      <h2 className="text-sm font-medium">{m.studio_snapshot_fallback_title({}, { locale })}</h2>
-      <p className="mt-(--studio-panel-gap-xs) text-xs">
-        {m.studio_snapshot_fallback_body({}, { locale })}
+    <section className="studio-context-card mt-(--studio-panel-gap) border border-border bg-card p-(--studio-panel-padding)">
+      <h2 className="text-sm font-medium">{title}</h2>
+      <p className="mt-(--studio-panel-gap-xs) text-xs text-muted-foreground">
+        {m.studio_run_exit_code({}, { locale })}: {writeState.result?.exitCode ?? 1}
       </p>
+      <pre className="mt-(--studio-panel-gap-sm) max-h-40 overflow-auto whitespace-pre-wrap border border-border bg-background p-(--studio-panel-gap-sm) font-mono text-xs">
+        {output || m.studio_run_no_output({}, { locale })}
+      </pre>
     </section>
   );
 }
@@ -1124,7 +1956,21 @@ function StudioContext({ snapshot }: { snapshot: HarnessSnapshot }) {
   );
 }
 
-function ModuleContext({ module, snapshot }: { module: HarnessModule; snapshot: HarnessSnapshot }) {
+function ModuleContext({
+  canWrite,
+  isSaving,
+  module,
+  onCreatePromise,
+  onEditModule,
+  snapshot,
+}: {
+  canWrite: boolean;
+  isSaving: boolean;
+  module: HarnessModule;
+  onCreatePromise: (module: HarnessModule) => void;
+  onEditModule: (module: HarnessModule) => void;
+  snapshot: HarnessSnapshot;
+}) {
   const { locale, m } = useI18n();
   const promises = snapshot.promises.filter((promise) => promise.moduleId === module.id);
 
@@ -1138,6 +1984,32 @@ function ModuleContext({ module, snapshot }: { module: HarnessModule; snapshot: 
         <p className="mt-(--studio-panel-gap-sm) text-sm text-muted-foreground">
           {localizeText(module.summary, locale)}
         </p>
+        <div className="mt-(--studio-panel-gap) flex flex-wrap gap-(--studio-panel-gap-sm)">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={!canWrite || isSaving}
+            onClick={() => onEditModule(module)}
+          >
+            <RiPencilLine />
+            {m.studio_authoring_edit_module({}, { locale })}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={!canWrite || isSaving}
+            onClick={() => onCreatePromise(module)}
+          >
+            {m.studio_authoring_new_promise({}, { locale })}
+          </Button>
+        </div>
+        {!canWrite ? (
+          <p className="mt-(--studio-panel-gap-sm) text-xs text-muted-foreground">
+            {m.studio_authoring_requires_daemon({}, { locale })}
+          </p>
+        ) : null}
       </section>
 
       <InfoSection title={m.module_detail_why({}, { locale })}>
@@ -1164,66 +2036,208 @@ function ModuleContext({ module, snapshot }: { module: HarnessModule; snapshot: 
   );
 }
 
-function PromiseContext({ module, promise }: { module: HarnessModule; promise: HarnessPromise }) {
+function PromiseContext({
+  canWrite,
+  isSaving,
+  module,
+  onReviewPromise,
+  promise,
+  snapshot,
+  writeState,
+}: {
+  canWrite: boolean;
+  isSaving: boolean;
+  module: HarnessModule;
+  onReviewPromise: (
+    promiseId: string,
+    action: WorkbenchReviewAction,
+    note: string,
+  ) => Promise<boolean>;
+  promise: HarnessPromise;
+  snapshot: HarnessSnapshot;
+  writeState: StudioWriteState;
+}) {
   const { locale, m } = useI18n();
+  const [reviewNote, setReviewNote] = useState("");
+  const moduleNeighborhood = sortPromisesForReview(
+    snapshot.promises.filter((item) => item.moduleId === module.id && item.id !== promise.id),
+    locale,
+  ).slice(0, 4);
+
+  const submitReview = useCallback(
+    async (action: WorkbenchReviewAction) => {
+      const saved = await onReviewPromise(promise.id, action, reviewNote);
+      if (saved) setReviewNote("");
+    },
+    [onReviewPromise, promise.id, reviewNote],
+  );
 
   return (
-    <div className="space-y-(--studio-panel-gap)">
-      <section>
-        <div className="flex flex-wrap gap-(--studio-panel-gap-sm)">
-          <PriorityBadge priority={promise.priority} />
-          <LifecycleBadge lifecycle={promise.lifecycle} />
-          <RunStatusBadge status={promise.runStatus} />
+    <div className="flex min-h-0 flex-1 flex-col">
+      <ScrollArea className="min-h-0 flex-1">
+        <div className="studio-context-body space-y-(--studio-panel-gap)">
+          <section className="studio-review-module-summary">
+            <div className="flex items-start justify-between gap-(--studio-panel-gap)">
+              <div className="min-w-0">
+                <h3 className="text-xs font-medium text-muted-foreground">
+                  {m.graph_kind_module({}, { locale })}
+                </h3>
+                <p className="mt-(--studio-panel-gap-xs) truncate text-sm font-medium">
+                  {localizeText(module.title, locale)}
+                </p>
+              </div>
+              <PriorityTag priority={promise.priority} />
+            </div>
+          </section>
+
+          <InfoSection title={m.promise_detail_purpose({}, { locale })}>
+            <p>{localizeText(promise.purpose, locale)}</p>
+          </InfoSection>
+
+          <InfoSection title={m.studio_review_scenario({}, { locale })}>
+            <div className="studio-review-scenario-table">
+              <ScenarioBlock title={m.promise_detail_given({}, { locale })} items={promise.given} />
+              <ScenarioBlock title={m.promise_detail_when({}, { locale })} items={promise.when} />
+              <ScenarioBlock title={m.promise_detail_then({}, { locale })} items={promise.then} />
+            </div>
+          </InfoSection>
+
+          <InfoSection title={m.graph_kind_evidence({}, { locale })}>
+            <CodeList items={promise.observes} />
+          </InfoSection>
+
+          <ChangedFieldsPlaceholder />
+
+          <InfoSection title={m.studio_review_neighborhood({}, { locale })}>
+            {moduleNeighborhood.length > 0 ? (
+              <div className="flex flex-wrap gap-(--studio-panel-gap-sm)">
+                {moduleNeighborhood.map((item) => (
+                  <Badge
+                    key={item.id}
+                    variant="outline"
+                    className="studio-review-neighbor-pill max-w-full truncate"
+                  >
+                    <span className="truncate">{localizeText(item.title, locale)}</span>
+                    <span className="text-muted-foreground">{item.priority}</span>
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground">
+                {m.studio_review_no_neighbors({}, { locale })}
+              </p>
+            )}
+          </InfoSection>
+
+          <InfoSection title={m.studio_review_hints({}, { locale })}>
+            <div className="space-y-(--studio-panel-gap-xs) text-muted-foreground">
+              <p className="flex items-center gap-(--studio-panel-gap-sm)">
+                <RiLightbulbLine className="size-4 shrink-0" />
+                {m.studio_review_hint_clear({}, { locale })}
+              </p>
+              <p className="flex items-center gap-(--studio-panel-gap-sm)">
+                <RiLightbulbLine className="size-4 shrink-0" />
+                {m.studio_review_hint_observable({}, { locale })}
+              </p>
+            </div>
+          </InfoSection>
+
+          <WriteSummary writeState={writeState} />
         </div>
-        <h2 className="mt-(--studio-panel-gap) text-base font-medium">
-          {localizeText(promise.title, locale)}
-        </h2>
-        <p className="mt-(--studio-panel-gap-xs) break-all text-xs text-muted-foreground">
-          {promise.id}
-        </p>
+      </ScrollArea>
+
+      <section className="studio-review-actions space-y-(--studio-panel-gap-sm)">
+        <div className="grid grid-cols-3 gap-(--studio-panel-gap-sm)">
+          <Button
+            type="button"
+            disabled={!canWrite || isSaving}
+            onClick={() => submitReview("approved")}
+          >
+            {m.action_approve({}, { locale })}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={!canWrite || isSaving}
+            onClick={() => submitReview("changes_requested")}
+          >
+            {m.action_request_changes({}, { locale })}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={!canWrite || isSaving}
+            onClick={() => submitReview("rejected")}
+          >
+            {m.action_decline({}, { locale })}
+          </Button>
+        </div>
+        <Label htmlFor="studio-review-note">{m.review_notes({}, { locale })}</Label>
+        <Textarea
+          id="studio-review-note"
+          value={reviewNote}
+          placeholder={m.review_notes_placeholder({}, { locale })}
+          onChange={(event) => setReviewNote(event.currentTarget.value)}
+        />
       </section>
-
-      <InfoSection title={m.graph_kind_module({}, { locale })}>
-        <p>{localizeText(module.title, locale)}</p>
-      </InfoSection>
-
-      <InfoSection title={m.promise_detail_purpose({}, { locale })}>
-        <p>{localizeText(promise.purpose, locale)}</p>
-      </InfoSection>
-
-      <div className="grid gap-(--studio-panel-gap)">
-        <InfoSection title={m.promise_detail_given({}, { locale })}>
-          <TextList items={localizeTexts(promise.given, locale)} />
-        </InfoSection>
-        <InfoSection title={m.promise_detail_when({}, { locale })}>
-          <TextList items={localizeTexts(promise.when, locale)} />
-        </InfoSection>
-        <InfoSection title={m.promise_detail_then({}, { locale })}>
-          <TextList items={localizeTexts(promise.then, locale)} />
-        </InfoSection>
-      </div>
-
-      <InfoSection title={m.promise_detail_failure_meaning({}, { locale })}>
-        <p>{localizeText(promise.failureMeaning, locale)}</p>
-      </InfoSection>
-
-      <InfoSection title={m.graph_kind_evidence({}, { locale })}>
-        <CodeList items={promise.observes} />
-      </InfoSection>
-
-      <InfoSection title={m.promise_detail_review_status({}, { locale })}>
-        <div className="flex flex-wrap gap-(--studio-panel-gap-sm)">
-          <ReviewStateBadge state={promise.review.state} />
-          {promise.review.approvedBy ? (
-            <Badge variant="outline">{promise.review.approvedBy}</Badge>
-          ) : null}
-        </div>
-      </InfoSection>
     </div>
   );
 }
 
+function ScenarioBlock({ items, title }: { items: LocalizedText[]; title: string }) {
+  const { locale } = useI18n();
+
+  return (
+    <div className="border-b border-border p-(--studio-panel-gap-sm) last:border-b-0">
+      <div className="text-xs font-medium">{title}</div>
+      <TextList items={localizeTexts(items, locale)} />
+    </div>
+  );
+}
+
+function ChangedFieldsPlaceholder() {
+  const { locale, m } = useI18n();
+
+  return (
+    <InfoSection title={m.studio_review_changed_fields({}, { locale })}>
+      <div className="studio-review-diff-table overflow-hidden border border-border">
+        <div className="grid grid-cols-3 border-b border-border text-xs font-medium">
+          <div className="p-(--studio-panel-gap-sm)">
+            {m.studio_review_diff_field({}, { locale })}
+          </div>
+          <div className="border-l border-border p-(--studio-panel-gap-sm)">
+            {m.studio_review_diff_old({}, { locale })}
+          </div>
+          <div className="border-l border-border p-(--studio-panel-gap-sm)">
+            {m.studio_review_diff_new({}, { locale })}
+          </div>
+        </div>
+        <div className="p-(--studio-panel-gap-sm) text-xs text-muted-foreground">
+          {m.studio_review_no_baseline({}, { locale })}
+        </div>
+      </div>
+    </InfoSection>
+  );
+}
+
 function StudioGraphNode({ data }: NodeProps<StudioNode>) {
+  if (data.kind === "priorityLayer") {
+    return (
+      <div className="studio-priority-layer-node">
+        <PriorityTag priority={data.priority} />
+        <div className="studio-priority-layer-line" />
+      </div>
+    );
+  }
+
+  if (data.kind === "packageRegion") {
+    return (
+      <div className="studio-package-region">
+        <div className="studio-package-region-label">{data.title}</div>
+      </div>
+    );
+  }
+
   const tone =
     data.kind === "module"
       ? "border-border bg-card text-card-foreground"
@@ -1346,16 +2360,32 @@ function buildStudioGraph(
   const relatedModules = activeModule
     ? snapshot.modules.filter((module) => relatedModuleIds.has(module.id))
     : [];
-  const moduleLayerGroups = groupModulesByArchitectureLayer(snapshot.modules);
   const orderedModules = activeModule ? [activeModule, ...relatedModules] : snapshot.modules;
+  const overviewLayout = activeModule ? null : buildOverviewPackageLayout(snapshot.modules, locale);
+  const focusedModuleLayout = activeModule
+    ? buildOverviewPriorityLayout(orderedModules, locale)
+    : null;
+  const activeModulePosition =
+    activeModule && focusedModuleLayout ? focusedModuleLayout.positions.get(activeModule.id) : null;
+  const focusedPromiseLayout = activeModule
+    ? buildPromisePriorityLayout(activePromises, {
+        includeLayerNodes: false,
+        startY: activeModulePosition?.y ?? studioGraphLayout.promiseYStart,
+        x:
+          (activeModulePosition?.x ?? studioGraphLayout.activeModuleX) +
+          studioGraphLayout.architectureLayerXStep,
+      })
+    : null;
 
   const moduleNodes = orderedModules.map((module) => {
     const isSelected = module.id === selectedModuleId;
     const isRelated = relatedModuleIds.has(module.id);
     const dimmed = Boolean(activeModule && !isSelected && !isRelated);
     const position = activeModule
-      ? getFocusedModulePosition(module, activeModule, relatedModules)
-      : getArchitectureLayerPosition(module, moduleLayerGroups);
+      ? (focusedModuleLayout?.positions.get(module.id) ??
+        getArchitectureLayerPosition(module, groupModulesByArchitectureLayer(orderedModules)))
+      : (overviewLayout?.positions.get(module.id) ??
+        getArchitectureLayerPosition(module, groupModulesByArchitectureLayer(snapshot.modules)));
 
     return {
       id: `module:${module.id}`,
@@ -1377,7 +2407,7 @@ function buildStudioGraph(
   const promiseNodes = activePromises.map((promise, index) => ({
     id: `promise:${promise.id}`,
     type: "studio",
-    position: {
+    position: focusedPromiseLayout?.positions.get(promise.id) ?? {
       x: studioGraphLayout.promiseX,
       y: index * studioGraphLayout.promiseYStep + studioGraphLayout.promiseYStart,
     },
@@ -1414,29 +2444,24 @@ function buildStudioGraph(
   }));
 
   const relatedEdges = activeModule
-    ? relatedModules.map((module) => ({
-        id: `related:${activeModule.id}:${module.id}`,
-        source: `module:${activeModule.id}`,
-        sourceHandle: studioNodeHandles.sourceBottom,
-        target: `module:${module.id}`,
-        targetHandle: studioNodeHandles.targetTop,
-        type: "default",
-        label: messages.graph_edge_related({}, { locale }),
-        labelBgPadding: studioGraphLayout.edgeLabelPadding,
-        labelBgStyle: { fill: edgeColors.labelMutedBackground },
-        labelStyle: { fill: edgeColors.labelMutedText, fontSize: studioGraphLayout.edgeLabelSize },
-        style: {
-          stroke: edgeColors.relatedStroke,
-          strokeOpacity: studioGraphLayout.edgeRelatedStrokeOpacity,
-          strokeWidth: studioGraphLayout.edgeRelatedStrokeWidth,
-        },
-        interactionWidth: 16,
-      }))
-    : buildArchitectureRelationEdges(snapshot, edgeColors.relatedStroke);
+    ? relatedModules.map((module) =>
+        createArchitectureRelationEdge(
+          activeModule,
+          module,
+          edgeColors.relatedStroke,
+          "related",
+          groupModulesByArchitectureLayer(orderedModules),
+          focusedModuleLayout?.positions,
+        ),
+      )
+    : [];
+  const priorityLayerNodes = activeModule
+    ? (focusedModuleLayout?.layerNodes ?? [])
+    : (overviewLayout?.layerNodes ?? []);
 
   return {
     edges: [...ownershipEdges, ...relatedEdges],
-    nodes: [...moduleNodes, ...promiseNodes],
+    nodes: [...priorityLayerNodes, ...moduleNodes, ...promiseNodes],
   };
 }
 
@@ -1446,6 +2471,7 @@ const modulePriorityOrder: Record<ModulePriority, number> = {
   P2: 2,
   none: 3,
 };
+const modulePriorityValues: ModulePriority[] = ["P0", "P1", "P2", "none"];
 
 function buildStudioSearchResults(
   snapshot: HarnessSnapshot,
@@ -1532,13 +2558,217 @@ function sortPromisesForReview(promises: HarnessPromise[], locale: AppLocale) {
   });
 }
 
+function buildOverviewPriorityLayout(modules: HarnessModule[], locale: AppLocale) {
+  const positions = new Map<string, { x: number; y: number }>();
+  const layerNodes: StudioNode[] = [];
+  let cursorY = studioGraphLayout.architectureLayerYStart;
+
+  for (const priority of modulePriorityValues) {
+    const priorityModules = modules
+      .filter((module) => module.priority === priority)
+      .sort((left, right) => {
+        const layerDifference = getArchitectureLayer(left) - getArchitectureLayer(right);
+        if (layerDifference !== 0) return layerDifference;
+        return localizeText(left.title, locale).localeCompare(localizeText(right.title, locale));
+      });
+    if (priorityModules.length === 0) continue;
+
+    layerNodes.push(
+      createPriorityLayerNode(priority, cursorY + studioGraphLayout.layerNodeYOffset),
+    );
+
+    const layerCounts = new Map<number, number>();
+    for (const module of priorityModules) {
+      const layer = getArchitectureLayer(module);
+      const layerIndex = layerCounts.get(layer) ?? 0;
+      layerCounts.set(layer, layerIndex + 1);
+      positions.set(module.id, {
+        x: layer * studioGraphLayout.architectureLayerXStep,
+        y: cursorY + layerIndex * studioGraphLayout.architectureLayerYStep,
+      });
+    }
+
+    const maxLayerRows = Math.max(...layerCounts.values(), 1);
+    cursorY += maxLayerRows * studioGraphLayout.architectureLayerYStep + studioGraphLayout.layerGap;
+  }
+
+  return { layerNodes, positions };
+}
+
+// Group the project overview by package (a monorepo workspace member). Each package with >= 2
+// distinct packages present renders as a labeled region enclosing its module cards. A single-package
+// or no-package project lays modules out flat with no regions.
+function buildOverviewPackageLayout(modules: HarnessModule[], locale: AppLocale) {
+  const positions = new Map<string, { x: number; y: number }>();
+  const layerNodes: StudioNode[] = [];
+
+  const groups = new Map<string, HarnessModule[]>();
+  for (const module of modules) {
+    const key = module.package ?? "";
+    const list = groups.get(key) ?? [];
+    list.push(module);
+    groups.set(key, list);
+  }
+
+  const definedPackages = [...groups.keys()].filter((key) => key !== "");
+  const showRegions = definedPackages.length >= 2;
+  const packageKeys = [...groups.keys()].sort((left, right) => {
+    if (left === right) return 0;
+    if (left === "") return 1;
+    if (right === "") return -1;
+    return left.localeCompare(right);
+  });
+
+  const columns = 3;
+  const columnStep = studioGraphLayout.architectureLayerXStep;
+  const rowStep = studioGraphLayout.architectureLayerYStep;
+  const nodeWidth = 264;
+  const nodeHeight = 124;
+  const regionPadX = 24;
+  const regionHeaderHeight = 48;
+  const regionPadBottom = 24;
+  const regionGapY = 40;
+  let cursorY = studioGraphLayout.architectureLayerYStart;
+
+  for (const key of packageKeys) {
+    const groupModules = [...(groups.get(key) ?? [])].sort((left, right) => {
+      const priorityDifference =
+        modulePriorityOrder[left.priority] - modulePriorityOrder[right.priority];
+      if (priorityDifference !== 0) return priorityDifference;
+      return localizeText(left.title, locale).localeCompare(localizeText(right.title, locale));
+    });
+    if (groupModules.length === 0) continue;
+
+    const headerOffset = showRegions && key !== "" ? regionHeaderHeight : 0;
+    const contentTop = cursorY + headerOffset;
+    for (const [index, module] of groupModules.entries()) {
+      positions.set(module.id, {
+        x: regionPadX + (index % columns) * columnStep,
+        y: contentTop + Math.floor(index / columns) * rowStep,
+      });
+    }
+
+    const rows = Math.ceil(groupModules.length / columns);
+    const usedColumns = Math.min(columns, groupModules.length);
+    const regionHeight = headerOffset + (rows - 1) * rowStep + nodeHeight + regionPadBottom;
+
+    if (showRegions && key !== "") {
+      layerNodes.push({
+        id: `package:${key}`,
+        type: "studio",
+        position: { x: 0, y: cursorY },
+        selectable: false,
+        draggable: false,
+        style: {
+          width: regionPadX * 2 + (usedColumns - 1) * columnStep + nodeWidth,
+          height: regionHeight,
+        },
+        data: {
+          caption: "",
+          dimmed: false,
+          kind: "packageRegion",
+          meta: "",
+          needsAttention: false,
+          priority: "none",
+          selected: false,
+          title: key.split("/").pop() ?? key,
+        },
+      });
+    }
+
+    cursorY += regionHeight + regionGapY;
+  }
+
+  return { layerNodes, positions };
+}
+
+function buildPromisePriorityLayout(
+  promises: HarnessPromise[],
+  options: { includeLayerNodes?: boolean; startY?: number; x?: number } = {},
+) {
+  const positions = new Map<string, { x: number; y: number }>();
+  const layerNodes: StudioNode[] = [];
+  const includeLayerNodes = options.includeLayerNodes ?? true;
+  const x = options.x ?? studioGraphLayout.promiseX;
+  let cursorY = options.startY ?? studioGraphLayout.promiseYStart;
+
+  for (const priority of modulePriorityValues) {
+    const priorityPromises = promises.filter((promise) => promise.priority === priority);
+    if (priorityPromises.length === 0) continue;
+
+    if (includeLayerNodes) {
+      layerNodes.push(
+        createPriorityLayerNode(priority, cursorY + studioGraphLayout.layerNodeYOffset),
+      );
+    }
+    for (const [index, promise] of priorityPromises.entries()) {
+      positions.set(promise.id, {
+        x,
+        y: cursorY + index * studioGraphLayout.promiseYStep,
+      });
+    }
+
+    cursorY +=
+      priorityPromises.length * studioGraphLayout.promiseYStep + studioGraphLayout.layerGap;
+  }
+
+  return { layerNodes, positions };
+}
+
+function createPriorityLayerNode(priority: ModulePriority, y: number): StudioNode {
+  return {
+    id: `priority-layer:${priority}:${Math.round(y)}`,
+    type: "studio",
+    position: {
+      x: studioGraphLayout.layerNodeX,
+      y,
+    },
+    selectable: false,
+    draggable: false,
+    data: {
+      caption: "",
+      dimmed: false,
+      kind: "priorityLayer",
+      meta: "",
+      needsAttention: false,
+      priority,
+      selected: false,
+      title: priority,
+    },
+  };
+}
+
+function buildReviewInbox(promises: HarnessPromise[], locale: AppLocale) {
+  return sortPromisesForReview(
+    promises.filter((promise) => promiseNeedsInboxAttention(promise)),
+    locale,
+  );
+}
+
+function reviewInboxReason(promise: HarnessPromise, messages: MessageModule, locale: AppLocale) {
+  if (promise.lifecycle === "changed_requires_review") {
+    return messages.lifecycle_changed_requires_review({}, { locale });
+  }
+  if (promise.lifecycle === "proposed") {
+    return messages.lifecycle_proposed({}, { locale });
+  }
+  if (promise.review.state === "pending") {
+    return messages.review_state_pending({}, { locale });
+  }
+  return messages.promise_detail_review_status({}, { locale });
+}
+
 function moduleNeedsReviewAttention(module: HarnessModule, promises: HarnessPromise[]) {
   return promises.some(
-    (promise) => promise.moduleId === module.id && promiseNeedsReviewAttention(promise),
+    (promise) => promise.moduleId === module.id && promiseNeedsInboxAttention(promise),
   );
 }
 
 function promiseNeedsReviewAttention(promise: HarnessPromise) {
+  return promiseNeedsInboxAttention(promise);
+}
+
+function promiseNeedsInboxAttention(promise: HarnessPromise) {
   return (
     promise.lifecycle === "proposed" ||
     promise.lifecycle === "changed_requires_review" ||
@@ -1578,78 +2808,16 @@ function getArchitectureLayerPosition(module: HarnessModule, groups: Map<number,
   };
 }
 
-function getFocusedModulePosition(
-  module: HarnessModule,
-  activeModule: HarnessModule,
-  relatedModules: HarnessModule[],
-) {
-  if (module.id === activeModule.id) {
-    return {
-      x: studioGraphLayout.activeModuleX,
-      y: studioGraphLayout.activeModuleY,
-    };
-  }
-
-  const relatedIndex = relatedModules.findIndex((item) => item.id === module.id);
-  return {
-    x: studioGraphLayout.relatedModuleX,
-    y:
-      studioGraphLayout.relatedModuleYStart +
-      Math.max(relatedIndex, 0) * studioGraphLayout.relatedModuleYStep,
-  };
-}
-
-function buildArchitectureRelationEdges(snapshot: HarnessSnapshot, stroke: string): Edge[] {
-  const moduleById = new Map(snapshot.modules.map((module) => [module.id, module]));
-  const moduleLayerGroups = groupModulesByArchitectureLayer(snapshot.modules);
-  const overviewEdges: Edge[] = [];
-
-  for (const [sourceId, targetId] of architectureOverviewRelationPairs) {
-    const source = moduleById.get(sourceId);
-    const target = moduleById.get(targetId);
-    if (!source || !target || !hasModuleRelation(source, target)) continue;
-    overviewEdges.push(
-      createArchitectureRelationEdge(source, target, stroke, "overview", moduleLayerGroups),
-    );
-  }
-
-  if (overviewEdges.length > 0) return overviewEdges;
-
-  const seenRelationIds = new Set<string>();
-  const edges: Edge[] = [];
-
-  for (const module of snapshot.modules) {
-    for (const relatedModuleId of module.relatedModuleIds) {
-      const relatedModule = moduleById.get(relatedModuleId);
-      if (!relatedModule) continue;
-
-      const relationId = [module.id, relatedModule.id].sort().join(":");
-      if (seenRelationIds.has(relationId)) continue;
-      seenRelationIds.add(relationId);
-
-      const [source, target] = orderRelationEndpoints(module, relatedModule);
-      edges.push(
-        createArchitectureRelationEdge(source, target, stroke, "related", moduleLayerGroups),
-      );
-    }
-  }
-
-  return edges;
-}
-
-function hasModuleRelation(left: HarnessModule, right: HarnessModule) {
-  return left.relatedModuleIds.includes(right.id) || right.relatedModuleIds.includes(left.id);
-}
-
 function createArchitectureRelationEdge(
   source: HarnessModule,
   target: HarnessModule,
   stroke: string,
   edgeKind: string,
   moduleLayerGroups: Map<number, HarnessModule[]>,
+  positions?: Map<string, { x: number; y: number }>,
 ): Edge {
   const isOverview = edgeKind === "overview";
-  const handles = getArchitectureRelationHandles(source, target, moduleLayerGroups);
+  const handles = getArchitectureRelationHandles(source, target, moduleLayerGroups, positions);
 
   return {
     id: `architecture:${edgeKind}:${source.id}:${target.id}`,
@@ -1675,9 +2843,12 @@ function getArchitectureRelationHandles(
   source: HarnessModule,
   target: HarnessModule,
   moduleLayerGroups: Map<number, HarnessModule[]>,
+  positions?: Map<string, { x: number; y: number }>,
 ) {
-  const sourcePosition = getArchitectureLayerPosition(source, moduleLayerGroups);
-  const targetPosition = getArchitectureLayerPosition(target, moduleLayerGroups);
+  const sourcePosition =
+    positions?.get(source.id) ?? getArchitectureLayerPosition(source, moduleLayerGroups);
+  const targetPosition =
+    positions?.get(target.id) ?? getArchitectureLayerPosition(target, moduleLayerGroups);
 
   if (sourcePosition.x === targetPosition.x) {
     return sourcePosition.y <= targetPosition.y
@@ -1695,14 +2866,6 @@ function getArchitectureRelationHandles(
     sourceHandle: studioNodeHandles.sourceRight,
     targetHandle: studioNodeHandles.targetLeft,
   };
-}
-
-function orderRelationEndpoints(left: HarnessModule, right: HarnessModule) {
-  const leftLayer = getArchitectureLayer(left);
-  const rightLayer = getArchitectureLayer(right);
-
-  if (leftLayer !== rightLayer) return leftLayer < rightLayer ? [left, right] : [right, left];
-  return left.id < right.id ? [left, right] : [right, left];
 }
 
 function InfoSection({ children, title }: { children: ReactNode; title: string }) {

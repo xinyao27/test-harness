@@ -32,8 +32,13 @@ promises:
       en: The runtime may merge one event directory while Vitest writes another, making the self-report untrustworthy.
       zh-CN: runtime 可能合并一个 event directory，而 Vitest 写入另一个，导致 self-report 不可信。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-24"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-24
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-24
 
   - id: harness.adapters.vitest.result_collector.maps_results_to_promises
     feature: Adapters / Vitest / Result Collector
@@ -65,8 +70,13 @@ promises:
       en: The Harness cannot show whether reviewed promises are currently backed by passing tests.
       zh-CN: Harness 无法展示已 review 的 promises 当前是否由通过的测试支撑。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-24"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-24
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-24
 
   - id: harness.adapters.vitest.scenario_helper.binds_tests_to_canonical_promises
     feature: Adapters / Vitest / Scenario Helper
@@ -96,5 +106,10 @@ promises:
       en: The Harness cannot connect executable tests back to reviewed promises.
       zh-CN: Harness 无法把可执行测试连接回已 review 的 promises。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-24"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-24
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-24

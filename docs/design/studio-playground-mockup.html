@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Harness Studio — playground mockup</title>
+    <style>
+      :root {
+        --fg: #18181b;
+        --fg-soft: #52525b;
+        --muted: #71717a;
+        --faint: #a1a1aa;
+        --line: #e4e4e7;
+        --line-strong: #d4d4d8;
+        --surface: #ffffff;
+        --canvas: #ffffff;
+        --region: #fcfcfd;
+        --page: #f4f4f5;
+        --attn: #b91c1c;
+        --ok: #3f8f5b;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        background: var(--page);
+        font-family:
+          -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        color: var(--fg);
+      }
+      .mono {
+        font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+      }
+      .page {
+        padding: 16px;
+      }
+
+      .frame {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        width: 100%;
+      }
+
+      /* ---------- top control bar ---------- */
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        height: 52px;
+        padding: 0 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      .tb-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .proj {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 30px;
+        padding: 0 10px;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        font-size: 13px;
+        color: var(--fg);
+      }
+      .crumbs {
+        font-size: 13px;
+        color: var(--fg-soft);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .crumbs .sep {
+        color: var(--faint);
+      }
+      .crumbs .here {
+        color: var(--fg);
+        font-weight: 600;
+      }
+      .search {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        height: 30px;
+        padding: 0 10px;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        font-size: 13px;
+        color: var(--muted);
+      }
+      kbd {
+        font:
+          11px "SF Mono",
+          ui-monospace,
+          Menlo,
+          monospace;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        padding: 1px 5px;
+        color: var(--muted);
+        background: #f8f8f8;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 24px;
+        padding: 0 9px;
+        border-radius: 999px;
+        font-size: 12px;
+        color: var(--fg-soft);
+        background: #f4f4f5;
+        border: 1px solid var(--line);
+      }
+      .pill .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--attn);
+      }
+      .icon {
+        width: 30px;
+        height: 30px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        font-size: 15px;
+        color: var(--fg-soft);
+      }
+
+      /* ---------- body: canvas + inspector ---------- */
+      .body {
+        display: flex;
+        gap: 16px;
+        padding: 16px;
+        align-items: stretch;
+      }
+      .canvas {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .region {
+        border: 1px solid var(--line);
+        background: var(--region);
+        padding: 12px;
+      }
+      .region-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        margin-bottom: 10px;
+      }
+      .region-name {
+        font-size: 11px;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        color: var(--faint);
+        font-weight: 600;
+      }
+      .region-count {
+        font-size: 11px;
+        color: var(--faint);
+      }
+      .nodes {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .node {
+        position: relative;
+        flex: 1 1 180px;
+        max-width: 220px;
+        border: 1px solid var(--line-strong);
+        background: var(--surface);
+        padding: 10px 12px;
+      }
+      .node.selected {
+        border: 1.5px solid var(--fg);
+        padding: 9.5px 11.5px;
+      }
+      .node-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .nt {
+        font-size: 13.5px;
+        font-weight: 600;
+        color: var(--fg);
+      }
+      .nd {
+        margin-top: 4px;
+        font-size: 11.5px;
+        color: var(--muted);
+      }
+      .nd .rev {
+        color: var(--attn);
+      }
+      .badge {
+        font-size: 10.5px;
+        line-height: 1;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        padding: 3px 6px;
+        border-radius: 999px;
+      }
+      .badge.p0 {
+        background: var(--fg);
+        color: #fff;
+      }
+      .badge.p1,
+      .badge.p2 {
+        background: var(--surface);
+        color: var(--fg-soft);
+        border: 1px solid var(--line);
+      }
+
+      .flow {
+        text-align: center;
+        padding: 5px 0;
+      }
+
+      /* ---------- inspector ---------- */
+      .inspector {
+        width: 320px;
+        flex: none;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        padding: 14px;
+      }
+      .insp-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .insp-id {
+        margin-top: 3px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .insp-sec {
+        margin-top: 16px;
+      }
+      .insp-label {
+        font-size: 10.5px;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        color: var(--faint);
+        font-weight: 600;
+        margin-bottom: 7px;
+      }
+      .insp-sec p {
+        margin: 0;
+        font-size: 12.5px;
+        line-height: 1.5;
+        color: var(--fg-soft);
+      }
+      .promises {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .promises li {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 0;
+        font-size: 12.5px;
+        color: var(--fg);
+        border-top: 1px solid #f1f1f3;
+      }
+      .promises li:first-child {
+        border-top: none;
+      }
+      .promises .pname {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .promises .pstatus {
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .sdot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        flex: none;
+      }
+      .sdot.attn {
+        background: var(--attn);
+      }
+      .sdot.ok {
+        background: var(--ok);
+      }
+      .sdot.warn {
+        background: #c98a00;
+      }
+      .cov {
+        font-size: 11.5px;
+        color: var(--fg-soft);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="frame">
+        <!-- top control bar: the only persistent chrome -->
+        <div class="topbar">
+          <div class="tb-group">
+            <button class="proj">▣ test-harness ▾</button>
+            <nav class="crumbs">
+              <span>test-harness</span><span class="sep">›</span
+              ><span class="here">Web Dashboard</span>
+            </nav>
+          </div>
+          <button class="search">⌕&nbsp; Search <kbd>⌘K</kbd></button>
+          <div class="tb-group">
+            <span class="pill"><span class="dot"></span>Review 3</span>
+            <span class="pill">Modules 12</span>
+            <span class="pill">Promises 42</span>
+            <button class="icon">⚙</button>
+          </div>
+        </div>
+
+        <!-- canvas (labeled architecture regions, single top→down dependency axis) + context inspector -->
+        <div class="body">
+          <div class="canvas">
+            <section class="region">
+              <div class="region-head">
+                <span class="region-name">Reporting &amp; Surfaces</span>
+                <span class="region-count">2 modules</span>
+              </div>
+              <div class="nodes">
+                <div class="node selected">
+                  <div class="node-top">
+                    <span class="nt">Web Dashboard</span><span class="badge p0">P0</span>
+                  </div>
+                  <div class="nd"><span class="rev">● 2 need review</span> · 1 covered</div>
+                </div>
+                <div class="node">
+                  <div class="node-top">
+                    <span class="nt">Report</span><span class="badge p1">P1</span>
+                  </div>
+                  <div class="nd">2 promises · 2 covered</div>
+                </div>
+              </div>
+            </section>
+
+            <div class="flow">
+              <svg width="16" height="24">
+                <line x1="8" y1="0" x2="8" y2="17" stroke="#cbcbcf" stroke-width="1" />
+                <path d="M4 14 L8 19 L12 14" fill="none" stroke="#a1a1aa" stroke-width="1.2" />
+              </svg>
+            </div>
+
+            <section class="region">
+              <div class="region-head">
+                <span class="region-name">Adapters &amp; Runtime</span>
+                <span class="region-count">4 modules</span>
+              </div>
+              <div class="nodes">
+                <div class="node">
+                  <div class="node-top">
+                    <span class="nt">CLI</span><span class="badge p0">P0</span>
+                  </div>
+                  <div class="nd">5 promises · 4 covered</div>
+                </div>
+                <div class="node">
+                  <div class="node-top">
+                    <span class="nt">Adapter Runtime</span><span class="badge p1">P1</span>
+                  </div>
+                  <div class="nd"><span class="rev">● 1 need review</span> · 2 covered</div>
+                </div>
+                <div class="node">
+                  <div class="node-top">
+                    <span class="nt">Vitest Adapter</span><span class="badge p1">P1</span>
+                  </div>
+                  <div class="nd">3 promises · 3 covered</div>
+                </div>
+                <div class="node">
+                  <div class="node-top">
+                    <span class="nt">Rust Adapter</span><span class="badge p2">P2</span>
+                  </div>
+                  <div class="nd"><span class="rev">● 2 proposed</span> · 0 covered</div>
+                </div>
+              </div>
+            </section>
+
+            <div class="flow">
+              <svg width="16" height="24">
+                <line x1="8" y1="0" x2="8" y2="17" stroke="#cbcbcf" stroke-width="1" />
+                <path d="M4 14 L8 19 L12 14" fill="none" stroke="#a1a1aa" stroke-width="1.2" />
+              </svg>
+            </div>
+
+            <section class="region">
+              <div class="region-head">
+                <span class="region-name">Registry &amp; Validation</span>
+                <span class="region-count">3 modules</span>
+              </div>
+              <div class="nodes">
+                <div class="node">
+                  <div class="node-top">
+                    <span class="nt">Promise Registry</span><span class="badge p0">P0</span>
+                  </div>
+                  <div class="nd">4 promises · 3 covered</div>
+                </div>
+                <div class="node">
+                  <div class="node-top">
+                    <span class="nt">Module Registry</span><span class="badge p1">P1</span>
+                  </div>
+                  <div class="nd">3 promises · 2 covered</div>
+                </div>
+                <div class="node">
+                  <div class="node-top">
+                    <span class="nt">Validation</span><span class="badge p1">P1</span>
+                  </div>
+                  <div class="nd">4 promises · 4 covered</div>
+                </div>
+              </div>
+            </section>
+
+            <div class="flow">
+              <svg width="16" height="24">
+                <line x1="8" y1="0" x2="8" y2="17" stroke="#cbcbcf" stroke-width="1" />
+                <path d="M4 14 L8 19 L12 14" fill="none" stroke="#a1a1aa" stroke-width="1.2" />
+              </svg>
+            </div>
+
+            <section class="region">
+              <div class="region-head">
+                <span class="region-name">Protocol &amp; Schemas</span>
+                <span class="region-count">3 modules</span>
+              </div>
+              <div class="nodes">
+                <div class="node">
+                  <div class="node-top">
+                    <span class="nt">Protocol</span><span class="badge p0">P0</span>
+                  </div>
+                  <div class="nd">5 promises · 5 covered</div>
+                </div>
+                <div class="node">
+                  <div class="node-top">
+                    <span class="nt">Promise Schema</span><span class="badge p0">P0</span>
+                  </div>
+                  <div class="nd">4 promises · 4 covered</div>
+                </div>
+                <div class="node">
+                  <div class="node-top">
+                    <span class="nt">Results Schema</span><span class="badge p0">P0</span>
+                  </div>
+                  <div class="nd">3 promises · 3 covered</div>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <!-- right context inspector: meaning + status first, drill-down lives here -->
+          <aside class="inspector">
+            <div class="insp-title">Web Dashboard <span class="badge p0">P0</span></div>
+            <div class="insp-id mono">web-dashboard</div>
+
+            <div class="insp-sec">
+              <div class="insp-label">Purpose</div>
+              <p>
+                Render the harness model as a readable architecture map a human can review without
+                opening raw YAML.
+              </p>
+            </div>
+
+            <div class="insp-sec">
+              <div class="insp-label">Owned promises · 4</div>
+              <ul class="promises">
+                <li>
+                  <span class="sdot attn"></span
+                  ><span class="pname">Dashboard loads project snapshot</span
+                  ><span class="pstatus">proposed</span>
+                </li>
+                <li>
+                  <span class="sdot warn"></span><span class="pname">Promise navigation</span
+                  ><span class="pstatus">needs review</span>
+                </li>
+                <li>
+                  <span class="sdot ok"></span><span class="pname">Results summary renders</span
+                  ><span class="pstatus">accepted</span>
+                </li>
+                <li>
+                  <span class="sdot ok"></span><span class="pname">Filter promises by status</span
+                  ><span class="pstatus">accepted</span>
+                </li>
+              </ul>
+            </div>
+
+            <div class="insp-sec">
+              <div class="insp-label">Coverage</div>
+              <div class="cov mono">apps/web/src/features/studio/**</div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

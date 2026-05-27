@@ -24,5 +24,10 @@ failureMeaning:
   en: Implementations may not agree on the valid promise shape.
   zh-CN: 不同实现可能无法就有效 promise shape 达成一致。
 review:
-  approvedBy: xinyao
-  approvedAt: "2026-05-24"
+  state: approved
+  decidedBy: xinyao
+  decidedAt: 2026-05-24
+  events:
+    - action: approved
+      by: xinyao
+      at: 2026-05-24

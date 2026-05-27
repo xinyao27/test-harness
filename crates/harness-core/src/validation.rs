@@ -2,8 +2,8 @@ use crate::localized_text::{
     has_default_language_text, is_blank, is_localized_text_blank, resolve_localized_text,
 };
 use harness_protocol::{
-    ModuleRecord, PromiseExampleRow, PromiseLifecycle, PromiseRecord, TestResult, ValidationIssue,
-    ValidationSeverity,
+    ModuleRecord, PromiseExampleRow, PromiseLifecycle, PromiseRecord, PromiseReviewState,
+    TestResult, ValidationIssue, ValidationSeverity,
 };
 use regex::Regex;
 use std::collections::{HashMap, HashSet};
@@ -26,19 +26,6 @@ fn issue(
         path,
         promise_id,
     }
-}
-
-fn has_review_approval(record: &PromiseRecord) -> bool {
-    record
-        .review
-        .approved_by
-        .as_deref()
-        .is_some_and(|value| !is_blank(value))
-        || record
-            .review
-            .approved_in
-            .as_deref()
-            .is_some_and(|value| !is_blank(value))
 }
 
 pub fn validate_promise_records(records: &[PromiseRecord]) -> Vec<ValidationIssue> {
@@ -195,12 +182,14 @@ pub fn validate_promise_records(records: &[PromiseRecord]) -> Vec<ValidationIssu
             ));
         }
 
-        if record.lifecycle == PromiseLifecycle::Accepted && !has_review_approval(record) {
+        if record.lifecycle == PromiseLifecycle::Accepted
+            && record.review.state != PromiseReviewState::Approved
+        {
             issues.push(issue(
                 ValidationSeverity::Warning,
                 "missing_review_metadata",
                 format!(
-                    "Accepted promise \"{}\" should include review.approvedBy or review.approvedIn.",
+                    "Accepted promise \"{}\" should have review.state approved.",
                     record.id
                 ),
                 Some(record.id.clone()),

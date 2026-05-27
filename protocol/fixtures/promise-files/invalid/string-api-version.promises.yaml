@@ -20,5 +20,10 @@ promises:
     failureMeaning:
       en: Implementations may accept a non-canonical apiVersion type.
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-24"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-24
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-24

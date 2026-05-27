@@ -415,8 +415,13 @@ promises:
       en: The Harness cannot trust its own reviewed behavior promises.
       zh-CN: Harness 无法信任自己已经 review 过的行为承诺。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-24"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: "2026-05-24"
+      events:
+        - action: approved
+          by: xinyao
+          at: "2026-05-24"
 "#;
 
     fn write_minimal_workspace(root: &Path) {

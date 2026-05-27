@@ -40,4 +40,6 @@ promises:
     failureMeaning:
       en: Reviewers could believe that a module or promise does not exist simply because the UI silently fell back to an old frontend snapshot.
       zh-CN: Reviewer 可能会因为 UI 静默回退到旧前端 snapshot，而误以为某个 module 或 promise 不存在。
-    review: {}
+    review:
+      state: pending
+      events: []

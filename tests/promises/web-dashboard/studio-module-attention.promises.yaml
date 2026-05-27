@@ -40,4 +40,6 @@ promises:
     failureMeaning:
       en: Reviewers would know that promises changed only by remembering file edits or opening every module, making the architecture graph a passive map instead of a review surface.
       zh-CN: Reviewer 只能靠记住文件改动或逐个打开 module 才知道 promises 有变化，这会让 architecture graph 退化成被动地图，而不是 review 入口。
-    review: {}
+    review:
+      state: pending
+      events: []

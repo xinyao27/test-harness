@@ -1,4 +1,4 @@
-id: "Harness Fixture Invalid ID"
+id: Harness Fixture Invalid ID
 feature: Harness Fixtures / Promise
 title: Invalid ids are rejected
 purpose: Exercise the protocol id pattern.
@@ -15,4 +15,10 @@ observes:
   - protocol/fixtures/promises/invalid/invalid-id.promise.yaml
 failureMeaning: Invalid ids should not be accepted.
 review:
-  approvedBy: xinyao
+  state: approved
+  decidedBy: xinyao
+  decidedAt: 2026-05-27
+  events:
+    - action: approved
+      by: xinyao
+      at: 2026-05-27

@@ -1,0 +1,40 @@
+apiVersion: 1
+promises:
+  - id: harness.web_dashboard.groups_modules_by_package
+    feature: Harness Studio / Package Regions
+    title:
+      en: Harness Studio groups module cards by their package
+      zh-CN: Harness Studio 按 module 所属的 package 把 module 卡片分组
+    purpose:
+      en: Let a reviewer see a monorepo's domains at a glance by grouping modules under the package (workspace member) they belong to, while keeping single-package projects flat.
+      zh-CN: 让 reviewer 一眼看清 monorepo 的领域划分——把 module 归到它所属的 package（workspace 成员）下；单 package 项目则保持平铺。
+    priority: P1
+    boundary: browser
+    lifecycle: proposed
+    given:
+      - en: The active project snapshot contains modules, and each module may carry a package (the monorepo workspace member that owns its covered paths)
+        zh-CN: 当前 active project snapshot 包含 modules，每个 module 可能带一个 package（拥有其 covers 路径的 monorepo workspace 成员）
+      - en: The project is a multi-package repo, so two or more distinct packages are present
+        zh-CN: 该项目是多 package 仓库，因此存在两个或更多不同的 package
+    when:
+      - en: The reviewer views the project-level module overview
+        zh-CN: Reviewer 查看 project-level 的 module overview
+    then:
+      - en: Module cards are enclosed in a named region per package, and the region label is the package's name
+        zh-CN: Module 卡片被按 package 收进命名区域，区域标题就是该 package 的名字
+      - en: Modules that belong to the same package appear together inside that package's region
+        zh-CN: 属于同一个 package 的 module 出现在该 package 的区域内
+      - en: A single-package or no-package project shows module cards with no package regions (flat)
+        zh-CN: 单 package 或无 package 的项目直接平铺展示 module 卡片，不画 package 区域
+      - en: The region is organizational only — it has no review state and no actions of its own; promises still belong to modules
+        zh-CN: 该区域只用于组织——它没有 review 状态、没有自己的 action；promise 仍然挂在 module 上
+    observes:
+      - apps/web/src/features/studio/**
+      - apps/web/src/data/harness-snapshot.ts
+      - packages/i18n/messages/*.json
+    failureMeaning:
+      en: A monorepo's modules would appear as one undifferentiated wall of cards, hiding which domain (frontend, backend, CLI) each part belongs to.
+      zh-CN: monorepo 的 module 会糊成一整片没有区分的卡片墙，看不出每个部分属于哪个领域（前端、后端、CLI）。
+    review:
+      state: pending
+      events: []

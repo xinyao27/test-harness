@@ -39,8 +39,13 @@ promises:
       en: Harness Studio would continue to show stale or hand-maintained project data, making the daemon a cosmetic switch instead of a trustworthy local read model.
       zh-CN: Harness Studio 会继续展示过期或手写维护的项目数据，让 daemon 变成表面切换，而不是可信的本地 read model。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-26"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-26
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-26
 
   - id: harness.daemon.http_snapshot_matches_studio_contract
     feature: Harness Daemon / Studio API
@@ -78,5 +83,10 @@ promises:
       en: Harness Studio could not safely switch from static demo data to real daemon-backed project data.
       zh-CN: Harness Studio 无法安全地从静态 demo 数据切换到真实 daemon-backed project data。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-26"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-26
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-26

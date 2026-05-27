@@ -30,8 +30,13 @@ promises:
       en: Humans and Agents cannot quickly tell whether reviewed promise files are structurally valid.
       zh-CN: 人类和 Agent 无法快速判断已 review 的 promise files 是否结构有效。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-24"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-24
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-24
 
   - id: harness.cli.report_summary_lists_promises_compactly
     feature: Seed Harness / CLI
@@ -66,8 +71,13 @@ promises:
       en: A human cannot quickly review the project's full set of reviewed behavior promises, making promise review an expensive action and weakening the core value of the Harness.
       zh-CN: 人类无法快速 review 项目全部已 review 行为承诺，promise review 变成高成本动作，削弱 Harness 的核心价值。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-24"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-24
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-24
 
   - id: harness.cli.report_renders_promise_status
     feature: Seed Harness / CLI
@@ -99,8 +109,13 @@ promises:
       en: Humans cannot inspect the current promise status without reading implementation or test files.
       zh-CN: 人类无法在不阅读实现或测试文件的情况下检查当前 promise status。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-24"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-24
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-24
 
   - id: harness.cli.rejects_invalid_arguments_with_usage_hint
     feature: Seed Harness / CLI
@@ -132,8 +147,13 @@ promises:
       en: Users mis-invoking the CLI may face cryptic errors or silent failures, slowing down adoption and weakening trust in the harness.
       zh-CN: 误用 CLI 的人可能遇到难懂的错误或静默失败，影响 harness 的采用率和信任度。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-25"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-25
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-25
 
   - id: harness.cli.test_reads_runner_config
     feature: Seed Harness / CLI
@@ -167,8 +187,13 @@ promises:
       en: The CLI would need to preserve hidden runner assumptions instead of following a portable project config.
       zh-CN: CLI 将不得不保留隐藏的 runner 假设，而不是遵循可移植的项目配置。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-25"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-25
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-25
 
   - id: harness.cli.test_orchestrates_adapter_and_verify
     feature: Seed Harness / CLI
@@ -200,5 +225,10 @@ promises:
       en: The Harness cannot provide a single command for the reviewed promise-to-test loop.
       zh-CN: Harness 无法为已 review 的 promise-to-test 闭环提供单一命令。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-24"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-24
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-24

@@ -118,17 +118,73 @@ pub enum PromiseBoundary {
     Adapter,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PromiseReviewState {
+    Pending,
+    Approved,
+    ChangesRequested,
+    Rejected,
+}
+
+impl Default for PromiseReviewState {
+    fn default() -> Self {
+        Self::Pending
+    }
+}
+
+impl fmt::Display for PromiseReviewState {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::Pending => "pending",
+            Self::Approved => "approved",
+            Self::ChangesRequested => "changes_requested",
+            Self::Rejected => "rejected",
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PromiseReviewAction {
+    Approved,
+    ChangesRequested,
+    Rejected,
+}
+
+impl fmt::Display for PromiseReviewAction {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::Approved => "approved",
+            Self::ChangesRequested => "changes_requested",
+            Self::Rejected => "rejected",
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct PromiseReviewEvent {
+    pub action: PromiseReviewAction,
+    pub by: String,
+    pub at: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct PromiseReview {
-    #[serde(rename = "approvedAt", skip_serializing_if = "Option::is_none")]
-    pub approved_at: Option<String>,
-    #[serde(rename = "approvedBy", skip_serializing_if = "Option::is_none")]
-    pub approved_by: Option<String>,
-    #[serde(rename = "approvedIn", skip_serializing_if = "Option::is_none")]
-    pub approved_in: Option<String>,
+    pub state: PromiseReviewState,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub notes: Option<String>,
+    pub decided_by: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub decided_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+    pub events: Vec<PromiseReviewEvent>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

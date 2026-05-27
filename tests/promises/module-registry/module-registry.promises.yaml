@@ -33,5 +33,10 @@ promises:
       en: Coverage validation and any future module-aware feature has no stable architecture input — modules become inert YAML files.
       zh-CN: 覆盖率校验和未来所有 module-aware 功能都失去稳定 architecture input —— modules 退化为惰性 YAML 文件。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-25"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-25
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-25

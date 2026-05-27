@@ -31,8 +31,13 @@ promises:
       en: Rewrites and adapters may expose incompatible command behavior while still appearing to support the Harness.
       zh-CN: 重写版本和 adapters 可能暴露不兼容的 command behavior，却仍看起来支持 Harness。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-24"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-24
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-24
 
   - id: harness.protocol.cli_golden_outputs_lock_human_surface
     feature: Harness Protocol / CLI
@@ -64,8 +69,13 @@ promises:
       en: A rewrite could keep the same data model while drifting the human review surface in ways no fixture catches.
       zh-CN: 重写版本可能保持相同数据模型，却让人类 review 表面发生 fixture 捕捉不到的漂移。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-25"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-25
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-25
 
   - id: harness.protocol.conformance_fixtures_lock_reference_behavior
     feature: Harness Protocol / Conformance
@@ -98,8 +108,13 @@ promises:
       en: A future implementation could satisfy the protocol while the reference implementation accepts a different shape.
       zh-CN: 未来实现可能满足 protocol，但参考实现却接受另一种 shape。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-24"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-24
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-24
 
   - id: harness.protocol.adapter_events_are_versioned_stream_records
     feature: Harness Protocol / Adapter Events
@@ -132,8 +147,13 @@ promises:
       en: Every adapter would need bespoke merge logic, making Vitest, Cargo, Pytest, Go, and future framework integrations drift from each other.
       zh-CN: 每个 adapter 都会需要定制合并逻辑，导致 Vitest、Cargo、Pytest、Go 和未来测试框架集成彼此漂移。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-25"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-25
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-25
 
   - id: harness.protocol.module_schema_is_portable
     feature: Harness Protocol / Modules
@@ -167,8 +187,13 @@ promises:
       en: Future implementations may disagree on which source files belong to which reviewable module.
       zh-CN: 未来实现可能无法就哪些 source files 属于哪个可 review module 达成一致。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-25"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-25
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-25
 
   - id: harness.protocol.runner_config_is_versioned
     feature: Harness Protocol / Config
@@ -203,8 +228,13 @@ promises:
       en: A rewrite could accidentally bake in a specific JavaScript test runner and lose adapter portability.
       zh-CN: 重写版本可能不小心把某个 JavaScript test runner 固化进去，从而丢失 adapter 可移植性。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-25"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-25
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-25
 
   - id: harness.protocol.promise_files_are_versioned
     feature: Harness Protocol / Promise Files
@@ -235,8 +265,13 @@ promises:
       en: Different implementations may silently interpret the same promise file with different rules.
       zh-CN: 不同实现可能会用不同规则悄悄解释同一个 promise file。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-24"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-24
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-24
 
   - id: harness.protocol.results_are_versioned_adapter_outputs
     feature: Harness Protocol / Results
@@ -267,8 +302,13 @@ promises:
       en: A future adapter may write result files that the Harness cannot safely interpret.
       zh-CN: 未来的 adapter 可能会写出 Harness 无法安全解释的 result files。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-24"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-24
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-24
 
   - id: harness.protocol.schemas_define_language_agnostic_contract
     feature: Harness Protocol / Schemas
@@ -304,5 +344,10 @@ promises:
       en: Rewriting the Harness in another language would require reverse-engineering implementation internals instead of following a stable protocol.
       zh-CN: 用其他语言重写 Harness 时，将不得不反向理解实现内部结构，而不是遵循稳定 protocol。
     review:
-      approvedBy: xinyao
-      approvedAt: "2026-05-24"
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-24
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-24

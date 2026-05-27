@@ -1,10 +1,10 @@
 import {
-  harnessSnapshot,
   isHarnessSnapshot,
+  type HarnessPromise,
   type HarnessSnapshot,
   type SnapshotSource,
 } from "@/data/harness-snapshot";
-import { todoBackendSnapshot } from "@/data/todo-backend-snapshot";
+import type { LocalizedText } from "@/lib/localized-text";
 
 export type WorkbenchProject = {
   id: string;
@@ -38,6 +38,52 @@ export type WorkbenchRunResult = {
   exitCode: number;
   stderr: string;
   stdout: string;
+};
+
+export type WorkbenchWriteResult = {
+  exitCode: number;
+  saved: boolean;
+  stderr: string;
+  stdout: string;
+};
+
+export type WorkbenchModuleRecord = {
+  apiVersion: 1;
+  covers: string[];
+  id: string;
+  promises: string[];
+  purpose: LocalizedText;
+  summary: LocalizedText;
+  title: LocalizedText;
+};
+
+export type WorkbenchPromiseRecord = {
+  boundary: HarnessPromise["boundary"];
+  deprecatedBy?: string;
+  examples?: Array<Record<string, string>>;
+  failureMeaning: LocalizedText;
+  feature: string;
+  given: LocalizedText[];
+  id: string;
+  lifecycle: HarnessPromise["lifecycle"];
+  observes: string[];
+  priority: HarnessPromise["priority"];
+  purpose: LocalizedText;
+  review: HarnessPromise["review"];
+  supersedes?: string[];
+  then: LocalizedText[];
+  title: LocalizedText;
+  when: LocalizedText[];
+};
+
+export type WorkbenchReviewAction = "approved" | "changes_requested" | "rejected";
+
+export type WorkbenchPromiseReviewRequest = {
+  action: WorkbenchReviewAction;
+  note?: string;
+  promiseId: string;
+  projectId: string;
+  reviewer: string;
 };
 
 type DaemonPairingComplete = {
@@ -79,20 +125,14 @@ export async function getDaemonConnectionStatus(): Promise<DaemonConnectionStatu
 }
 
 export async function startDaemonPairing(): Promise<DaemonPairingStart | null> {
-  const response = await postDaemonJson("/api/pairing/start");
-  if (!response.ok) return null;
-
-  const body: unknown = await response.json();
+  const body = await postDaemonJsonBody("/api/pairing/start");
   if (!isDaemonPairingStart(body)) return null;
 
   return body;
 }
 
 export async function completeDaemonPairing(pairingCode: string): Promise<boolean> {
-  const response = await postDaemonJson("/api/pairing/complete", { pairingCode });
-  if (!response.ok) return false;
-
-  const body: unknown = await response.json();
+  const body = await postDaemonJsonBody("/api/pairing/complete", { pairingCode });
   if (!isDaemonPairingComplete(body)) return false;
 
   writeDaemonToken(body.token);
@@ -102,21 +142,60 @@ export async function completeDaemonPairing(pairingCode: string): Promise<boolea
 export async function revokeDaemonSession(): Promise<void> {
   try {
     await postDaemonJson("/api/session/revoke", undefined, { includeToken: true });
+  } catch (error) {
+    console.warn("Harness daemon session revoke failed", error);
   } finally {
     clearDaemonToken();
   }
 }
 
 export async function getWorkbenchSnapshotForProject(projectId: string) {
-  return (await getDaemonSnapshot(projectId)) ?? getSnapshotByProjectId(projectId);
+  return (await getDaemonSnapshot(projectId)) ?? createEmptyProjectSnapshot(projectId);
 }
 
 export async function runWorkbenchTests(projectId: string): Promise<WorkbenchRunResult | null> {
-  const response = await postDaemonJson("/api/run/tests", { projectId }, { includeToken: true });
-  if (!response.ok) return null;
-
-  const body: unknown = await response.json();
+  const body = await postDaemonJsonBody("/api/run/tests", { projectId }, { includeToken: true });
   if (!isWorkbenchRunResult(body)) return null;
+
+  return body;
+}
+
+export async function saveWorkbenchModule(
+  projectId: string,
+  module: WorkbenchModuleRecord,
+): Promise<WorkbenchWriteResult | null> {
+  const body = await postDaemonJsonBody(
+    "/api/studio/module",
+    { module, projectId },
+    { includeToken: true },
+  );
+  if (!isWorkbenchWriteResult(body)) return null;
+
+  return body;
+}
+
+export async function saveWorkbenchPromise(
+  projectId: string,
+  moduleId: string,
+  promise: WorkbenchPromiseRecord,
+): Promise<WorkbenchWriteResult | null> {
+  const body = await postDaemonJsonBody(
+    "/api/studio/promise",
+    { moduleId, projectId, promise },
+    { includeToken: true },
+  );
+  if (!isWorkbenchWriteResult(body)) return null;
+
+  return body;
+}
+
+export async function saveWorkbenchPromiseReview(
+  request: WorkbenchPromiseReviewRequest,
+): Promise<WorkbenchWriteResult | null> {
+  const body = await postDaemonJsonBody("/api/studio/promise-review", request, {
+    includeToken: true,
+  });
+  if (!isWorkbenchWriteResult(body)) return null;
 
   return body;
 }
@@ -129,13 +208,6 @@ export async function getWorkbenchModule(moduleId: string, projectId = "current:
 export async function getWorkbenchPromise(promiseId: string, projectId = "current:test-harness") {
   const snapshot = await getWorkbenchSnapshotForProject(projectId);
   return snapshot.promises.find((promise) => promise.id === promiseId);
-}
-
-function getSnapshotByProjectId(projectId: string): HarnessSnapshot {
-  if (projectId === "current:test-harness") return withSnapshotSource(harnessSnapshot, "static");
-  if (projectId === "example:todo-backend")
-    return withSnapshotSource(todoBackendSnapshot, "static");
-  return createEmptyProjectSnapshot(projectId);
 }
 
 async function getDaemonSnapshot(projectId: string): Promise<HarnessSnapshot | null> {
@@ -168,10 +240,7 @@ async function getDaemonSnapshot(projectId: string): Promise<HarnessSnapshot | n
 
     return withSnapshotSource(snapshot, "daemon");
   } catch (error) {
-    console.warn(
-      `Harness daemon is unavailable; using the static snapshot fallback: ${urlText}`,
-      error,
-    );
+    console.warn(`Harness daemon snapshot is unavailable: ${urlText}`, error);
     return null;
   } finally {
     if (timeoutId) globalThis.clearTimeout(timeoutId);
@@ -252,6 +321,26 @@ async function postDaemonJson(
     }),
     body: body === undefined ? undefined : JSON.stringify(body),
   });
+}
+
+// POST to the daemon and parse the JSON body, returning null on any transport failure, non-OK
+// status, or invalid JSON — so callers never throw (which would leave UI write-state stuck).
+async function postDaemonJsonBody(
+  path: string,
+  body?: unknown,
+  options: { includeToken?: boolean } = {},
+): Promise<unknown> {
+  try {
+    const response = await postDaemonJson(path, body, options);
+    if (!response.ok) {
+      console.warn(`Harness daemon request failed: ${response.status} ${path}`);
+      return null;
+    }
+    return await response.json();
+  } catch (error) {
+    console.warn(`Harness daemon request is unavailable: ${path}`, error);
+    return null;
+  }
 }
 
 function daemonHeaders(options: { contentType?: string; includeToken?: boolean } = {}) {
@@ -350,6 +439,18 @@ function isWorkbenchRunResult(value: unknown): value is WorkbenchRunResult {
   const body = value as Record<string, unknown>;
   return (
     typeof body.exitCode === "number" &&
+    typeof body.stderr === "string" &&
+    typeof body.stdout === "string"
+  );
+}
+
+function isWorkbenchWriteResult(value: unknown): value is WorkbenchWriteResult {
+  if (!value || typeof value !== "object") return false;
+
+  const body = value as Record<string, unknown>;
+  return (
+    typeof body.exitCode === "number" &&
+    typeof body.saved === "boolean" &&
     typeof body.stderr === "string" &&
     typeof body.stdout === "string"
   );

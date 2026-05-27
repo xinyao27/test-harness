@@ -36,13 +36,15 @@ In that world, TestHarness is not a test sidebar. It is the project's architectu
 
 A Module is not a loose label, folder mirror, filter, or UI category. It is the reviewable architecture boundary a human should use to understand what the project is made of. The full Module layer should answer: "What are the major parts of this system, and what does each part promise?"
 
+The directory-level grouping that a Module is deliberately _not_ lives one level up as a **Package** (see Graph Model). Packages mirror the repo's workspace layout (crate / app / package) and exist only to organize Modules; Modules stay the reviewable boundary inside them.
+
 This rule applies beyond the UI. Skills that generate modules, schemas that describe modules, validators that reject vague modules, and future daemon actions should all treat modules as architecture boundaries first.
 
 ## 3. Product Principle
 
 Use one playground as the product surface.
 
-Remove the sidebar as a product concept. Remove the landing dashboard. Remove top-level management pages for modules, promises, runs, generation, review queues, and status pages. The root route should open directly into the React Flow playground.
+Remove the sidebar as a product concept. Remove the landing dashboard. Remove top-level management pages for modules, promises, runs, generation, review inboxes, and status pages. The root route should open directly into the React Flow playground.
 
 The outer app shell should be almost invisible:
 
@@ -160,12 +162,28 @@ Module and promise counts should inherit the same source state. A count from fal
 
 The graph reveals Harness complexity progressively:
 
-1. **Project level**: show Module nodes, because Modules equal the architecture map.
-2. **Module focus**: selecting a Module expands or focuses its Promise nodes.
+1. **Project level**: show Module cards grouped inside **Package regions** (see below). Modules are the architecture map; Packages are only the directory-level grouping around them. Promises are not drawn yet.
+2. **Module focus**: selecting a Module expands or focuses its Promise nodes (dozens are handled by priority grouping, pagination, and search).
 3. **Promise focus**: selecting a Promise opens the context inspector.
 4. **Evidence level**: tests, run evidence, and implementation links appear inside the inspector first.
 
-Navigation changes focus inside the same graph rather than switching to separate management pages.
+Navigation changes focus inside the same graph rather than switching to separate management pages. A Package is not a navigation step — it is a static region, so drill-down is Module → Promise → evidence.
+
+### Package Regions
+
+A Package is the **same concept as a monorepo package** — a workspace member that divides the repo into domains (e.g. frontend, backend, CLI). On the canvas it is a named region that encloses the Module cards belonging to it.
+
+A Package is **optional**: a single-package (non-monorepo) project has no Packages, and the project level simply shows Module cards with no regions. Packages appear only when the repo is a multi-package workspace.
+
+A Package is deliberately lightweight:
+
+- Its source of truth is the repo's **workspace definition** (Cargo `[workspace].members`, pnpm/npm `workspaces`). Each Module is mapped to the package whose directory contains its `covers` paths; an agent does this mapping during onboarding.
+- Its **name is the monorepo package's name** (the manifest `name`, e.g. `harness-cli`, `@test-harness/web`). A short display label (CLI / Core / App) is an optional override, not required.
+- It is a **region, not a card, and not a drill level**. Modules remain the cards and the unit a user clicks into.
+- It carries **no review and no actions**. It is a directory-like organizational concept only. Promises stay on Modules; the Module model is unchanged.
+- Its header shows name, path, and rolled-up counts (modules / promises / needs-review). Regions are **collapsible** so projects with many modules stay scannable.
+
+This is the os.ryo.lu-style labeled-region grammar, grounded in a real concept (the repo's package boundaries) rather than an invented visual grouping.
 
 ## 7. Module Nodes
 
@@ -369,6 +387,7 @@ Resolved:
 9. The context inspector is collapsible and lives inside the React Flow playground.
 10. The visual language is flat, square, and token-based.
 11. Local daemon usage does not require account login or a hosted relay.
+12. Packages are the outermost grouping and equal a monorepo package (workspace member); they are optional (a single-package repo has none). They are regions that enclose Module cards, with no review and no actions. Modules remain the reviewable boundary; Packages come from the repo's workspace definition (plus module `covers` mapping), not from a separately authored artifact.
 
 Default until proven otherwise:
 
