@@ -20,7 +20,9 @@
   "type": "module",
   "scripts": {
     "predev": "pnpm --filter @test-harness/i18n generate",
-    "dev": "vp dev",
+    "dev": "trap 'kill 0' EXIT; pnpm dev:daemon & pnpm dev:web",
+    "dev:daemon": "cargo run -p harness-daemon -- --root ../.. --studio-origin http://localhost:47627 --studio-origin http://127.0.0.1:47627",
+    "dev:web": "vp dev",
     "prebuild": "pnpm --filter @test-harness/i18n generate",
     "build": "vp build",
     "check": "vp check --fix",

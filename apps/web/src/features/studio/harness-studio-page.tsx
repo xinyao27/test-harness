@@ -1,15 +1,19 @@
 // oxlint-disable unicorn/no-thenable
 
 import {
+  RiArrowLeftSLine,
   RiArrowRightSLine,
   RiCheckLine,
   RiCloseLine,
   RiFolderAddLine,
   RiFolderLine,
   RiLightbulbLine,
+  RiInboxLine,
   RiPencilLine,
   RiSearchLine,
   RiSettings3Line,
+  RiShieldCheckLine,
+  RiStackLine,
   RiSidebarFoldLine,
   RiSidebarUnfoldLine,
 } from "@remixicon/react";
@@ -24,12 +28,14 @@ import {
   type Edge,
   type Node,
   type NodeProps,
+  type ReactFlowInstance,
 } from "@xyflow/react";
 import {
   useCallback,
   useEffect,
   useId,
   useMemo,
+  useRef,
   useState,
   type FormEvent,
   type ReactNode,
@@ -87,6 +93,7 @@ import type {
 import { SettingsPanel } from "@/features/settings/settings-page";
 import {
   fallbackWorkbenchProjects,
+  getDaemonConnectionStatus,
   getWorkbenchProjects,
   getWorkbenchSnapshotForProject,
   runWorkbenchTests,
@@ -211,6 +218,7 @@ const studioGraphLayout = {
   edgeRelatedStrokeOpacity: 0.66,
   edgeRelatedStrokeWidth: 1.15,
   fitViewPadding: 0.14,
+  focusZoom: 1,
   layerGap: 84,
   layerNodeX: -38,
   layerNodeYOffset: -54,
@@ -639,6 +647,11 @@ export function HarnessStudioPage({
     queryKey: ["workbench-snapshot", selectedProjectId],
     queryFn: () => getWorkbenchSnapshotForProject(selectedProjectId),
   });
+  const { data: daemonStatus } = useQuery({
+    queryKey: ["daemon-connection-status"],
+    queryFn: getDaemonConnectionStatus,
+    refetchInterval: 8000,
+  });
   const { locale, m } = useI18n();
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
   const [selectedPromiseId, setSelectedPromiseId] = useState<string | null>(null);
@@ -734,6 +747,69 @@ export function HarnessStudioPage({
     () => (data ? buildStudioSearchResults(data, locale, m) : []),
     [data, locale, m],
   );
+
+  const flowRef = useRef<ReactFlowInstance<StudioNode, Edge> | null>(null);
+  const surfaceRef = useRef<HTMLElement | null>(null);
+  const lastCenteredRef = useRef<string | null>(null);
+  const hasFitInitialRef = useRef(false);
+
+  // Switching projects starts with a fresh initial fit.
+  useEffect(() => {
+    hasFitInitialRef.current = false;
+  }, [selectedProjectId]);
+
+  // Fit the overview once, then smoothly pan the selected node into the visible area (the region
+  // left of the context panel) — instead of remounting/refitting the whole canvas, which jumps.
+  useEffect(() => {
+    const instance = flowRef.current;
+    const surface = surfaceRef.current;
+    if (!instance || !surface || nodes.length === 0) return;
+
+    if (!hasFitInitialRef.current) {
+      hasFitInitialRef.current = true;
+      lastCenteredRef.current = null;
+      void instance.fitView({ padding: studioGraphLayout.fitViewPadding });
+      return;
+    }
+
+    const targetId = selectedPromiseId
+      ? `promise:${selectedPromiseId}`
+      : selectedModuleId
+        ? `module:${selectedModuleId}`
+        : null;
+    if (targetId === lastCenteredRef.current) return;
+
+    if (!targetId) {
+      lastCenteredRef.current = null;
+      void instance.fitView({ padding: studioGraphLayout.fitViewPadding, duration: 420 });
+      return;
+    }
+
+    const node = nodes.find((item) => item.id === targetId);
+    if (!node) return;
+    lastCenteredRef.current = targetId;
+
+    const rect = surface.getBoundingClientRect();
+    const panel = surface.querySelector<HTMLElement>(".studio-context-panel");
+    const panelWidth = panel ? panel.getBoundingClientRect().width : 0;
+    // Bump to a readable zoom when coming from the zoomed-out overview, but never zoom out if the
+    // user is already closer.
+    const zoom = Math.min(
+      Math.max(instance.getViewport().zoom, studioGraphLayout.focusZoom),
+      studioGraphLayout.maxZoom,
+    );
+    // Half a studio node (--studio-node-width is 16.5rem ≈ 264px) to reach its center.
+    const nodeCenterX = node.position.x + 132;
+    const nodeCenterY = node.position.y + 52;
+    void instance.setViewport(
+      {
+        x: (rect.width - panelWidth) / 2 - nodeCenterX * zoom,
+        y: rect.height / 2 - nodeCenterY * zoom,
+        zoom,
+      },
+      { duration: 420 },
+    );
+  }, [nodes, selectedPromiseId, selectedModuleId]);
   const reviewInbox = useMemo(
     () => (data ? buildReviewInbox(data.promises, locale) : []),
     [data, locale],
@@ -768,6 +844,47 @@ export function HarnessStudioPage({
     },
     [selectPromise],
   );
+
+  // Ordered list to step through while reviewing: the review inbox if the selected promise is in
+  // it, otherwise the selected promise's module.
+  const promiseNavList = useMemo(() => {
+    if (!selectedPromiseId || !data) return [];
+    if (reviewInbox.some((promise) => promise.id === selectedPromiseId)) return reviewInbox;
+    const moduleId = data.promises.find((promise) => promise.id === selectedPromiseId)?.moduleId;
+    if (!moduleId) return [];
+    return sortPromisesForReview(
+      data.promises.filter((promise) => promise.moduleId === moduleId),
+      locale,
+    );
+  }, [selectedPromiseId, data, reviewInbox, locale]);
+  const promiseNavIndex = promiseNavList.findIndex((promise) => promise.id === selectedPromiseId);
+  const navigatePromise = useCallback(
+    (direction: -1 | 1) => {
+      const index = promiseNavList.findIndex((promise) => promise.id === selectedPromiseId);
+      if (index < 0) return;
+      const next = promiseNavList[index + direction];
+      if (next) selectPromise(next.id);
+    },
+    [promiseNavList, selectedPromiseId, selectPromise],
+  );
+  useEffect(() => {
+    if (!selectedPromiseId) return;
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)
+      ) {
+        return;
+      }
+      event.preventDefault();
+      navigatePromise(event.key === "ArrowLeft" ? -1 : 1);
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [selectedPromiseId, navigatePromise]);
 
   const selectSearchResult = useCallback(
     (result: StudioSearchResult) => {
@@ -876,15 +993,18 @@ export function HarnessStudioPage({
 
   return (
     <div className="studio-canvas-frame relative h-full min-h-0 overflow-hidden">
-      <section className="studio-flow-surface relative h-full min-h-0 overflow-hidden">
+      <section
+        ref={surfaceRef}
+        className="studio-flow-surface relative h-full min-h-0 overflow-hidden"
+      >
         <ReactFlow
           className="studio-flow-layer"
-          key={selectedPromise?.id ?? selectedModule?.id ?? "project"}
+          onInit={(instance) => {
+            flowRef.current = instance;
+          }}
           nodes={nodes}
           edges={edges}
           nodeTypes={nodeTypes}
-          fitView
-          fitViewOptions={{ padding: studioGraphLayout.fitViewPadding }}
           minZoom={studioGraphLayout.minZoom}
           maxZoom={studioGraphLayout.maxZoom}
           nodesDraggable={false}
@@ -948,41 +1068,44 @@ export function HarnessStudioPage({
               </div>
 
               <div className="studio-top-stats">
-                {data?.source ? (
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={
-                        <Badge
-                          size="xs"
-                          variant={data.source === "daemon" ? "secondary" : "destructive"}
-                          className="studio-header-source"
-                        />
-                      }
-                    >
-                      {snapshotSourceLabel(data.source, m, locale)}
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom">
-                      {data.source === "static"
-                        ? m.studio_snapshot_fallback_body({}, { locale })
-                        : snapshotSourceLabel(data.source, m, locale)}
-                    </TooltipContent>
-                  </Tooltip>
-                ) : null}
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={isInboxOpen ? "default" : "outline"}
-                  className="studio-floating-control"
-                  onClick={() => setIsInboxOpen((current) => !current)}
-                >
-                  {m.nav_inbox({}, { locale })} {reviewInbox.length}
-                </Button>
-                <Badge variant="secondary" className="studio-header-metric">
-                  {m.metric_total_modules({}, { locale })}: {data?.project.moduleCount ?? 0}
-                </Badge>
-                <Badge variant="secondary" className="studio-header-metric">
-                  {m.metric_total_promises({}, { locale })}: {data?.project.promiseCount ?? 0}
-                </Badge>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={isInboxOpen ? "default" : "outline"}
+                        aria-label={m.nav_inbox({}, { locale })}
+                        className="studio-floating-control studio-metrics-control"
+                        onClick={() => setIsInboxOpen((current) => !current)}
+                      />
+                    }
+                  >
+                    <span className="studio-metric">
+                      <RiStackLine className="studio-metric-icon" />
+                      {data?.project.moduleCount ?? 0}
+                    </span>
+                    <span className="studio-metric">
+                      <RiShieldCheckLine className="studio-metric-icon" />
+                      {data?.project.promiseCount ?? 0}
+                    </span>
+                    <span className="studio-metric">
+                      {reviewInbox.length > 0 ? <span className="studio-metric-dot" /> : null}
+                      <RiInboxLine className="studio-metric-icon" />
+                      {reviewInbox.length}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    {m.metric_total_modules({}, { locale })} ·{" "}
+                    {m.metric_total_promises(
+                      {},
+                      {
+                        locale,
+                      },
+                    )}{" "}
+                    · {m.nav_inbox({}, { locale })}
+                  </TooltipContent>
+                </Tooltip>
                 <Tooltip>
                   <TooltipTrigger
                     render={
@@ -1003,6 +1126,13 @@ export function HarnessStudioPage({
               </div>
             </div>
           </Panel>
+
+          {data?.source && data.source !== "daemon" ? (
+            <Panel position="bottom-right" className="studio-source-toast">
+              <span className="studio-source-toast-dot" />
+              {snapshotSourceLabel(data.source, m, locale)}
+            </Panel>
+          ) : null}
 
           {isInboxOpen && data ? (
             <ReviewInboxPanel
@@ -1045,15 +1175,34 @@ export function HarnessStudioPage({
               onCollapse={() => setIsPanelCollapsed(true)}
               onCreatePromise={(module) => setEditingPromiseContext({ module, promise: null })}
               onEditModule={setEditingModule}
+              onNavigatePromise={navigatePromise}
               onReviewPromise={savePromiseReview}
               onRunTests={runTests}
               promise={selectedPromise}
+              promiseIndex={promiseNavIndex}
+              promiseTotal={promiseNavList.length}
               runState={runState}
               snapshot={data ?? null}
               writeState={writeState}
             />
           )}
         </ReactFlow>
+
+        {data?.source && data.source !== "daemon" ? (
+          <div className="studio-connect-overlay">
+            <div className="studio-connect-card">
+              <h2 className="studio-connect-title">{m.studio_connect_title({}, { locale })}</h2>
+              <p className="studio-connect-body">
+                {daemonStatus?.state === "disconnected"
+                  ? m.studio_connect_body_disconnected({}, { locale })
+                  : m.studio_connect_body_pairing({}, { locale })}
+              </p>
+              <Button type="button" size="sm" onClick={() => setIsSettingsOpen(true)}>
+                {m.studio_connect_action({}, { locale })}
+              </Button>
+            </div>
+          </div>
+        ) : null}
       </section>
 
       <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
@@ -1760,9 +1909,12 @@ function ContextPanel({
   onCollapse,
   onCreatePromise,
   onEditModule,
+  onNavigatePromise,
   onReviewPromise,
   onRunTests,
   promise,
+  promiseIndex,
+  promiseTotal,
   runState,
   snapshot,
   writeState,
@@ -1775,6 +1927,7 @@ function ContextPanel({
   onCollapse: () => void;
   onCreatePromise: (module: HarnessModule) => void;
   onEditModule: (module: HarnessModule) => void;
+  onNavigatePromise: (direction: -1 | 1) => void;
   onReviewPromise: (
     promiseId: string,
     action: WorkbenchReviewAction,
@@ -1782,6 +1935,8 @@ function ContextPanel({
   ) => Promise<boolean>;
   onRunTests: () => void;
   promise: HarnessPromise | null;
+  promiseIndex: number;
+  promiseTotal: number;
   runState: StudioRunState;
   snapshot: HarnessSnapshot | null;
   writeState: StudioWriteState;
@@ -1800,23 +1955,54 @@ function ContextPanel({
                 : m.studio_context_panel({}, { locale })}
             </div>
           </div>
-          <Tooltip>
-            <TooltipTrigger
-              render={
+          <div className="flex shrink-0 items-center gap-(--studio-panel-gap-xs)">
+            {promise && promiseTotal > 1 ? (
+              <div className="flex items-center gap-(--studio-panel-gap-xs)">
                 <Button
                   type="button"
                   size="icon-sm"
                   variant="ghost"
-                  aria-label={m.action_collapse_panel({}, { locale })}
+                  aria-label={m.studio_review_prev({}, { locale })}
                   className="studio-panel-icon-control"
-                  onClick={onCollapse}
-                />
-              }
-            >
-              {promise ? <RiCloseLine /> : <RiSidebarFoldLine />}
-            </TooltipTrigger>
-            <TooltipContent side="left">{m.action_collapse_panel({}, { locale })}</TooltipContent>
-          </Tooltip>
+                  disabled={promiseIndex <= 0}
+                  onClick={() => onNavigatePromise(-1)}
+                >
+                  <RiArrowLeftSLine />
+                </Button>
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {promiseIndex + 1} / {promiseTotal}
+                </span>
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  aria-label={m.studio_review_next({}, { locale })}
+                  className="studio-panel-icon-control"
+                  disabled={promiseIndex >= promiseTotal - 1}
+                  onClick={() => onNavigatePromise(1)}
+                >
+                  <RiArrowRightSLine />
+                </Button>
+              </div>
+            ) : null}
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="ghost"
+                    aria-label={m.action_collapse_panel({}, { locale })}
+                    className="studio-panel-icon-control"
+                    onClick={onCollapse}
+                  />
+                }
+              >
+                {promise ? <RiCloseLine /> : <RiSidebarFoldLine />}
+              </TooltipTrigger>
+              <TooltipContent side="left">{m.action_collapse_panel({}, { locale })}</TooltipContent>
+            </Tooltip>
+          </div>
         </div>
 
         {promise && module && snapshot ? (
@@ -2357,10 +2543,7 @@ function buildStudioGraph(
       )
     : [];
   const relatedModuleIds = new Set(activeModule?.relatedModuleIds ?? []);
-  const relatedModules = activeModule
-    ? snapshot.modules.filter((module) => relatedModuleIds.has(module.id))
-    : [];
-  const orderedModules = activeModule ? [activeModule, ...relatedModules] : snapshot.modules;
+  const orderedModules = activeModule ? [activeModule] : snapshot.modules;
   const overviewLayout = activeModule ? null : buildOverviewPackageLayout(snapshot.modules, locale);
   const focusedModuleLayout = activeModule
     ? buildOverviewPriorityLayout(orderedModules, locale)
@@ -2443,18 +2626,7 @@ function buildStudioGraph(
     interactionWidth: 16,
   }));
 
-  const relatedEdges = activeModule
-    ? relatedModules.map((module) =>
-        createArchitectureRelationEdge(
-          activeModule,
-          module,
-          edgeColors.relatedStroke,
-          "related",
-          groupModulesByArchitectureLayer(orderedModules),
-          focusedModuleLayout?.positions,
-        ),
-      )
-    : [];
+  const relatedEdges: Edge[] = [];
   const priorityLayerNodes = activeModule
     ? (focusedModuleLayout?.layerNodes ?? [])
     : (overviewLayout?.layerNodes ?? []);
@@ -2805,66 +2977,6 @@ function getArchitectureLayerPosition(module: HarnessModule, groups: Map<number,
       studioGraphLayout.architectureLayerYStart +
       layerOffset +
       Math.max(layerIndex, 0) * studioGraphLayout.architectureLayerYStep,
-  };
-}
-
-function createArchitectureRelationEdge(
-  source: HarnessModule,
-  target: HarnessModule,
-  stroke: string,
-  edgeKind: string,
-  moduleLayerGroups: Map<number, HarnessModule[]>,
-  positions?: Map<string, { x: number; y: number }>,
-): Edge {
-  const isOverview = edgeKind === "overview";
-  const handles = getArchitectureRelationHandles(source, target, moduleLayerGroups, positions);
-
-  return {
-    id: `architecture:${edgeKind}:${source.id}:${target.id}`,
-    source: `module:${source.id}`,
-    sourceHandle: handles.sourceHandle,
-    target: `module:${target.id}`,
-    targetHandle: handles.targetHandle,
-    type: "default",
-    style: {
-      stroke,
-      strokeOpacity: isOverview
-        ? studioGraphLayout.edgeOverviewStrokeOpacity
-        : studioGraphLayout.edgeRelatedStrokeOpacity,
-      strokeWidth: isOverview
-        ? studioGraphLayout.edgeOverviewStrokeWidth
-        : studioGraphLayout.edgeRelatedStrokeWidth,
-    },
-    interactionWidth: 16,
-  };
-}
-
-function getArchitectureRelationHandles(
-  source: HarnessModule,
-  target: HarnessModule,
-  moduleLayerGroups: Map<number, HarnessModule[]>,
-  positions?: Map<string, { x: number; y: number }>,
-) {
-  const sourcePosition =
-    positions?.get(source.id) ?? getArchitectureLayerPosition(source, moduleLayerGroups);
-  const targetPosition =
-    positions?.get(target.id) ?? getArchitectureLayerPosition(target, moduleLayerGroups);
-
-  if (sourcePosition.x === targetPosition.x) {
-    return sourcePosition.y <= targetPosition.y
-      ? {
-          sourceHandle: studioNodeHandles.sourceBottom,
-          targetHandle: studioNodeHandles.targetTop,
-        }
-      : {
-          sourceHandle: studioNodeHandles.sourceTop,
-          targetHandle: studioNodeHandles.targetBottom,
-        };
-  }
-
-  return {
-    sourceHandle: studioNodeHandles.sourceRight,
-    targetHandle: studioNodeHandles.targetLeft,
   };
 }
 
