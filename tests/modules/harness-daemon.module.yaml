@@ -14,6 +14,9 @@ promises:
   - harness.daemon.http_snapshot_matches_studio_contract
   - harness.daemon.local_pairing_issues_revocable_session_tokens
   - harness.daemon.local_api_accepts_only_loopback_and_allowed_origins
+  - harness.daemon.snapshot_derives_module_package
+  - harness.daemon.snapshot_carries_promise_evidence
+  - harness.daemon.opens_project_file_within_root
 covers:
   - crates/harness-daemon/**
   - apps/web/src/lib/api.ts

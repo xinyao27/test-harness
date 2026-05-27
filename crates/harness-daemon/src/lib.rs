@@ -1,10 +1,10 @@
 use harness_core::{
-    get_promise_run_status, load_module_records, load_promise_records, load_test_results,
+    get_promise_run_status, load_module_records, load_promise_records, load_test_results_file,
     validate_module_records, validate_promise_records, HarnessError,
 };
 use harness_protocol::{
     LocalizedText, ModuleRecord, PromiseBoundary, PromiseLifecycle, PromisePriority, PromiseRecord,
-    PromiseRunStatus, ValidationSeverity,
+    PromiseRunStatus, TestResult, TestResultStatus, ValidationSeverity,
 };
 use serde::Serialize;
 use std::collections::{BTreeMap, BTreeSet};
@@ -61,6 +61,16 @@ pub struct StudioPromiseReviewEvent {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct StudioPromiseEvidence {
+    pub test_name: String,
+    pub file: String,
+    pub status: TestResultStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub failure_message: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct StudioPromise {
     pub id: String,
     pub module_id: String,
@@ -75,6 +85,7 @@ pub struct StudioPromise {
     pub when: Vec<LocalizedText>,
     pub then: Vec<LocalizedText>,
     pub observes: Vec<String>,
+    pub evidence: Vec<StudioPromiseEvidence>,
     pub failure_meaning: LocalizedText,
     pub review: StudioPromiseReview,
 }
@@ -97,6 +108,8 @@ pub struct StudioSnapshot {
     pub modules: Vec<StudioModule>,
     pub promises: Vec<StudioPromise>,
     pub review_drafts: Vec<StudioReviewDraft>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub results_generated_at: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -180,6 +193,7 @@ pub fn empty_snapshot(project_name: impl Into<String>) -> StudioSnapshot {
         modules: Vec::new(),
         promises: Vec::new(),
         review_drafts: Vec::new(),
+        results_generated_at: None,
     }
 }
 
@@ -187,7 +201,11 @@ pub fn build_studio_snapshot(root: impl AsRef<Path>) -> Result<StudioSnapshot, H
     let root = root.as_ref();
     let modules = load_module_records(root)?;
     let promises = load_promise_records(root)?;
-    let results = load_test_results(root)?;
+    let results_file = load_test_results_file(root)?;
+    let results_generated_at = results_file
+        .as_ref()
+        .map(|file| file.generated_at.clone());
+    let results = results_file.map_or_else(Vec::new, |file| file.results);
     let issues = validate_module_records(&modules)
         .into_iter()
         .chain(validate_promise_records(&promises))
@@ -228,6 +246,7 @@ pub fn build_studio_snapshot(root: impl AsRef<Path>) -> Result<StudioSnapshot, H
             when: promise.when.clone(),
             then: promise.then_steps.clone(),
             observes: promise.observes.clone(),
+            evidence: promise_evidence(&promise.id, &results),
             failure_meaning: promise.failure_meaning.clone(),
             review: StudioPromiseReview {
                 state: promise.review.state.to_string(),
@@ -268,7 +287,24 @@ pub fn build_studio_snapshot(root: impl AsRef<Path>) -> Result<StudioSnapshot, H
         modules: studio_modules,
         promises: studio_promises,
         review_drafts: Vec::new(),
+        results_generated_at,
     })
+}
+
+/// Collect the test results bound to a promise (matched by promise id) into the
+/// evidence Studio shows in the review panel. A promise with no matching result
+/// yields an empty list — distinct from a promise whose tests all passed.
+fn promise_evidence(promise_id: &str, results: &[TestResult]) -> Vec<StudioPromiseEvidence> {
+    results
+        .iter()
+        .filter(|result| result.promise_id == promise_id)
+        .map(|result| StudioPromiseEvidence {
+            test_name: result.test_name.clone(),
+            file: result.file.clone(),
+            status: result.status.clone(),
+            failure_message: result.failure_message.clone(),
+        })
+        .collect()
 }
 
 fn to_studio_module(
@@ -524,6 +560,123 @@ promises:
                 assert_eq!(snapshot.promises[0].module_id, "core");
                 assert_eq!(snapshot.promises[0].run_status, PromiseRunStatus::Passing);
                 assert_eq!(snapshot.promises[0].review.state, "approved");
+                assert_eq!(
+                    snapshot.results_generated_at.as_deref(),
+                    Some("2026-05-26T00:00:00Z")
+                );
+                assert_eq!(snapshot.promises[0].evidence.len(), 1);
+                assert_eq!(snapshot.promises[0].evidence[0].test_name, "core evidence");
+                assert_eq!(snapshot.promises[0].evidence[0].file, "crates/core/lib.rs");
+                assert_eq!(
+                    snapshot.promises[0].evidence[0].status,
+                    TestResultStatus::Passing
+                );
+            }
+        );
+    }
+
+    #[test]
+    fn snapshot_promise_evidence_separates_failing_tested_from_untested() {
+        harness_adapter_rust::scenario_test!(
+            "harness.daemon.snapshot_carries_promise_evidence",
+            "promises carry their bound test evidence, and untested promises stay empty",
+            {
+                let temp = tempdir().unwrap();
+                fs::create_dir_all(temp.path().join("tests/modules")).unwrap();
+                fs::create_dir_all(temp.path().join("tests/promises/core")).unwrap();
+                fs::write(
+                    temp.path().join("tests/modules/core.module.yaml"),
+                    r#"apiVersion: 1
+id: core
+title: Core
+summary: Loads project files.
+purpose: Keep evidence grounded in canonical files.
+promises:
+  - harness.core.tested
+  - harness.core.untested
+covers:
+  - crates/core/**
+"#,
+                )
+                .unwrap();
+                fs::write(
+                    temp.path().join("tests/promises/core/core.promises.yaml"),
+                    r#"apiVersion: 1
+promises:
+  - id: harness.core.tested
+    feature: Core
+    title: Tested promise
+    purpose: Has a failing test.
+    priority: P0
+    boundary: integration
+    lifecycle: accepted
+    given: [A project]
+    when: [It runs]
+    then: [A result is produced]
+    observes: [crates/core/lib.rs]
+    failureMeaning: Evidence would be lost.
+    review:
+      state: pending
+      events: []
+  - id: harness.core.untested
+    feature: Core
+    title: Untested promise
+    purpose: Has no test yet.
+    priority: P1
+    boundary: integration
+    lifecycle: proposed
+    given: [A project]
+    when: [It runs]
+    then: [Nothing proves it yet]
+    observes: [crates/core/other.rs]
+    failureMeaning: A gap would be hidden.
+    review:
+      state: pending
+      events: []
+"#,
+                )
+                .unwrap();
+                write_test_results_file(
+                    temp.path(),
+                    &TestResultsFile {
+                        api_version: ProtocolVersion,
+                        generated_at: "2026-05-27T08:00:00Z".to_string(),
+                        results: vec![TestResult {
+                            failure_message: Some("expected 200, got 500".to_string()),
+                            file: "crates/core/lib.rs".to_string(),
+                            labels: Default::default(),
+                            promise_id: "harness.core.tested".to_string(),
+                            status: TestResultStatus::Failing,
+                            test_name: "core fails".to_string(),
+                        }],
+                    },
+                )
+                .unwrap();
+
+                let snapshot = build_studio_snapshot(temp.path()).unwrap();
+                let tested = snapshot
+                    .promises
+                    .iter()
+                    .find(|promise| promise.id == "harness.core.tested")
+                    .unwrap();
+                let untested = snapshot
+                    .promises
+                    .iter()
+                    .find(|promise| promise.id == "harness.core.untested")
+                    .unwrap();
+
+                // A tested promise carries its bound evidence, including the failure message.
+                assert_eq!(tested.run_status, PromiseRunStatus::Failing);
+                assert_eq!(tested.evidence.len(), 1);
+                assert_eq!(tested.evidence[0].status, TestResultStatus::Failing);
+                assert_eq!(
+                    tested.evidence[0].failure_message.as_deref(),
+                    Some("expected 200, got 500")
+                );
+                // An untested promise has empty evidence and an unknown run status — a
+                // visible gap, not a silent pass.
+                assert_eq!(untested.run_status, PromiseRunStatus::Unknown);
+                assert!(untested.evidence.is_empty());
             }
         );
     }

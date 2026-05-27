@@ -1,0 +1,38 @@
+apiVersion: 1
+promises:
+  - id: harness.web_dashboard.review_panel_shows_test_evidence
+    feature: Harness Studio / Test Evidence
+    title:
+      en: The promise review panel shows the bound test evidence and lets you open the files
+      zh-CN: Promise 评审面板展示绑定的测试证据，并能打开相关文件
+    purpose:
+      en: Let a reviewer judge whether a promise is actually kept — by seeing which tests prove it, their pass/fail status and failure messages — and jump straight to the test or implementation file when needed.
+      zh-CN: 让 reviewer 真正判断一个 promise 是否被遵守——看到哪些测试在证明它、它们的通过/失败状态和失败信息——并能在需要时直接跳到测试或实现文件。
+    priority: P0
+    boundary: browser
+    lifecycle: proposed
+    given:
+      - en: A selected promise whose snapshot carries bound test evidence (test name, file, status, optional failure message)
+        zh-CN: 选中的 promise，其 snapshot 带有绑定的测试证据（测试名、文件、状态、可选失败信息）
+    when:
+      - en: The reviewer views that promise in the review panel
+        zh-CN: Reviewer 在评审面板里查看该 promise
+    then:
+      - en: The panel shows each bound test with its name, file, and pass/fail/skipped status, and shows failure messages for failing tests
+        zh-CN: 面板逐条展示绑定测试的名字、文件、通过/失败/跳过状态，并对失败的测试展示失败信息
+      - en: The panel shows the promise's overall run status and when the project was last run; a promise with no results shows a clear "not run yet" state
+        zh-CN: 面板展示该 promise 的总体 run status 和项目上次运行时间；没有结果的 promise 显示明确的「还没跑」状态
+      - en: The evidence (bound tests) is presented separately from the declared observed/coverage files
+        zh-CN: 证据（绑定测试）与声明的观测/覆盖文件分开展示
+      - en: Clicking a test or implementation file opens it in the local editor
+        zh-CN: 点击测试或实现文件会在本地编辑器中打开它
+    observes:
+      - apps/web/src/features/studio/**
+      - apps/web/src/data/harness-snapshot.ts
+      - apps/web/src/lib/api.ts
+    failureMeaning:
+      en: A reviewer would have to trust a one-word status with no way to see which tests ran, why one failed, or where the code lives — so an "accepted, passing" promise could be hiding a broken or untested behavior.
+      zh-CN: Reviewer 只能相信一个单词状态，看不到哪些测试跑了、为什么失败、代码在哪——一个「已接受、通过」的 promise 可能正藏着坏掉或没测的行为。
+    review:
+      state: pending
+      events: []

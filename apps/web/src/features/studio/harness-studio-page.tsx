@@ -5,6 +5,7 @@ import {
   RiArrowRightSLine,
   RiCheckLine,
   RiCloseLine,
+  RiExternalLinkLine,
   RiFolderAddLine,
   RiFolderLine,
   RiLightbulbLine,
@@ -85,9 +86,11 @@ import type {
   HarnessPromise,
   HarnessSnapshot,
   PromiseBoundary,
+  PromiseEvidence,
   PromiseLifecycle,
   PromisePriority,
   ModulePriority,
+  RunStatus,
   SnapshotSource,
 } from "@/data/harness-snapshot";
 import { SettingsPanel } from "@/features/settings/settings-page";
@@ -96,6 +99,7 @@ import {
   getDaemonConnectionStatus,
   getWorkbenchProjects,
   getWorkbenchSnapshotForProject,
+  openWorkbenchFile,
   runWorkbenchTests,
   saveWorkbenchModule,
   saveWorkbenchPromise,
@@ -922,6 +926,15 @@ export function HarnessStudioPage({
     await queryClient.invalidateQueries({ queryKey: ["workbench-snapshot", selectedProjectId] });
   }, [queryClient, selectedProjectId]);
 
+  const openFile = useCallback(
+    (file: string) => {
+      void openWorkbenchFile(selectedProjectId, file).then((opened) => {
+        if (!opened) console.warn(`Harness Studio could not open "${file}".`);
+      });
+    },
+    [selectedProjectId],
+  );
+
   const saveModule = useCallback(
     async (module: WorkbenchModuleRecord) => {
       setWriteState((current) => ({ ...current, status: "saving" }));
@@ -1167,6 +1180,7 @@ export function HarnessStudioPage({
             </Panel>
           ) : (
             <ContextPanel
+              canOpenFiles={data?.source === "daemon"}
               canRunTests={data?.source === "daemon"}
               canWrite={data?.source === "daemon"}
               isRunningTests={runState.status === "running"}
@@ -1176,6 +1190,7 @@ export function HarnessStudioPage({
               onCreatePromise={(module) => setEditingPromiseContext({ module, promise: null })}
               onEditModule={setEditingModule}
               onNavigatePromise={navigatePromise}
+              onOpenFile={openFile}
               onReviewPromise={savePromiseReview}
               onRunTests={runTests}
               promise={selectedPromise}
@@ -1901,6 +1916,7 @@ function ReviewInboxPanel({
 }
 
 function ContextPanel({
+  canOpenFiles,
   canRunTests,
   canWrite,
   isRunningTests,
@@ -1910,6 +1926,7 @@ function ContextPanel({
   onCreatePromise,
   onEditModule,
   onNavigatePromise,
+  onOpenFile,
   onReviewPromise,
   onRunTests,
   promise,
@@ -1919,6 +1936,7 @@ function ContextPanel({
   snapshot,
   writeState,
 }: {
+  canOpenFiles: boolean;
   canRunTests: boolean;
   canWrite: boolean;
   isRunningTests: boolean;
@@ -1928,6 +1946,7 @@ function ContextPanel({
   onCreatePromise: (module: HarnessModule) => void;
   onEditModule: (module: HarnessModule) => void;
   onNavigatePromise: (direction: -1 | 1) => void;
+  onOpenFile: (file: string) => void;
   onReviewPromise: (
     promiseId: string,
     action: WorkbenchReviewAction,
@@ -2007,11 +2026,14 @@ function ContextPanel({
 
         {promise && module && snapshot ? (
           <PromiseContext
+            canOpenFiles={canOpenFiles}
             canWrite={canWrite}
             isSaving={isSaving}
             promise={promise}
             module={module}
+            onOpenFile={onOpenFile}
             onReviewPromise={onReviewPromise}
+            resultsGeneratedAt={snapshot.resultsGeneratedAt}
             snapshot={snapshot}
             writeState={writeState}
           />
@@ -2223,23 +2245,29 @@ function ModuleContext({
 }
 
 function PromiseContext({
+  canOpenFiles,
   canWrite,
   isSaving,
   module,
+  onOpenFile,
   onReviewPromise,
   promise,
+  resultsGeneratedAt,
   snapshot,
   writeState,
 }: {
+  canOpenFiles: boolean;
   canWrite: boolean;
   isSaving: boolean;
   module: HarnessModule;
+  onOpenFile: (file: string) => void;
   onReviewPromise: (
     promiseId: string,
     action: WorkbenchReviewAction,
     note: string,
   ) => Promise<boolean>;
   promise: HarnessPromise;
+  resultsGeneratedAt?: string;
   snapshot: HarnessSnapshot;
   writeState: StudioWriteState;
 }) {
@@ -2288,8 +2316,20 @@ function PromiseContext({
             </div>
           </InfoSection>
 
-          <InfoSection title={m.graph_kind_evidence({}, { locale })}>
-            <CodeList items={promise.observes} />
+          <EvidenceSection
+            canOpenFiles={canOpenFiles}
+            evidence={promise.evidence}
+            onOpenFile={onOpenFile}
+            resultsGeneratedAt={resultsGeneratedAt}
+            runStatus={promise.runStatus}
+          />
+
+          <InfoSection title={m.studio_review_observed_files({}, { locale })}>
+            <FileList
+              canOpenFiles={canOpenFiles}
+              files={promise.observes}
+              onOpenFile={onOpenFile}
+            />
           </InfoSection>
 
           <ChangedFieldsPlaceholder />
@@ -3012,6 +3052,224 @@ function CodeList({ items }: { items: string[] }) {
       ))}
     </div>
   );
+}
+
+function EvidenceSection({
+  canOpenFiles,
+  evidence,
+  onOpenFile,
+  resultsGeneratedAt,
+  runStatus,
+}: {
+  canOpenFiles: boolean;
+  evidence: PromiseEvidence[];
+  onOpenFile: (file: string) => void;
+  resultsGeneratedAt?: string;
+  runStatus: RunStatus;
+}) {
+  const { locale, m } = useI18n();
+
+  return (
+    <InfoSection title={m.studio_evidence_title({}, { locale })}>
+      <div className="space-y-(--studio-panel-gap-sm)">
+        <div className="flex flex-wrap items-center justify-between gap-(--studio-panel-gap-sm)">
+          <RunStatusBadge status={runStatus} />
+          <span className="text-xs text-muted-foreground">
+            {resultsGeneratedAt
+              ? `${m.studio_evidence_last_run({}, { locale })}: ${formatRunTimestamp(resultsGeneratedAt, locale)}`
+              : m.studio_evidence_never_run({}, { locale })}
+          </span>
+        </div>
+
+        {evidence.length > 0 ? (
+          <div className="divide-y divide-border border border-border">
+            {evidence.map((item) => (
+              <EvidenceRow
+                key={`${item.file}::${item.testName}`}
+                canOpenFiles={canOpenFiles}
+                evidence={item}
+                onOpenFile={onOpenFile}
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="border border-dashed border-border p-(--studio-panel-gap-sm) text-xs text-muted-foreground">
+            {m.studio_evidence_empty({}, { locale })}
+          </p>
+        )}
+      </div>
+    </InfoSection>
+  );
+}
+
+function EvidenceRow({
+  canOpenFiles,
+  evidence,
+  onOpenFile,
+}: {
+  canOpenFiles: boolean;
+  evidence: PromiseEvidence;
+  onOpenFile: (file: string) => void;
+}) {
+  const { locale, m } = useI18n();
+
+  let statusLabel: string;
+  switch (evidence.status) {
+    case "passing":
+      statusLabel = m.runs_passing({}, { locale });
+      break;
+    case "failing":
+      statusLabel = m.runs_failing({}, { locale });
+      break;
+    default:
+      statusLabel = m.runs_skipped({}, { locale });
+      break;
+  }
+
+  return (
+    <div className="space-y-(--studio-panel-gap-xs) p-(--studio-panel-gap-sm)">
+      <div className="flex items-start gap-(--studio-panel-gap-sm)">
+        <span
+          aria-hidden="true"
+          className={cn("mt-1 size-2 shrink-0 rounded-full", evidenceDotTone(evidence.status))}
+        />
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-medium">{evidence.testName}</div>
+          <FileLink canOpenFiles={canOpenFiles} file={evidence.file} onOpenFile={onOpenFile} />
+        </div>
+        <span className="shrink-0 text-xs text-muted-foreground">{statusLabel}</span>
+      </div>
+      {evidence.failureMessage ? (
+        <p className="ml-(--studio-panel-gap) overflow-x-auto border-l-2 border-destructive bg-destructive/5 p-(--studio-panel-gap-sm) font-mono text-xs whitespace-pre-wrap text-destructive">
+          {evidence.failureMessage}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function RunStatusBadge({ status }: { status: RunStatus }) {
+  const { locale, m } = useI18n();
+
+  let label: string;
+  switch (status) {
+    case "passing":
+      label = m.run_status_passing({}, { locale });
+      break;
+    case "failing":
+      label = m.run_status_failing({}, { locale });
+      break;
+    case "skipped":
+      label = m.run_status_skipped({}, { locale });
+      break;
+    case "missing_evidence":
+      label = m.run_status_missing_evidence({}, { locale });
+      break;
+    default:
+      label = m.run_status_unknown({}, { locale });
+      break;
+  }
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center border px-(--studio-panel-gap-sm) py-px text-xs font-medium",
+        runStatusTone(status),
+      )}
+    >
+      {label}
+    </span>
+  );
+}
+
+function FileList({
+  canOpenFiles,
+  files,
+  onOpenFile,
+}: {
+  canOpenFiles: boolean;
+  files: string[];
+  onOpenFile: (file: string) => void;
+}) {
+  return (
+    <div className="space-y-(--studio-panel-gap-xs)">
+      {files.map((file) => (
+        <FileLink key={file} canOpenFiles={canOpenFiles} file={file} onOpenFile={onOpenFile} />
+      ))}
+    </div>
+  );
+}
+
+function FileLink({
+  canOpenFiles,
+  file,
+  onOpenFile,
+}: {
+  canOpenFiles: boolean;
+  file: string;
+  onOpenFile: (file: string) => void;
+}) {
+  const { locale, m } = useI18n();
+
+  if (!canOpenFiles) {
+    return (
+      <div className="truncate border-l border-border pl-(--studio-panel-gap-sm) font-mono text-xs text-muted-foreground">
+        {file}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => onOpenFile(file)}
+      title={m.studio_open_in_editor({}, { locale })}
+      className="group flex w-full items-center gap-(--studio-panel-gap-xs) border-l border-border pl-(--studio-panel-gap-sm) text-left font-mono text-xs text-muted-foreground transition-colors hover:text-foreground"
+    >
+      <span className="truncate">{file}</span>
+      <RiExternalLinkLine className="size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
+    </button>
+  );
+}
+
+function runStatusTone(status: RunStatus): string {
+  switch (status) {
+    case "passing":
+      return "border-status-success-border bg-status-success text-status-success-foreground";
+    case "failing":
+    case "missing_evidence":
+      return "border-destructive/40 bg-destructive/10 text-destructive";
+    case "skipped":
+      return "border-status-warning-border bg-status-warning text-status-warning-foreground";
+    default:
+      return "border-border bg-muted text-muted-foreground";
+  }
+}
+
+function evidenceDotTone(status: PromiseEvidence["status"]): string {
+  switch (status) {
+    case "passing":
+      return "bg-success";
+    case "failing":
+      return "bg-destructive";
+    default:
+      return "bg-warning";
+  }
+}
+
+function formatRunTimestamp(value: string, locale: AppLocale): string {
+  // Harness adapters stamp results as "unix-ms:<millis>"; fall back to native Date parsing
+  // (e.g. RFC3339) and finally to the raw string so an unknown format still renders.
+  const millisPrefix = "unix-ms:";
+  const date = value.startsWith(millisPrefix)
+    ? new Date(Number(value.slice(millisPrefix.length)))
+    : new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return new Intl.DateTimeFormat(locale === "zh-CN" ? "zh-CN" : "en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
 }
 
 function StatusRow({ label, value }: { label: string; value: number }) {

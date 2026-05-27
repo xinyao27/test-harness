@@ -21,7 +21,8 @@ use std::collections::BTreeMap;
 use std::env;
 use std::fs;
 use std::net::SocketAddr;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
+use std::process::Command;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tower_http::cors::{AllowOrigin, CorsLayer};
@@ -76,6 +77,20 @@ struct PromiseReviewRequest {
     project_id: Option<String>,
     promise_id: String,
     reviewer: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct OpenFileRequest {
+    project_id: Option<String>,
+    file: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct OpenFileResponse {
+    opened: bool,
+    path: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -161,6 +176,7 @@ async fn run() -> Result<(), String> {
         .route("/api/projects", get(projects))
         .route("/api/snapshot", get(snapshot))
         .route("/api/run/tests", post(run_tests))
+        .route("/api/studio/open", post(open_file))
         .route("/api/session/revoke", post(revoke_session))
         .route("/api/studio/module", post(upsert_module))
         .route("/api/studio/promise", post(upsert_promise))
@@ -285,6 +301,28 @@ async fn run_tests(
             }),
         )
             .into_response(),
+        Err(error) => error_response(StatusCode::INTERNAL_SERVER_ERROR, error.to_string()),
+    }
+}
+
+async fn open_file(
+    State(state): State<AppState>,
+    Json(request): Json<OpenFileRequest>,
+) -> impl IntoResponse {
+    let project_id = request.project_id.as_deref();
+    let Some(root) = resolve_project_root(&state.workspace_root, project_id) else {
+        return error_response(
+            StatusCode::NOT_FOUND,
+            format!(
+                "Unknown or unsupported project id \"{}\".",
+                project_id.unwrap_or("current:test-harness")
+            ),
+        );
+    };
+
+    match tokio::task::spawn_blocking(move || open_project_file(&root, &request.file)).await {
+        Ok(Ok(response)) => (StatusCode::OK, Json(response)).into_response(),
+        Ok(Err(error)) => error_response(StatusCode::BAD_REQUEST, error),
         Err(error) => error_response(StatusCode::INTERNAL_SERVER_ERROR, error.to_string()),
     }
 }
@@ -1023,6 +1061,96 @@ fn rollback_files(backups: &[FileBackup]) -> Result<(), String> {
     Ok(())
 }
 
+/// Resolve a Studio-supplied relative path against the project root, guaranteeing
+/// the result stays inside the root. Absolute paths and `..` segments are rejected
+/// up front; both sides are then canonicalized so a symlink cannot escape the root
+/// either. This is the security boundary for the open-file endpoint.
+fn resolve_in_root(root: &Path, file: &str) -> Result<PathBuf, String> {
+    let trimmed = file.trim();
+    if trimmed.is_empty() {
+        return Err("No file path was provided.".to_string());
+    }
+    let candidate = Path::new(trimmed);
+    if candidate.is_absolute() {
+        return Err(format!(
+            "File path \"{trimmed}\" must be relative to the project root."
+        ));
+    }
+    if candidate
+        .components()
+        .any(|component| matches!(component, Component::ParentDir))
+    {
+        return Err(format!(
+            "File path \"{trimmed}\" must not escape the project root."
+        ));
+    }
+
+    let root = root
+        .canonicalize()
+        .map_err(|error| format!("Project root is unavailable: {error}"))?;
+    let resolved = root
+        .join(candidate)
+        .canonicalize()
+        .map_err(|error| format!("Cannot open \"{trimmed}\": {error}"))?;
+
+    if !resolved.starts_with(&root) {
+        return Err(format!(
+            "File path \"{trimmed}\" resolves outside the project root."
+        ));
+    }
+    if !resolved.is_file() {
+        return Err(format!("\"{trimmed}\" is not a file."));
+    }
+    Ok(resolved)
+}
+
+fn open_project_file(root: &Path, file: &str) -> Result<OpenFileResponse, String> {
+    let resolved = resolve_in_root(root, file)?;
+    launch_editor(&resolved)?;
+    Ok(OpenFileResponse {
+        opened: true,
+        path: file.trim().to_string(),
+    })
+}
+
+/// Open a file in the human's local editor. Prefer the VS Code CLI (which focuses
+/// the file in a running window); fall back to the platform file opener.
+fn launch_editor(path: &Path) -> Result<(), String> {
+    if let Ok(status) = Command::new("code").arg("-g").arg(path).status() {
+        if status.success() {
+            return Ok(());
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    let mut command = {
+        let mut command = Command::new("open");
+        command.arg(path);
+        command
+    };
+    #[cfg(target_os = "windows")]
+    let mut command = {
+        let mut command = Command::new("cmd");
+        command.args(["/C", "start", ""]).arg(path);
+        command
+    };
+    #[cfg(all(not(target_os = "macos"), not(target_os = "windows")))]
+    let mut command = {
+        let mut command = Command::new("xdg-open");
+        command.arg(path);
+        command
+    };
+
+    match command.status() {
+        Ok(status) if status.success() => Ok(()),
+        Ok(status) => Err(format!(
+            "Could not open \"{}\": opener exited with {status}.",
+            path.display()
+        )),
+        Err(error) => Err(format!("Could not open \"{}\": {error}", path.display())),
+    }
+}
+
 fn ensure_safe_record_id(value: &str, label: &str) -> Result<(), String> {
     if value.is_empty()
         || value == "."
@@ -1332,6 +1460,31 @@ mod tests {
         assert!(is_allowed_host("[::1]:4101", &allowed));
         assert!(!is_allowed_host("example.com:4101", &allowed));
         assert!(!is_allowed_host("127.0.0.1:4100", &allowed));
+    }
+
+    #[test]
+    fn open_file_resolution_stays_inside_the_project_root() {
+        harness_adapter_rust::scenario_test!(
+            "harness.daemon.opens_project_file_within_root",
+            "the open-file endpoint refuses paths outside the paired project root",
+            {
+                let root = tempdir().unwrap();
+                fs::create_dir_all(root.path().join("crates/core/src")).unwrap();
+                fs::write(root.path().join("crates/core/src/lib.rs"), "// core\n").unwrap();
+
+                // An in-root file resolves to a path inside the project root.
+                let resolved = resolve_in_root(root.path(), "crates/core/src/lib.rs").unwrap();
+                assert!(resolved.ends_with("crates/core/src/lib.rs"));
+                assert!(resolved.starts_with(root.path().canonicalize().unwrap()));
+
+                // A path that escapes via ".." is rejected.
+                assert!(resolve_in_root(root.path(), "../escape.rs").is_err());
+                // An absolute path is rejected even if it exists on the machine.
+                assert!(resolve_in_root(root.path(), "/etc/hosts").is_err());
+                // A path to a file that does not exist is rejected (cannot be opened).
+                assert!(resolve_in_root(root.path(), "crates/core/missing.rs").is_err());
+            }
+        );
     }
 
     #[test]

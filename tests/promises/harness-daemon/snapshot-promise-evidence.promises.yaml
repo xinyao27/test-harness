@@ -1,0 +1,71 @@
+apiVersion: 1
+promises:
+  - id: harness.daemon.snapshot_carries_promise_evidence
+    feature: Harness Daemon / Project Snapshot
+    title:
+      en: The daemon attaches each promise's bound test evidence and the project's last run time to the snapshot
+      zh-CN: Daemon 把每个 promise 绑定的测试证据和项目上次运行时间带到 snapshot 上
+    purpose:
+      en: Give Studio the per-test evidence (which tests prove a promise, their status and failure messages) and the last run time it needs to let a human judge whether a promise is actually kept, instead of only a single aggregate status word.
+      zh-CN: 给 Studio 提供逐条测试证据（哪些测试在证明一个 promise、它们的状态和失败信息）和上次运行时间，让人能真正判断 promise 是否被遵守，而不只是一个汇总状态词。
+    priority: P1
+    boundary: integration
+    lifecycle: proposed
+    given:
+      - en: A project with promises and a results file that records test outcomes keyed by promise id
+        zh-CN: 一个有 promises 的项目，且其 results 文件按 promise id 记录了测试结果
+      - en: Some promises have one or more matching test results; some promises have none
+        zh-CN: 某些 promise 有一条或多条匹配的测试结果；某些 promise 一条都没有
+    when:
+      - en: The daemon builds a Studio project snapshot for that root
+        zh-CN: Daemon 为该 root 构建 Studio project snapshot
+    then:
+      - en: Each promise on the snapshot carries the test results bound to it — test name, file, pass/fail/skipped status, and any failure message
+        zh-CN: snapshot 上每个 promise 都带着绑定到它的测试结果——测试名、文件、通过/失败/跳过状态，以及失败信息（若有）
+      - en: A promise with no matching test result carries an empty evidence list, distinct from a promise whose tests all passed
+        zh-CN: 没有匹配测试结果的 promise 带着空的 evidence 列表，与测试全通过的 promise 区分开
+      - en: The snapshot exposes when the project's results were last generated, or that it has never been run
+        zh-CN: snapshot 暴露项目结果上次生成的时间，或表明它从未运行过
+    observes:
+      - crates/harness-daemon/src/lib.rs
+      - crates/harness-core/src/results.rs
+    failureMeaning:
+      en: Studio could only show a one-word run status, so a reviewer could never see which tests ran, why one failed, or whether a promise was tested at all — making "accepted, passing" untrustworthy.
+      zh-CN: Studio 只能展示一个单词的运行状态，reviewer 永远看不到哪些测试跑了、为什么失败、promise 到底有没有被测——让「已接受、通过」变得不可信。
+    review:
+      state: pending
+      events: []
+
+  - id: harness.daemon.opens_project_file_within_root
+    feature: Harness Daemon / Project Snapshot
+    title:
+      en: The daemon opens a requested project file in the local editor, refusing paths outside the project root
+      zh-CN: Daemon 在本地编辑器中打开请求的项目文件，并拒绝项目 root 之外的路径
+    purpose:
+      en: Let a reviewer jump from a promise's test or implementation file straight into their editor, while guaranteeing the open endpoint can never be used to reach files outside the paired project.
+      zh-CN: 让 reviewer 能从 promise 的测试或实现文件直接跳进编辑器，同时保证这个打开接口永远无法触及配对项目之外的文件。
+    priority: P1
+    boundary: integration
+    lifecycle: proposed
+    given:
+      - en: A paired project root and a relative file path that resolves inside that root
+        zh-CN: 一个已配对的项目 root，以及一个解析后落在该 root 内的相对文件路径
+      - en: A second request whose path escapes the root via an absolute path or ".." segments
+        zh-CN: 第二个请求，其路径通过绝对路径或 ".." 片段逃出 root
+    when:
+      - en: Studio asks the daemon to open each path
+        zh-CN: Studio 请求 daemon 打开每个路径
+    then:
+      - en: The in-root file is opened in the local editor
+        zh-CN: root 内的文件会在本地编辑器中打开
+      - en: The escaping path is rejected and no file outside the root is opened
+        zh-CN: 逃逸路径被拒绝，root 之外的文件不会被打开
+    observes:
+      - crates/harness-daemon/src/main.rs
+      - crates/harness-daemon/src/lib.rs
+    failureMeaning:
+      en: Either reviewers could not open evidence files from Studio, or a crafted request could make the daemon open arbitrary files on the machine outside the paired project.
+      zh-CN: 要么 reviewer 无法从 Studio 打开证据文件，要么一个精心构造的请求能让 daemon 打开机器上配对项目之外的任意文件。
+    review:
+      state: pending
+      events: []

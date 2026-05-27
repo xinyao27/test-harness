@@ -13,8 +13,17 @@ export type PromisePriority = "P0" | "P1" | "P2";
 export type ModulePriority = PromisePriority | "none";
 export type PromiseBoundary = "unit" | "integration" | "browser" | "e2e" | "adapter";
 export type RunStatus = "unknown" | "passing" | "failing" | "skipped" | "missing_evidence";
+export type EvidenceStatus = "passing" | "failing" | "skipped";
 export type ReviewState = "pending" | "approved" | "rejected" | "changes_requested";
 export type ReviewAction = "approved" | "rejected" | "changes_requested";
+
+/** One bound test result that proves (or fails to prove) a promise. */
+export interface PromiseEvidence {
+  testName: string;
+  file: string;
+  status: EvidenceStatus;
+  failureMessage?: string;
+}
 
 export interface HarnessModule {
   id: string;
@@ -43,6 +52,8 @@ export interface HarnessPromise {
   when: LocalizedText[];
   then: LocalizedText[];
   observes: string[];
+  /** Bound test results that prove this promise; empty when nothing has been run for it. */
+  evidence: PromiseEvidence[];
   failureMeaning: LocalizedText;
   review: {
     state: ReviewState;
@@ -82,6 +93,8 @@ export interface HarnessSnapshot {
   modules: HarnessModule[];
   promises: HarnessPromise[];
   reviewDrafts: ReviewDraft[];
+  /** When the project's test results were last generated; absent if it has never run. */
+  resultsGeneratedAt?: string;
 }
 
 const promisePriorities = ["P0", "P1", "P2"] as const;
@@ -95,6 +108,7 @@ const promiseLifecycles = [
   "deprecated",
 ] as const;
 const runStatuses = ["unknown", "passing", "failing", "skipped", "missing_evidence"] as const;
+const evidenceStatuses = ["passing", "failing", "skipped"] as const;
 const reviewStates = ["pending", "approved", "rejected", "changes_requested"] as const;
 const reviewActions = ["approved", "rejected", "changes_requested"] as const;
 const snapshotSources = ["daemon", "static", "empty"] as const;
@@ -107,7 +121,8 @@ export function isHarnessSnapshot(value: unknown): value is HarnessSnapshot {
     isProject(value.project) &&
     isArrayOf(value.modules, isHarnessModule) &&
     isArrayOf(value.promises, isHarnessPromise) &&
-    isArrayOf(value.reviewDrafts, isReviewDraft)
+    isArrayOf(value.reviewDrafts, isReviewDraft) &&
+    optionalString(value.resultsGeneratedAt)
   );
 }
 
@@ -154,8 +169,19 @@ function isHarnessPromise(value: unknown): value is HarnessPromise {
     isArrayOf(value.when, isLocalizedText) &&
     isArrayOf(value.then, isLocalizedText) &&
     isArrayOf(value.observes, isString) &&
+    isArrayOf(value.evidence, isPromiseEvidence) &&
     isLocalizedText(value.failureMeaning) &&
     isReview(value.review)
+  );
+}
+
+function isPromiseEvidence(value: unknown): value is PromiseEvidence {
+  return (
+    isRecord(value) &&
+    typeof value.testName === "string" &&
+    typeof value.file === "string" &&
+    isOneOf(value.status, evidenceStatuses) &&
+    optionalString(value.failureMessage)
   );
 }
 

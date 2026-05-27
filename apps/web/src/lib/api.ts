@@ -47,6 +47,11 @@ export type WorkbenchWriteResult = {
   stdout: string;
 };
 
+export type WorkbenchOpenResult = {
+  opened: boolean;
+  path: string;
+};
+
 export type WorkbenchModuleRecord = {
   apiVersion: 1;
   covers: string[];
@@ -158,6 +163,17 @@ export async function runWorkbenchTests(projectId: string): Promise<WorkbenchRun
   if (!isWorkbenchRunResult(body)) return null;
 
   return body;
+}
+
+// Ask the daemon to open a project-relative file in the local editor. Returns true only when the
+// daemon confirms it opened a file inside the project root.
+export async function openWorkbenchFile(projectId: string, file: string): Promise<boolean> {
+  const body = await postDaemonJsonBody(
+    "/api/studio/open",
+    { file, projectId },
+    { includeToken: true },
+  );
+  return isWorkbenchOpenResult(body) && body.opened;
 }
 
 export async function saveWorkbenchModule(
@@ -442,6 +458,13 @@ function isWorkbenchRunResult(value: unknown): value is WorkbenchRunResult {
     typeof body.stderr === "string" &&
     typeof body.stdout === "string"
   );
+}
+
+function isWorkbenchOpenResult(value: unknown): value is WorkbenchOpenResult {
+  if (!value || typeof value !== "object") return false;
+
+  const body = value as Record<string, unknown>;
+  return typeof body.opened === "boolean" && typeof body.path === "string";
 }
 
 function isWorkbenchWriteResult(value: unknown): value is WorkbenchWriteResult {
