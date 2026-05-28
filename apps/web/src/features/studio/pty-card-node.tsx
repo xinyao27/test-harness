@@ -1,5 +1,6 @@
 import { RiCloseLine, RiRobot2Line, RiTerminalBoxLine } from "@remixicon/react";
 import { FitAddon } from "@xterm/addon-fit";
+import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { Terminal } from "@xterm/xterm";
 
@@ -9,8 +10,10 @@ import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useAgentCardsStore, type PtyCardKind } from "@/features/studio/agent-cards-store";
+import { pickTerminalTheme } from "@/features/studio/terminal-theme";
 import { getAgentPtyWebSocketUrl, type AgentTool } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
 type ConnectionState = "idle" | "connecting" | "connected" | "closed" | "unpaired";
@@ -41,8 +44,12 @@ export type PtyCardNodeData = {
 export function PtyCardNode({ data }: NodeProps) {
   const cardData = data as PtyCardNodeData;
   const { locale, m } = useI18n();
+  const { mode: themeMode } = useTheme();
   const removeCard = useAgentCardsStore((state) => state.removeCard);
   const containerRef = useRef<HTMLDivElement>(null);
+  // Hold the live xterm instance so a theme-mode change can update its
+  // palette without tearing down the WebSocket / pty session.
+  const terminalRef = useRef<Terminal | null>(null);
   const [state, setState] = useState<ConnectionState>("idle");
 
   useEffect(() => {
@@ -55,15 +62,38 @@ export function PtyCardNode({ data }: NodeProps) {
       return;
     }
 
-    const terminal = new Terminal({
+    const terminal: Terminal = new Terminal({
       cursorBlink: true,
       fontFamily: '"Geist Mono Variable", ui-monospace, monospace',
       fontSize: 12,
-      theme: { background: "#0a0a0a", foreground: "#e5e5e5" },
+      // Two hundred thousand lines is enough for a long `claude` /
+      // `codex` session to scroll back through. The default 1000 throws
+      // away early agent context the moment output starts flowing.
+      scrollback: 200_000,
+      // Unicode-11 width-detection comes from the addon below; enabling
+      // proposed APIs is the contract that lets us set the active
+      // version.
+      allowProposedApi: true,
+      // Full VS Code-style ANSI palette so agent output (red errors,
+      // green diff `+` lines, yellow warnings) renders the same way it
+      // would in a native terminal. Background is transparent so the
+      // card's own background bleeds through; the card data-kind sets
+      // the actual surface color.
+      allowTransparency: true,
+      theme: pickTerminalTheme(themeMode),
     });
+    terminalRef.current = terminal;
     const fit = new FitAddon();
     terminal.loadAddon(fit);
     terminal.open(container);
+
+    // Unicode 11 width-table so CJK / full-width / emoji characters
+    // measure into the correct number of cells. Without this, a Codex
+    // session that prints Chinese paths or a `claude` session with
+    // emoji line-wraps weirdly.
+    const unicode11 = new Unicode11Addon();
+    terminal.loadAddon(unicode11);
+    terminal.unicode.activeVersion = "11";
 
     // WebGL renderer (the same one VS Code uses) — GPU atlas, dramatically
     // faster scroll + bulk-write throughput than the default DOM renderer,
@@ -90,69 +120,101 @@ export function PtyCardNode({ data }: NodeProps) {
     let resizeObserver: ResizeObserver | null = null;
     let resizeTimer: ReturnType<typeof setTimeout> | null = null;
 
-    // Defer fit + WebSocket open one frame so the container has its real
-    // layout size — otherwise the daemon's PTY would spawn at a tiny default
-    // and the agent's startup output would wrap wrong.
-    const raf = requestAnimationFrame(() => {
-      if (cancelled) return;
-      try {
-        fit.fit();
-      } catch {
-        /* container not yet sized — ResizeObserver will retry */
+    // Coalesce rapid inbound pty data into a single `term.write()` per
+    // tick — the same 5 ms VS Code's TerminalDataBufferer uses. Without
+    // this, a `claude` session that streams 200 short chunks/sec hits
+    // the renderer 200 times/sec and produces partial-paint flicker
+    // (especially on the WebGL renderer's double-buffered canvas).
+    const DATA_BUFFER_FLUSH_MS = 5;
+    let dataBuffer: Array<string | Uint8Array> = [];
+    let flushTimer: ReturnType<typeof setTimeout> | undefined;
+    const flushData = () => {
+      flushTimer = undefined;
+      if (dataBuffer.length === 0) return;
+      const chunks = dataBuffer;
+      dataBuffer = [];
+      for (const chunk of chunks) {
+        terminal.write(chunk);
       }
+    };
 
-      setState("connecting");
-      socket = new WebSocket(url);
-      socket.binaryType = "arraybuffer";
-
-      socket.addEventListener("open", () => {
-        setState("connected");
-        if (!socket) return;
-        sendResize(socket, terminal);
-        if (cardData.initialPrompt) {
-          // Push the initial prompt as stdin bytes so the agent immediately
-          // knows what promise it has been handed.
-          socket.send(new TextEncoder().encode(cardData.initialPrompt));
+    // Defer fit + WebSocket open with a double-rAF so the container has
+    // its FINAL layout size before we measure — React Flow lays the
+    // node wrapper in one frame and applies the inline width/height in
+    // the next, so a single rAF can still measure a transitional size
+    // and the daemon's PTY would spawn at the wrong cols/rows.
+    const raf1 = requestAnimationFrame(() => {
+      if (cancelled) return;
+      requestAnimationFrame(() => {
+        if (cancelled) return;
+        try {
+          fit.fit();
+        } catch {
+          /* container not yet sized — ResizeObserver will retry */
         }
-      });
-      socket.addEventListener("message", (event) => {
-        if (typeof event.data === "string") {
-          terminal.write(event.data);
-        } else if (event.data instanceof ArrayBuffer) {
-          terminal.write(new Uint8Array(event.data));
-        }
-      });
-      socket.addEventListener("close", () => setState("closed"));
-      socket.addEventListener("error", () => setState("closed"));
 
-      dataDisposable = terminal.onData((data) => {
-        if (socket?.readyState !== WebSocket.OPEN) return;
-        socket.send(new TextEncoder().encode(data));
-      });
+        setState("connecting");
+        socket = new WebSocket(url);
+        socket.binaryType = "arraybuffer";
 
-      // ResizeObserver fires on every React Flow zoom step, which would
-      // otherwise call fit() + send a daemon resize on each frame while the
-      // user spins the trackpad. Coalesce them so we only fit once the
-      // resize gesture settles.
-      resizeObserver = new ResizeObserver(() => {
-        if (resizeTimer) clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(() => {
-          resizeTimer = null;
-          try {
-            fit.fit();
-          } catch {
-            /* container not yet sized */
+        socket.addEventListener("open", () => {
+          setState("connected");
+          if (!socket) return;
+          sendResize(socket, terminal);
+          if (cardData.initialPrompt) {
+            // Push the initial prompt as stdin bytes so the agent immediately
+            // knows what promise it has been handed.
+            socket.send(new TextEncoder().encode(cardData.initialPrompt));
           }
-          if (socket) sendResize(socket, terminal);
-        }, 120);
+        });
+        socket.addEventListener("message", (event) => {
+          // Buffer rather than calling `terminal.write` directly — the
+          // flush timer will run once every 5 ms regardless of how many
+          // chunks arrived.
+          if (typeof event.data === "string") {
+            dataBuffer.push(event.data);
+          } else if (event.data instanceof ArrayBuffer) {
+            dataBuffer.push(new Uint8Array(event.data));
+          } else {
+            return;
+          }
+          if (flushTimer === undefined) {
+            flushTimer = setTimeout(flushData, DATA_BUFFER_FLUSH_MS);
+          }
+        });
+        socket.addEventListener("close", () => setState("closed"));
+        socket.addEventListener("error", () => setState("closed"));
+
+        dataDisposable = terminal.onData((data) => {
+          if (socket?.readyState !== WebSocket.OPEN) return;
+          socket.send(new TextEncoder().encode(data));
+        });
+
+        // ResizeObserver fires on every React Flow zoom step, which would
+        // otherwise call fit() + send a daemon resize on each frame while
+        // the user spins the trackpad. Coalesce them so we only fit once
+        // the resize gesture settles.
+        resizeObserver = new ResizeObserver(() => {
+          if (resizeTimer) clearTimeout(resizeTimer);
+          resizeTimer = setTimeout(() => {
+            resizeTimer = null;
+            try {
+              fit.fit();
+            } catch {
+              /* container not yet sized */
+            }
+            if (socket) sendResize(socket, terminal);
+          }, 120);
+        });
+        resizeObserver.observe(container);
       });
-      resizeObserver.observe(container);
     });
 
     return () => {
       cancelled = true;
-      cancelAnimationFrame(raf);
+      cancelAnimationFrame(raf1);
       if (resizeTimer) clearTimeout(resizeTimer);
+      if (flushTimer !== undefined) clearTimeout(flushTimer);
       resizeObserver?.disconnect();
       dataDisposable?.dispose();
       if (
@@ -166,8 +228,23 @@ export function PtyCardNode({ data }: NodeProps) {
       // matters for the GPU context).
       webgl?.dispose();
       terminal.dispose();
+      terminalRef.current = null;
     };
+    // We intentionally do NOT include `themeMode` here — flipping the
+    // theme should retint the existing card, not tear down the pty.
+    // The companion effect below applies live `theme` updates without
+    // remounting xterm.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cardData.kind, cardData.tool, cardData.initialPrompt]);
+
+  // Retint the live terminal when the studio's theme mode changes. xterm
+  // recomputes the palette on the next render without dropping the buffer
+  // or the WebSocket connection.
+  useEffect(() => {
+    const terminal = terminalRef.current;
+    if (!terminal) return;
+    terminal.options.theme = pickTerminalTheme(themeMode);
+  }, [themeMode]);
 
   const Icon = cardData.kind === "agent" ? RiRobot2Line : RiTerminalBoxLine;
   // Title surfaces which CLI the card is actually running — "Claude Code" /

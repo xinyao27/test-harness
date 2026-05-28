@@ -753,4 +753,24 @@
     overflow: hidden;
     padding: var(--studio-panel-gap-xs);
   }
+
+  /* VS Code-style thin terminal scrollbar — visible enough to grab,
+     invisible enough that the agent output is the focus, not the
+     chrome. xterm renders the scroll viewport inside `.xterm-viewport`. */
+  .studio-pty-card-terminal .xterm-viewport {
+    background: transparent !important;
+  }
+
+  .studio-pty-card-terminal .xterm-viewport::-webkit-scrollbar {
+    width: 7px;
+  }
+
+  .studio-pty-card-terminal .xterm-viewport::-webkit-scrollbar-thumb {
+    background: rgba(121, 121, 121, 0.4);
+    border-radius: 4px;
+  }
+
+  .studio-pty-card-terminal .xterm-viewport::-webkit-scrollbar-thumb:hover {
+    background: rgba(121, 121, 121, 0.7);
+  }
 }
