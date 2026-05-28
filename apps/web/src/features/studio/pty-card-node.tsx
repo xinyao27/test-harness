@@ -41,7 +41,7 @@ export type PtyCardNodeData = {
  * node from the canvas), which closes the WebSocket, which lets the daemon
  * kill + reap the spawned child process.
  */
-export function PtyCardNode({ data }: NodeProps) {
+export function PtyCardNode({ data, selected }: NodeProps) {
   const cardData = data as PtyCardNodeData;
   const { locale, m } = useI18n();
   const { mode: themeMode } = useTheme();
@@ -257,18 +257,20 @@ export function PtyCardNode({ data }: NodeProps) {
 
   return (
     <div className="studio-pty-card" data-kind={cardData.kind}>
-      {/* Corner + edge handles for resizing. The xterm.js ResizeObserver
+      {/* Corner + edge handles for resizing. xterm.js's ResizeObserver
           inside the body picks up the new size and re-fits the terminal
-          (cols/rows) so the agent's output rewraps cleanly. Live-stream
-          of dimension changes is forwarded into the store by the page's
-          `onNodesChange` handler — no need for our own `onResizeEnd`. */}
-      <NodeResizer minWidth={320} minHeight={200} />
+          (cols/rows). Live dimension changes are forwarded into the
+          store by the page's `onNodesChange` handler — no `onResizeEnd`
+          needed here. Following the React Flow `DefaultResizer` example,
+          the controls only appear when the node is selected, so an idle
+          card doesn't show 8 grab dots in its corners. */}
+      <NodeResizer isVisible={!!selected} minWidth={320} minHeight={200} />
       {/* Target handle on the LEFT — the edge points FROM the originating
           promise's right side INTO this card, so the line flows out of the
           architecture column into the agent rather than cutting back across
           the promise itself. */}
       <Handle id="link" type="target" position={Position.Left} className="opacity-0" />
-      <header className="studio-pty-card-header">
+      <header className="studio-pty-card-header studio-pty-card-drag-handle">
         <div className="flex min-w-0 items-center gap-(--studio-panel-gap-sm)">
           <Icon className="size-4 shrink-0 text-muted-foreground" />
           <div className="truncate text-sm font-medium">{title}</div>

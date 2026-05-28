@@ -29,6 +29,7 @@ import {
   Panel,
   Position,
   ReactFlow,
+  ReactFlowProvider,
   type Edge,
   type Node,
   type NodeChange,
@@ -101,6 +102,7 @@ import { SettingsPanel } from "@/features/settings/settings-page";
 import { RunStatusBadge } from "@/features/status/status-badge";
 import { useAgentCardsStore, type PtyCard } from "@/features/studio/agent-cards-store";
 import { agentToolLabel, PtyCardNode } from "@/features/studio/pty-card-node";
+import { useStudioElkLayout } from "@/features/studio/use-elk-layout";
 import {
   fallbackWorkbenchProjects,
   getDaemonConnectionStatus,
@@ -131,12 +133,19 @@ function toPtyCardNode(card: PtyCard): Node {
     id: `pty:${card.id}`,
     type: "pty",
     position: card.position,
-    // NodeResizer inside PtyCardNode writes back into the store via
-    // updateCardSize on resize-end, so this width/height stays in sync with
-    // the user's most recent drag.
+    // Size persists in the store via the page's `onNodesChange` →
+    // `updateCardSize` round-trip, so the user's most recent resize
+    // sticks across re-renders.
     width: card.size.width,
     height: card.size.height,
     draggable: true,
+    // React Flow only starts a drag when the pointer-down target matches
+    // this selector — the title row. Clicks inside the xterm body (or the
+    // resize handles, which carry `nodrag`) don't initiate a drag, so the
+    // user can select terminal text and grab corner handles without
+    // accidentally moving the card. Pattern from the official
+    // `DragHandle` example.
+    dragHandle: ".studio-pty-card-drag-handle",
     data: {
       cardId: card.id,
       kind: card.kind,
@@ -669,7 +678,22 @@ function StudioBreadcrumbs({
   );
 }
 
-export function HarnessStudioPage({
+export function HarnessStudioPage(props: { settingsOpenByDefault?: boolean }) {
+  // `useStudioElkLayout` and any other React Flow hook (e.g. useReactFlow,
+  // useNodesInitialized) needs to live underneath a ReactFlowProvider. The
+  // <ReactFlow> component itself only provides the context to its own
+  // children, so the page's body — which sits outside <ReactFlow> for
+  // most of the layout — would otherwise crash with "could not find a
+  // ReactFlow root". The provider wrapper around HarnessStudioPageInner
+  // gives every child access to the React Flow store.
+  return (
+    <ReactFlowProvider>
+      <HarnessStudioPageInner {...props} />
+    </ReactFlowProvider>
+  );
+}
+
+function HarnessStudioPageInner({
   settingsOpenByDefault = false,
 }: {
   settingsOpenByDefault?: boolean;
@@ -805,10 +829,30 @@ export function HarnessStudioPage({
       ? m.studio_project_none({}, { locale })
       : getStudioProjectName(selectedProjectId, knownProjects);
 
+  // ELK-computed positions for the architecture / promise / region / layer
+  // nodes. Re-runs once per `selectedModuleId` change via `useStudioElkLayout`
+  // below; the useMemo below overlays these onto the nodes produced by
+  // `buildStudioGraph`. Pty cards are filtered out of ELK's input so they
+  // keep their user-driven, store-owned positions.
+  const [elkPositions, setElkPositions] = useState<Map<string, { x: number; y: number }>>(
+    new Map(),
+  );
+
   const { edges, nodes } = useMemo(() => {
     const base = data
       ? buildStudioGraph(data, selectedModule?.id ?? null, selectedPromise?.id ?? null, locale, m)
       : { edges: [] as Edge[], nodes: [] as Node[] };
+    // Apply ELK-computed positions where we have them. The hand-rolled
+    // positions from `buildStudioGraph` still serve as the initial paint
+    // until ELK finishes (one frame later), so the canvas never flashes
+    // empty.
+    const positioned =
+      elkPositions.size > 0
+        ? base.nodes.map((node) => {
+            const elk = elkPositions.get(node.id);
+            return elk ? { ...node, position: elk } : node;
+          })
+        : base.nodes;
     // Merge agent / terminal cards into the graph as canvas-level nodes, plus
     // a dashed edge per linked agent showing "this agent is working on that
     // promise" at a glance.
@@ -841,10 +885,20 @@ export function HarnessStudioPage({
         },
       }));
     return {
-      nodes: [...(base.nodes as Node[]), ...cardNodes],
+      nodes: [...(positioned as Node[]), ...cardNodes],
       edges: [...base.edges, ...linkEdges],
     };
-  }, [data, locale, m, selectedModule?.id, selectedPromise?.id, agentCards]);
+  }, [data, locale, m, selectedModule?.id, selectedPromise?.id, agentCards, elkPositions]);
+
+  // Run ELK whenever the visible node set changes (driven by the selected
+  // module — modules / promises / regions / layers all swap based on which
+  // module is in focus). The hook waits for `useNodesInitialized` so ELK
+  // sees the real, measured widths/heights — not the placeholder 264x124
+  // defaults — and then publishes positions into `elkPositions`.
+  useStudioElkLayout({
+    key: selectedModule?.id ?? "overview",
+    onLayout: setElkPositions,
+  });
   const searchResults = useMemo(
     () => (data ? buildStudioSearchResults(data, locale, m) : []),
     [data, locale, m],
