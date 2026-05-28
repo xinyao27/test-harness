@@ -32,7 +32,6 @@ import {
   ReactFlowProvider,
   type Edge,
   type Node,
-  type NodeChange,
   type NodeProps,
   type ReactFlowInstance,
 } from "@xyflow/react";
@@ -133,11 +132,15 @@ function toPtyCardNode(card: PtyCard): Node {
     id: `pty:${card.id}`,
     type: "pty",
     position: card.position,
-    // Size persists in the store via the page's `onNodesChange` →
-    // `updateCardSize` round-trip, so the user's most recent resize
-    // sticks across re-renders.
-    width: card.size.width,
-    height: card.size.height,
+    // Width/height are forwarded as inline style on the React Flow node
+    // wrapper rather than as top-level node `width`/`height`. The latter
+    // causes React Flow to mark *every* node in the canvas as needing
+    // re-measurement whenever a new sized node arrives in the `nodes`
+    // prop, which leaves the modules / promises in `visibility: hidden`
+    // until a re-measure tick — visually they vanish the moment a pty
+    // card spawns. The `style` route applies the size visually without
+    // tripping that internal re-measure flag.
+    style: { width: card.size.width, height: card.size.height },
     draggable: true,
     // React Flow only starts a drag when the pointer-down target matches
     // this selector — the title row. Clicks inside the xterm body (or the
@@ -725,34 +728,6 @@ function HarnessStudioPageInner({
   const agentCards = useAgentCardsStore((store) => store.cards);
   const addAgentCard = useAgentCardsStore((store) => store.addCard);
   const updateCardPosition = useAgentCardsStore((store) => store.updateCardPosition);
-  const updateCardSize = useAgentCardsStore((store) => store.updateCardSize);
-
-  // React Flow is in "controlled" mode here: `nodes` is derived from data +
-  // the agent-cards store, so React Flow needs us to apply its own
-  // mid-drag changes back into our source of truth — otherwise the card's
-  // visual stays pinned to the stale store position and only snaps after
-  // mouseup (`teleport on release`). We forward only the change types we
-  // own: position + resize for pty cards. Everything else (selection,
-  // removal) is driven by our own click handlers and store actions.
-  const handleNodesChange = useCallback(
-    (changes: NodeChange[]) => {
-      for (const change of changes) {
-        if (change.type === "position" && change.position && change.id.startsWith("pty:")) {
-          updateCardPosition(change.id.slice("pty:".length), change.position);
-        } else if (
-          change.type === "dimensions" &&
-          change.dimensions &&
-          change.id.startsWith("pty:")
-        ) {
-          updateCardSize(change.id.slice("pty:".length), {
-            width: change.dimensions.width,
-            height: change.dimensions.height,
-          });
-        }
-      }
-    },
-    [updateCardPosition, updateCardSize],
-  );
   const [hasReadQueryState, setHasReadQueryState] = useState(false);
   const [editingModule, setEditingModule] = useState<HarnessModule | null>(null);
   const [editingPromiseContext, setEditingPromiseContext] = useState<{
@@ -1173,7 +1148,16 @@ function HarnessStudioPageInner({
           minZoom={studioGraphLayout.minZoom}
           maxZoom={studioGraphLayout.maxZoom}
           nodesDraggable={false}
-          onNodesChange={handleNodesChange}
+          onNodeDragStop={(_, node) => {
+            // Persist a pty card's final position into the store when the
+            // user lets go. React Flow owns the live drag — we only commit
+            // the result on stop, so a new pty card arriving in the
+            // `nodes` prop doesn't reset measurement on every other node
+            // (the symptom of onNodesChange-driven controlled mode).
+            if (node.type !== "pty") return;
+            const cardId = (node.data as { cardId?: string }).cardId;
+            if (cardId) updateCardPosition(cardId, node.position);
+          }}
           onNodeClick={(_, node) => {
             const [kind, id] = node.id.split(":");
             if (kind === "module") selectModule(id);

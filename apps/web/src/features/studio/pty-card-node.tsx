@@ -46,6 +46,7 @@ export function PtyCardNode({ data, selected }: NodeProps) {
   const { locale, m } = useI18n();
   const { mode: themeMode } = useTheme();
   const removeCard = useAgentCardsStore((state) => state.removeCard);
+  const updateCardSize = useAgentCardsStore((state) => state.updateCardSize);
   const containerRef = useRef<HTMLDivElement>(null);
   // Hold the live xterm instance so a theme-mode change can update its
   // palette without tearing down the WebSocket / pty session.
@@ -259,12 +260,19 @@ export function PtyCardNode({ data, selected }: NodeProps) {
     <div className="studio-pty-card" data-kind={cardData.kind}>
       {/* Corner + edge handles for resizing. xterm.js's ResizeObserver
           inside the body picks up the new size and re-fits the terminal
-          (cols/rows). Live dimension changes are forwarded into the
-          store by the page's `onNodesChange` handler — no `onResizeEnd`
-          needed here. Following the React Flow `DefaultResizer` example,
-          the controls only appear when the node is selected, so an idle
-          card doesn't show 8 grab dots in its corners. */}
-      <NodeResizer isVisible={!!selected} minWidth={320} minHeight={200} />
+          (cols/rows). Persisting the final width/height happens on
+          resize-end — React Flow owns the live drag, we just commit the
+          result into the agent-cards store so the size survives
+          re-renders. Following the React Flow `DefaultResizer` example,
+          the controls only appear when the node is selected. */}
+      <NodeResizer
+        isVisible={!!selected}
+        minWidth={320}
+        minHeight={200}
+        onResizeEnd={(_event, params) =>
+          updateCardSize(cardData.cardId, { width: params.width, height: params.height })
+        }
+      />
       {/* Target handle on the LEFT — the edge points FROM the originating
           promise's right side INTO this card, so the line flows out of the
           architecture column into the agent rather than cutting back across

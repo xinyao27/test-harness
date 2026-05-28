@@ -699,8 +699,9 @@
      like an alien square. */
   .studio-pty-card {
     /* Width/height come from the React Flow node wrapper (driven by
-       NodeResizer + persisted in the agent-cards store), so the card just
-       fills whatever box React Flow gives it. */
+       NodeResizer + persisted in the agent-cards store via
+       `card.size`), so the card just fills whatever box React Flow
+       gives it. */
     width: 100%;
     height: 100%;
     display: flex;
