@@ -231,7 +231,7 @@ const studioGraphLayout = {
   minZoom: 0.25,
   promiseX: 420,
   promiseYStart: 190,
-  promiseYStep: 132,
+  promiseYStep: 84,
 } as const;
 
 const studioNodeHandles = {
@@ -2465,15 +2465,19 @@ function StudioGraphNode({ data }: NodeProps<StudioNode>) {
     );
   }
 
-  const tone =
-    data.kind === "module"
-      ? "border-border bg-card text-card-foreground"
-      : "border-status-success-border bg-status-success text-status-success-foreground";
+  const isPromise = data.kind === "promise";
+  const tone = isPromise
+    ? "border-status-success-border bg-status-success text-status-success-foreground"
+    : "border-border bg-card text-card-foreground";
+  // Promise cards combine boundary + lifecycle into one compact meta line; modules
+  // keep boundary as a caption under the title and lifecycle on its own row below.
+  const promiseMeta = isPromise && data.meta ? `${data.caption} · ${data.meta}` : data.caption;
 
   return (
     <div
       className={cn(
         "studio-node-card relative border",
+        isPromise && "studio-node-card--promise",
         tone,
         data.selected && "border-foreground",
         data.dimmed && "border-border text-muted-foreground",
@@ -2504,17 +2508,31 @@ function StudioGraphNode({ data }: NodeProps<StudioNode>) {
         className="opacity-0"
       />
       <div className="flex items-start justify-between gap-(--studio-panel-gap-sm)">
-        <div className="min-w-0">
-          <div className="line-clamp-2 text-sm font-medium">{data.title}</div>
-          <div className="mt-(--studio-panel-gap-xs) text-xs text-muted-foreground">
-            {data.caption}
+        <div className="min-w-0 flex-1">
+          <div
+            className={cn(
+              "line-clamp-2 font-medium",
+              isPromise ? "text-[13px] leading-snug" : "text-sm",
+            )}
+          >
+            {data.title}
+          </div>
+          <div
+            className={cn(
+              "mt-(--studio-panel-gap-xs) text-muted-foreground",
+              isPromise ? "truncate text-[11px]" : "text-xs",
+            )}
+          >
+            {isPromise ? promiseMeta : data.caption}
           </div>
         </div>
         <PriorityTag priority={data.priority} />
       </div>
-      <div className="mt-(--studio-panel-gap) flex items-center justify-between gap-(--studio-panel-gap-sm) text-xs text-muted-foreground">
-        <span className="truncate">{data.meta}</span>
-      </div>
+      {isPromise ? null : (
+        <div className="mt-(--studio-panel-gap) flex items-center justify-between gap-(--studio-panel-gap-sm) text-xs text-muted-foreground">
+          <span className="truncate">{data.meta}</span>
+        </div>
+      )}
       <Handle
         id={studioNodeHandles.sourceRight}
         type="source"

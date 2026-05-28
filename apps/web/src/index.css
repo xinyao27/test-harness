@@ -678,4 +678,13 @@
     transition-duration: var(--studio-motion-duration);
     transition-property: background-color, border-color, color;
   }
+
+  /* Promise nodes are far more numerous than modules, so they render denser and
+     shorter — combined meta line, tighter padding, no tall min-height — to fit
+     more per screen. */
+  .studio-node-card--promise {
+    min-height: 0;
+    padding: var(--studio-panel-gap-sm);
+    border-radius: var(--radius-md);
+  }
 }
