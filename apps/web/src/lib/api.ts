@@ -176,14 +176,19 @@ export async function openWorkbenchFile(projectId: string, file: string): Promis
   return isWorkbenchOpenResult(body) && body.opened;
 }
 
-// Build the WebSocket URL the Agent Panel connects to. Returns null when the
-// browser hasn't been paired yet (no token in localStorage) so the panel can
-// surface a "pair first" message instead of opening a doomed WebSocket.
-export function getAgentPtyWebSocketUrl(): string | null {
+export type PtyKind = "terminal" | "agent";
+
+// Build the WebSocket URL a Pty card connects to. The `kind` tells the daemon
+// what to spawn — `agent` (default) runs the configured agent CLI, `terminal`
+// runs the user's shell. Returns null when the browser hasn't been paired yet
+// (no token in localStorage) so the card can surface a "pair first" message
+// instead of opening a doomed WebSocket.
+export function getAgentPtyWebSocketUrl(kind: PtyKind = "agent"): string | null {
   const token = readDaemonToken();
   if (!token) return null;
   const url = buildDaemonUrl("/api/agent/pty");
   url.searchParams.set("token", token);
+  url.searchParams.set("kind", kind);
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
   return url.toString();
 }

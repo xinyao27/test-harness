@@ -12,6 +12,8 @@ import {
   RiInboxLine,
   RiPencilLine,
   RiSearchLine,
+  RiAddLine,
+  RiRobot2Line,
   RiSettings3Line,
   RiShieldCheckLine,
   RiStackLine,
@@ -96,7 +98,8 @@ import type {
 } from "@/data/harness-snapshot";
 import { SettingsPanel } from "@/features/settings/settings-page";
 import { RunStatusBadge } from "@/features/status/status-badge";
-import { AgentPanel } from "@/features/studio/agent-panel";
+import { useAgentCardsStore, type PtyCard } from "@/features/studio/agent-cards-store";
+import { PtyCardNode } from "@/features/studio/pty-card-node";
 import {
   fallbackWorkbenchProjects,
   getDaemonConnectionStatus,
@@ -120,6 +123,22 @@ import { localizeText, localizeTexts } from "@/lib/localized-text";
 import { cn } from "@/lib/utils";
 
 type StudioNodeKind = "module" | "promise" | "priorityLayer" | "packageRegion";
+
+/** Lift a Pty card from the agent-cards store into a React Flow node. */
+function toPtyCardNode(card: PtyCard): Node {
+  return {
+    id: `pty:${card.id}`,
+    type: "pty",
+    position: card.position,
+    draggable: true,
+    data: {
+      cardId: card.id,
+      kind: card.kind,
+      promiseId: card.promiseId,
+      initialPrompt: card.initialPrompt,
+    },
+  };
+}
 
 type StudioNodeData = {
   caption: string;
@@ -244,6 +263,12 @@ const studioNodeHandles = {
   targetLeft: "target-left",
   targetTop: "target-top",
 } as const;
+
+// Defined at module scope so the object identity stays stable across renders.
+// React Flow re-runs internal state (including node measurement) whenever the
+// `nodeTypes` prop changes by reference — even a `useMemo([])` inside the
+// component is unstable across StrictMode's mount-unmount-remount cycle.
+const studioNodeTypes = { studio: StudioGraphNode, pty: PtyCardNode } as const;
 
 const architectureLayerByModuleId: Record<string, number> = {
   protocol: 0,
@@ -666,7 +691,9 @@ export function HarnessStudioPage({
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isInboxOpen, setIsInboxOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(settingsOpenByDefault);
-  const [isAgentPanelOpen, setIsAgentPanelOpen] = useState(false);
+  const agentCards = useAgentCardsStore((store) => store.cards);
+  const addAgentCard = useAgentCardsStore((store) => store.addCard);
+  const updateCardPosition = useAgentCardsStore((store) => store.updateCardPosition);
   const [hasReadQueryState, setHasReadQueryState] = useState(false);
   const [editingModule, setEditingModule] = useState<HarnessModule | null>(null);
   const [editingPromiseContext, setEditingPromiseContext] = useState<{
@@ -675,7 +702,6 @@ export function HarnessStudioPage({
   } | null>(null);
   const [runState, setRunState] = useState<StudioRunState>({ result: null, status: "idle" });
   const [writeState, setWriteState] = useState<StudioWriteState>({ result: null, status: "idle" });
-  const nodeTypes = useMemo(() => ({ studio: StudioGraphNode }), []);
 
   useEffect(() => {
     const openSearch = (event: KeyboardEvent) => {
@@ -744,19 +770,46 @@ export function HarnessStudioPage({
       ? m.studio_project_none({}, { locale })
       : getStudioProjectName(selectedProjectId, knownProjects);
 
-  const { edges, nodes } = useMemo(
-    () =>
-      data
-        ? buildStudioGraph(data, selectedModule?.id ?? null, selectedPromise?.id ?? null, locale, m)
-        : { edges: [], nodes: [] },
-    [data, locale, m, selectedModule?.id, selectedPromise?.id],
-  );
+  const { edges, nodes } = useMemo(() => {
+    const base = data
+      ? buildStudioGraph(data, selectedModule?.id ?? null, selectedPromise?.id ?? null, locale, m)
+      : { edges: [] as Edge[], nodes: [] as Node[] };
+    // Merge agent / terminal cards into the graph as canvas-level nodes, plus
+    // a dashed edge per linked agent showing "this agent is working on that
+    // promise" at a glance.
+    const cardNodes = agentCards.map(toPtyCardNode);
+    const linkEdges = agentCards
+      .filter((card) => card.promiseId)
+      .map<Edge>((card) => ({
+        id: `pty-link:${card.id}`,
+        source: `pty:${card.id}`,
+        sourceHandle: "link",
+        target: `promise:${card.promiseId}`,
+        targetHandle: studioNodeHandles.targetLeft,
+        type: "default",
+        label: m.studio_agent_working_on({}, { locale }),
+        markerEnd: { type: MarkerType.ArrowClosed },
+        labelBgPadding: studioGraphLayout.edgeLabelPadding,
+        labelStyle: {
+          fontSize: studioGraphLayout.edgeLabelSize,
+          fontWeight: studioGraphLayout.edgeLabelWeight,
+        },
+        style: {
+          strokeWidth: studioGraphLayout.edgePrimaryStrokeWidth,
+          strokeDasharray: "6 4",
+        },
+      }));
+    return {
+      nodes: [...(base.nodes as Node[]), ...cardNodes],
+      edges: [...base.edges, ...linkEdges],
+    };
+  }, [data, locale, m, selectedModule?.id, selectedPromise?.id, agentCards]);
   const searchResults = useMemo(
     () => (data ? buildStudioSearchResults(data, locale, m) : []),
     [data, locale, m],
   );
 
-  const flowRef = useRef<ReactFlowInstance<StudioNode, Edge> | null>(null);
+  const flowRef = useRef<ReactFlowInstance<Node, Edge> | null>(null);
   const surfaceRef = useRef<HTMLElement | null>(null);
   const lastCenteredRef = useRef<string | null>(null);
   const hasFitInitialRef = useRef(false);
@@ -1021,10 +1074,18 @@ export function HarnessStudioPage({
           }}
           nodes={nodes}
           edges={edges}
-          nodeTypes={nodeTypes}
+          nodeTypes={studioNodeTypes}
           minZoom={studioGraphLayout.minZoom}
           maxZoom={studioGraphLayout.maxZoom}
           nodesDraggable={false}
+          onNodeDragStop={(_, node) => {
+            // Only Pty cards have user-controllable positions — module / promise / region
+            // nodes are laid out deterministically and not user-draggable.
+            if (node.type === "pty") {
+              const cardId = (node.data as { cardId?: string }).cardId;
+              if (cardId) updateCardPosition(cardId, node.position);
+            }
+          }}
           onNodeClick={(_, node) => {
             const [kind, id] = node.id.split(":");
             if (kind === "module") selectModule(id);
@@ -1123,25 +1184,39 @@ export function HarnessStudioPage({
                     · {m.nav_inbox({}, { locale })}
                   </TooltipContent>
                 </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger
+                <Popover>
+                  <PopoverTrigger
                     render={
                       <Button
                         type="button"
                         size="icon-sm"
-                        variant={isAgentPanelOpen ? "default" : "outline"}
-                        aria-label={m.studio_agent_panel_open({}, { locale })}
+                        variant="outline"
+                        aria-label={m.studio_add_card_menu({}, { locale })}
                         className="studio-floating-control"
-                        onClick={() => setIsAgentPanelOpen((open) => !open)}
                       />
                     }
                   >
-                    <RiTerminalBoxLine />
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    {m.studio_agent_panel_open({}, { locale })}
-                  </TooltipContent>
-                </Tooltip>
+                    <RiAddLine />
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="w-44 p-1">
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted"
+                      onClick={() => addAgentCard({ kind: "terminal" })}
+                    >
+                      <RiTerminalBoxLine className="size-4" />
+                      {m.studio_add_terminal({}, { locale })}
+                    </button>
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted"
+                      onClick={() => addAgentCard({ kind: "agent" })}
+                    >
+                      <RiRobot2Line className="size-4" />
+                      {m.studio_add_agent({}, { locale })}
+                    </button>
+                  </PopoverContent>
+                </Popover>
                 <Tooltip>
                   <TooltipTrigger
                     render={
@@ -1225,8 +1300,6 @@ export function HarnessStudioPage({
             />
           )}
         </ReactFlow>
-
-        {isAgentPanelOpen ? <AgentPanel onClose={() => setIsAgentPanelOpen(false)} /> : null}
 
         {data?.source && data.source !== "daemon" ? (
           <div className="studio-connect-overlay">
@@ -2430,6 +2503,21 @@ function PromiseContext({
           placeholder={m.review_notes_placeholder({}, { locale })}
           onChange={(event) => setReviewNote(event.currentTarget.value)}
         />
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          onClick={() => {
+            useAgentCardsStore.getState().addCard({
+              kind: "agent",
+              promiseId: promise.id,
+              initialPrompt: `# Assigned to promise: ${promise.id}\n# Use \`harness studio …\` to inspect and review.\n`,
+            });
+          }}
+        >
+          <RiRobot2Line className="mr-1 size-4" />
+          {m.studio_hand_to_agent({}, { locale })}
+        </Button>
       </section>
     </div>
   );

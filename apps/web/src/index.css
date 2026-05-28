@@ -688,46 +688,55 @@
     border-radius: var(--radius-md);
   }
 
-  /* Agent panel — docked to the bottom of the Studio viewport, side-by-side
-     with the canvas (canvas occupies the space above, ContextPanel stays on
-     the right). Terminals like horizontal space, so bottom dock is the
-     natural fit. */
-  .studio-agent-panel {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: var(--studio-panel-width, 27.5rem);
-    height: 40%;
-    min-height: 14rem;
+  /* Pty card — a canvas-level node hosting a live terminal session (kind =
+     terminal or agent). Fixed default size; React Flow positions it just like
+     module / promise nodes. Body must not eat canvas pan/zoom events on the
+     terminal itself (.nodrag.nowheel on the inner div) so xterm can scroll
+     internally without dragging the card around. */
+  .studio-pty-card {
+    width: 30rem;
+    height: 20rem;
     display: flex;
     flex-direction: column;
-    background: var(--background);
-    border-top: 1px solid var(--border);
-    z-index: 5;
+    background: #0a0a0a;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    color: #e5e5e5;
   }
 
-  .studio-agent-panel-header {
+  .studio-pty-card[data-kind="agent"] {
+    border-color: var(--status-success-border);
+  }
+
+  .studio-pty-card-header {
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: var(--studio-panel-gap-sm);
-    padding: var(--studio-panel-gap-sm) var(--studio-panel-padding);
+    padding: var(--studio-panel-gap-xs) var(--studio-panel-gap-sm);
     border-bottom: 1px solid var(--border);
+    background: var(--background);
+    color: var(--foreground);
+    cursor: grab;
   }
 
-  .studio-agent-panel-body {
+  .studio-pty-card-header:active {
+    cursor: grabbing;
+  }
+
+  .studio-pty-card-body {
     flex: 1;
     min-height: 0;
     display: flex;
     flex-direction: column;
-    padding: var(--studio-panel-gap-sm);
-    gap: var(--studio-panel-gap-sm);
   }
 
-  .studio-agent-panel-terminal {
+  .studio-pty-card-terminal {
     flex: 1;
     min-height: 0;
     overflow: hidden;
+    padding: var(--studio-panel-gap-xs);
   }
 }

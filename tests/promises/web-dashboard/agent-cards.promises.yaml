@@ -1,0 +1,50 @@
+apiVersion: 1
+promises:
+  - id: harness.web_dashboard.canvas_hosts_terminal_and_agent_cards
+    feature: Harness Studio / Agent canvas
+    title:
+      en: Terminal and Agent cards live on the canvas; an Agent card spawned from a promise review is visibly linked to that promise
+      zh-CN: Terminal 和 Agent 卡片在 canvas 上作为节点存在；从某条 promise 的评审起的 Agent 卡片，会显式连到这条 promise
+    purpose:
+      en: "Move 'this agent is working on this promise' out of invisible chat context and into something a reviewer can read at a glance on the canvas. Terminal is the primitive (a pty into the user's shell, with HARNESS_DAEMON_* env already injected); Agent is a specialization (the same pty, but auto-launches the configured agent CLI — claude by default). Multiple cards of either kind can coexist, each its own pty session, so the human and one or more agents work side by side on the same canvas."
+      zh-CN: "把『这个 agent 在处理这个 promise』从看不见的聊天上下文里拿出来，变成 reviewer 在 canvas 上一眼能看到的东西。Terminal 是原语（一个 pty 通到用户的 shell，已经把 HARNESS_DAEMON_* env 注入好）；Agent 是它的特化（同一个 pty，只是自动启动配置好的 agent CLI——默认 claude）。同时可以存在任意多张同类或不同类的卡，每张都是一个独立 pty session，让人和一个或多个 agent 在同一张 canvas 上并排工作。"
+    priority: P0
+    boundary: browser
+    lifecycle: accepted
+    given:
+      - en: A paired Studio session
+        zh-CN: 一个已配对的 Studio session
+      - en: The canvas exposes a "+ Terminal" / "+ Agent" toolbar entry, and the promise review panel exposes a "Hand to Agent" action
+        zh-CN: Canvas 工具栏暴露「+ Terminal」/「+ Agent」入口，promise 评审面板暴露「交给 Agent」动作
+    when:
+      - en: The user invokes one of those actions
+        zh-CN: 用户触发其中一个动作
+    then:
+      - en: A new Pty card is added to the canvas at a deterministic spawn position — toolbar paths spawn in a free region, review-handoff spawns near the originating promise
+        zh-CN: Canvas 上新增一张 Pty 卡，位置可预期——工具栏路径落到空白区域，review handoff 落在源 promise 附近
+      - en: The card embeds an inline terminal (xterm.js) connected to a fresh daemon pty session over /api/agent/pty; the terminal kind has the daemon spawn the user's shell, and the agent kind has the daemon spawn the configured agent CLI (default claude, switchable via --agent-command)
+        zh-CN: 卡内嵌一个 xterm.js 终端，连到 daemon 的 /api/agent/pty 上一条全新的 pty session；terminal kind 由 daemon spawn 用户的 shell，agent kind 由 daemon spawn 配置好的 agent CLI（默认 claude，--agent-command 可换）
+      - en: Both kinds receive HARNESS_DAEMON_URL / TOKEN / ORIGIN in their child env, so `harness studio …` works inside either without any extra setup
+        zh-CN: 两种 kind 的子进程 env 里都有 HARNESS_DAEMON_URL / TOKEN / ORIGIN，所以两边都能直接用 `harness studio …`，不需要额外配置
+      - en: An Agent card spawned via "Hand to Agent" is connected to the originating promise by a visible canvas edge labelled with `正在处理` (or the locale equivalent); the agent's pty also receives an initial prompt naming the promise id so the agent knows what it's been assigned
+        zh-CN: 由「交给 Agent」起的 Agent 卡片，会通过一条 canvas edge 显式连到源 promise，edge label 是「正在处理」（或对应语言）；agent 的 pty 启动时还会收到一段引导消息，告诉 agent 自己被分配到了哪条 promise
+      - en: Cards created via the toolbar (either kind) are not linked to any promise
+        zh-CN: 工具栏起的卡（两种 kind 都一样）不连任何 promise
+      - en: Closing a card terminates that pty session — the daemon kills and reaps the child process — and removes the card (and its edge, if any) from the canvas
+        zh-CN: 关闭卡片会终止对应的 pty session——daemon kill 并 reap 子进程——同时把卡片（以及它的 edge，如果有）从 canvas 上移掉
+      - en: Multiple cards (any mix of kinds, any mix of linked / unlinked) can coexist; each is an independent pty session and an independent canvas node
+        zh-CN: 多张卡（任意 kind 混合、任意「连/不连」混合）可以同时存在；每张是一条独立的 pty session 和一个独立的 canvas 节点
+    observes:
+      - apps/web/src/features/studio/**
+      - crates/harness-daemon/src/main.rs
+    failureMeaning:
+      en: An agent is invisible. You start one and it disappears into a bottom dock, working on something the canvas does not show. Closing the panel loses the session. Spinning up a second agent in parallel is impossible. The reviewer can no longer answer "which agent is working on which promise" by looking at the canvas.
+      zh-CN: Agent 是隐形的。开一个就掉进底部 dock，正在处理什么 canvas 上看不到。关掉面板就丢 session。并行开第二个 agent 不可能。Reviewer 没法靠看 canvas 回答「哪个 agent 在搞哪条 promise」这个问题。
+    review:
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-28
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-28

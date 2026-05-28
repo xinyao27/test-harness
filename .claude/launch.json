@@ -4,7 +4,7 @@
     {
       "name": "studio-web",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["-C", "apps/web", "dev"],
+      "runtimeArgs": ["-C", "apps/web", "dev:web"],
       "port": 47627
     }
   ]

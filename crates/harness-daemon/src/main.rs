@@ -338,13 +338,15 @@ async fn agent_pty(
             "agent pty endpoint requires an Origin header.".to_string(),
         );
     };
-    let agent_command = state.agent_command.clone();
+    let kind = query.kind.unwrap_or(PtyKind::Agent);
+    let command = match kind {
+        PtyKind::Agent => state.agent_command.clone(),
+        PtyKind::Terminal => terminal_command(),
+    };
     let daemon_url = state.daemon_url.clone();
 
     ws.on_upgrade(move |socket| async move {
-        if let Err(error) =
-            handle_agent_pty(socket, agent_command, daemon_url, token, origin).await
-        {
+        if let Err(error) = handle_agent_pty(socket, command, daemon_url, token, origin).await {
             eprintln!("agent pty session ended with error: {error}");
         }
     })
@@ -353,6 +355,37 @@ async fn agent_pty(
 #[derive(Debug, Deserialize)]
 struct AgentPtyQuery {
     token: Option<String>,
+    kind: Option<PtyKind>,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum PtyKind {
+    /// Spawn the configured agent CLI (default `claude`). Default if the
+    /// client doesn't pass `?kind=`, so existing connection patterns keep
+    /// working.
+    Agent,
+    /// Spawn the user's interactive shell ($SHELL → bash → sh). The pty still
+    /// inherits HARNESS_DAEMON_* env, so `harness studio …` works directly
+    /// inside the shell with no extra setup.
+    Terminal,
+}
+
+/// Pick a sensible interactive shell for the terminal kind. Falls back through
+/// $SHELL → /bin/bash → /bin/sh, then to "sh" so Command::new can still
+/// resolve via PATH on stripped systems.
+fn terminal_command() -> Vec<String> {
+    if let Ok(shell) = std::env::var("SHELL") {
+        if !shell.trim().is_empty() {
+            return vec![shell];
+        }
+    }
+    for candidate in ["/bin/bash", "/bin/sh"] {
+        if std::path::Path::new(candidate).exists() {
+            return vec![candidate.to_string()];
+        }
+    }
+    vec!["sh".to_string()]
 }
 
 /// Bidirectional bridge between a WebSocket and a freshly spawned PTY child
@@ -2063,6 +2096,7 @@ mod tests {
                 // shape stays public-as-test-visible.)
                 let query = AgentPtyQuery {
                     token: Some("paired-token".to_string()),
+                    kind: None,
                 };
                 assert_eq!(query.token.as_deref(), Some("paired-token"));
 
