@@ -24,6 +24,7 @@ promises:
   - harness.web_dashboard.writes_review_decisions_through_daemon
   - harness.web_dashboard.highlights_changed_promises_with_minimal_diff
   - harness.web_dashboard.review_panel_shows_test_evidence
+  - harness.web_dashboard.agent_panel_runs_inline_terminal
 covers:
   - apps/web/**
   - packages/i18n/**

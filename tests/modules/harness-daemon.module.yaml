@@ -17,6 +17,7 @@ promises:
   - harness.daemon.snapshot_derives_module_package
   - harness.daemon.snapshot_carries_promise_evidence
   - harness.daemon.opens_project_file_within_root
+  - harness.daemon.spawns_agent_pty_with_paired_env
 covers:
   - crates/harness-daemon/**
   - apps/web/src/lib/api.ts

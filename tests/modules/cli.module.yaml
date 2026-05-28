@@ -16,6 +16,10 @@ promises:
   - harness.cli.report_summary_lists_promises_compactly
   - harness.cli.test_reads_runner_config
   - harness.cli.test_orchestrates_adapter_and_verify
+  - harness.cli.studio_subcommands_mirror_daemon_api
+  - harness.cli.inherits_paired_daemon_session_from_env
+  - harness.cli.studio_output_is_machine_parseable
+  - harness.cli.agent_drives_review_and_run_loop
 covers:
   - crates/harness-cli/Cargo.toml
   - crates/harness-cli/src/**

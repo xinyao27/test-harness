@@ -1,0 +1,162 @@
+apiVersion: 1
+promises:
+  - id: harness.cli.studio_subcommands_mirror_daemon_api
+    feature: Harness CLI / Studio surface
+    title:
+      en: The CLI's studio subcommands cover the daemon's studio API and route writes through the daemon
+      zh-CN: CLI 的 studio 子命令覆盖 daemon 的 studio API，写入统一走 daemon
+    purpose:
+      en: Keep one source of truth for Harness operations — every Studio capability the human uses in the React UI is also available to a terminal user (or an agent shelling out) via the CLI, and the CLI never reimplements write semantics in a way that would drift from the daemon.
+      zh-CN: 让 Harness 操作只有一份事实源——人类在 React UI 用到的每个 Studio 能力，终端用户（或 agent 通过 shell 调用）也能通过 CLI 用到；CLI 不重新实现写入语义，避免与 daemon 漂移。
+    priority: P0
+    boundary: integration
+    lifecycle: accepted
+    given:
+      - en: A running harness daemon paired with the current user (HARNESS_DAEMON_URL + HARNESS_DAEMON_TOKEN are set)
+        zh-CN: 一个已和当前用户配对的 harness daemon 在运行（HARNESS_DAEMON_URL + HARNESS_DAEMON_TOKEN 已设置）
+      - en: A project the Studio web UI can read and write
+        zh-CN: 一个 Studio web UI 能读写的项目
+    when:
+      - en: The user invokes `harness studio …` subcommands (snapshot, projects, save-module, save-promise, review, run, open)
+        zh-CN: 用户执行 `harness studio …` 子命令（snapshot / projects / save-module / save-promise / review / run / open）
+    then:
+      - en: There is a CLI subcommand for every Studio-related daemon endpoint, so a human or agent driving the harness from a terminal has feature parity with the React UI
+        zh-CN: daemon 每个 Studio 相关 endpoint 在 CLI 里都有一个子命令，终端的人或 agent 拥有和 React UI 一致的能力
+      - en: All write subcommands (save-module, save-promise, review) call the daemon over HTTP and surface the daemon's backup-and-rollback result; the CLI does not write canonical YAML files directly
+        zh-CN: 所有写入子命令（save-module / save-promise / review）通过 HTTP 走 daemon，并把 daemon 的 backup+rollback 结果原样反馈；CLI 不直接动 canonical YAML
+      - en: If the daemon is unreachable, write subcommands fail with a clear message that names the missing env var or unreachable URL; they never silently degrade to a local write
+        zh-CN: daemon 不可达时，写入子命令报清晰的错误，指出缺失的 env 变量或不通的 URL；绝不静默退化为本地写
+    observes:
+      - crates/harness-cli/**
+      - crates/harness-daemon/src/main.rs
+    failureMeaning:
+      en: Either the agent and terminal user lose access to features the web UI has, or the CLI grows its own divergent write path that bypasses backup/rollback/checker — making "Studio approved this promise" mean different things depending on which surface wrote the YAML.
+      zh-CN: 要么 agent / 终端用户没法用到 Studio 网页能用的能力，要么 CLI 长出自己的写入路径绕过 backup/rollback/checker——「Studio 通过了这个 promise」在不同写入入口下含义不一致。
+    review:
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-28
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-28
+
+  - id: harness.cli.inherits_paired_daemon_session_from_env
+    feature: Harness CLI / Studio surface
+    title:
+      en: The CLI reuses the user's already-paired daemon session via environment variables
+      zh-CN: CLI 通过环境变量复用用户已经配对好的 daemon session
+    purpose:
+      en: Don't ask the user (or an agent) to re-pair when calling the CLI — the existing paired token from the Studio session is the single auth artifact; the CLI just reads it from env.
+      zh-CN: 调用 CLI 时不让用户（或 agent）再走一次配对——Studio 已经配对出来的 token 是单一鉴权凭据，CLI 从 env 读取即可。
+    priority: P0
+    boundary: integration
+    lifecycle: accepted
+    given:
+      - en: HARNESS_DAEMON_URL and HARNESS_DAEMON_TOKEN are present in the CLI process's environment
+        zh-CN: CLI 进程的环境变量里有 HARNESS_DAEMON_URL 和 HARNESS_DAEMON_TOKEN
+    when:
+      - en: A studio subcommand needs to authenticate against the daemon
+        zh-CN: 一个 studio 子命令需要向 daemon 鉴权
+    then:
+      - en: The CLI uses the env-supplied URL as the daemon base URL and the env-supplied token as the bearer credential, with the same Origin the studio session was paired against
+        zh-CN: CLI 用 env 提供的 URL 作为 daemon base URL，env 提供的 token 作为 bearer 凭据，使用 studio session 配对时同一个 Origin
+      - en: No CLI command starts a new pairing flow or prompts the user for a pairing code
+        zh-CN: 任何 CLI 命令都不会启动新的配对流程或要求用户输入配对码
+      - en: If either env var is missing for a write command, the CLI says exactly which variable is missing and points the user to the Studio settings panel
+        zh-CN: 写入命令缺任意一个 env 变量时，CLI 明确指出缺哪个变量，并提示用户到 Studio 设置面板获取
+    observes:
+      - crates/harness-cli/**
+    failureMeaning:
+      en: Either the agent can't authenticate (and the loop stops working) or the CLI introduces a parallel auth path that needs to be revoked separately from the browser session — making "revoke daemon token" no longer revoke everything.
+      zh-CN: 要么 agent 鉴权不通（闭环停摆），要么 CLI 引入了平行鉴权通道，需要和浏览器 session 分开撤销——「撤销 daemon token」不再撤销一切。
+    review:
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-28
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-28
+
+  - id: harness.cli.studio_output_is_machine_parseable
+    feature: Harness CLI / Studio surface
+    title:
+      en: Studio subcommands emit machine-parseable JSON for agents, and stay readable for humans
+      zh-CN: studio 子命令对 agent 输出可机器解析的 JSON，对人类保持可读
+    purpose:
+      en: An agent driving the harness from the CLI must be able to read snapshot, projects, and review responses without scraping prose — JSON output makes the integration robust. A human running the same command should still see a useful readable summary.
+      zh-CN: 从 CLI 驱动 harness 的 agent 必须能稳定读取 snapshot / projects / review 响应——结构化 JSON 让集成不依赖 prose 抓取。人类执行同一命令时仍能看到可读摘要。
+    priority: P1
+    boundary: integration
+    lifecycle: accepted
+    given:
+      - en: A studio subcommand that returns data (snapshot, projects, review, save-promise, save-module, run)
+        zh-CN: 一个返回数据的 studio 子命令（snapshot / projects / review / save-promise / save-module / run）
+    when:
+      - en: The caller passes `--json`, OR the CLI's stdout is not a TTY (piped, captured by an agent's Bash tool)
+        zh-CN: 调用方传了 `--json`，或者 CLI 的 stdout 不是 TTY（被管道、被 agent 的 Bash tool 捕获）
+    then:
+      - en: The CLI writes a single JSON document to stdout that matches the daemon response shape verbatim, with no human-readable prose mixed in
+        zh-CN: CLI 把和 daemon response 形状一致的 JSON 文档输出到 stdout，不掺杂任何人类可读 prose
+      - en: When stdout is a TTY and `--json` is not set, the CLI renders a readable human summary instead
+        zh-CN: stdout 是 TTY 且没传 `--json` 时，CLI 渲染一个可读的人类摘要
+      - en: Errors go to stderr with a non-zero exit code in both modes, so agents can distinguish success from failure without parsing
+        zh-CN: 两种模式下，错误都走 stderr 并以非零退出码退出，让 agent 不解析也能区分成功 / 失败
+    observes:
+      - crates/harness-cli/**
+    failureMeaning:
+      en: Agents can't reliably parse CLI output, so they either misread state (and approve the wrong promise) or fall back to prose-scraping that breaks on every output tweak.
+      zh-CN: agent 没法稳定解析 CLI 输出，要么读错状态（review 了错的 promise），要么只能 prose-scrape，每次输出微调就会坏。
+    review:
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-28
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-28
+
+  - id: harness.cli.agent_drives_review_and_run_loop
+    feature: Harness CLI / Agent loop
+    title:
+      en: An agent in the Studio Agent Panel can drive a full review-and-run loop using only the harness CLI
+      zh-CN: Studio Agent Panel 里的 agent 仅凭 harness CLI 就能驱动完整的 review + run 循环
+    purpose:
+      en: Lock in the integration promise — once the CLI surface, the daemon pty, and the panel are in place, an agent must actually be able to go from "list promises" to "approve one" to "run the suite" to "see the new evidence" without leaving the panel. This is the proof that Stage 5 actually closed the loop.
+      zh-CN: 锁定整合承诺——CLI 表面、daemon pty 和面板都到位后，agent 必须能真的从「列 promise」走到「批准一个」走到「跑测试」走到「看到新 evidence」，全程不离开面板。这是 Stage 5 闭环的证明。
+    priority: P0
+    boundary: e2e
+    lifecycle: accepted
+    given:
+      - en: A paired Studio session with the Agent Panel open and an agent process attached
+        zh-CN: 一个已配对的 Studio session，Agent Panel 打开，agent 进程已挂载
+      - en: A project with at least one promise pending review and at least one test bound to a different promise
+        zh-CN: 一个项目，至少有一个 promise 在等 review，且至少有一个测试绑到另一个 promise
+    when:
+      - en: The agent uses only `harness studio …` invocations through its Bash tool
+        zh-CN: agent 仅通过其 Bash tool 调用 `harness studio …`
+    then:
+      - en: The agent can list pending promises via `harness studio snapshot --json` and read each promise's evidence and review state
+        zh-CN: agent 能通过 `harness studio snapshot --json` 列出待 review 的 promise，并读到每个 promise 的 evidence 和 review 状态
+      - en: The agent can approve a promise via `harness studio review … --action approved` and the daemon records the review event identifying the agent as the reviewer
+        zh-CN: agent 能通过 `harness studio review … --action approved` 批准一个 promise，daemon 记录的 review event 把 agent 标识为 reviewer
+      - en: The agent can run the suite via `harness studio run` and observe the new evidence appearing on the affected promises in the next snapshot call
+        zh-CN: agent 能通过 `harness studio run` 跑测试，并在下次 snapshot 调用里看到受影响 promise 上出现的新 evidence
+      - en: At no point does the agent need to read or write canonical YAML files directly, and at no point does the loop break out into a separate auth flow
+        zh-CN: 整个过程 agent 都不需要直接读写 canonical YAML 文件，整个循环也不会跳出去走另一条鉴权流程
+    observes:
+      - crates/harness-cli/**
+      - crates/harness-daemon/src/main.rs
+      - apps/web/src/features/studio/**
+    failureMeaning:
+      en: Stage 5 has shipped its parts but the parts don't actually compose into the loop — the agent can read but not write, or write but not run, or runs but the evidence never shows up. The "agent in the harness" pitch becomes a half-truth.
+      zh-CN: Stage 5 各部分都上线了但拼不出循环——agent 能读但不能写，或能写但不能跑，或跑了但 evidence 不出现。「agent 在 harness 里」的故事就变成半成品。
+    review:
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-28
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-28
