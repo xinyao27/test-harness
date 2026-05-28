@@ -60,6 +60,12 @@ catalogs:
     '@vitejs/plugin-react':
       specifier: ^6.0.1
       version: 6.0.2
+    '@xterm/addon-fit':
+      specifier: ^0.11.0
+      version: 0.11.0
+    '@xterm/xterm':
+      specifier: ^6.0.0
+      version: 6.0.0
     '@xyflow/react':
       specifier: ^12.10.2
       version: 12.10.2
@@ -189,6 +195,12 @@ importers:
       '@test-harness/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@xterm/addon-fit':
+        specifier: 'catalog:'
+        version: 0.11.0
+      '@xterm/xterm':
+        specifier: 'catalog:'
+        version: 6.0.0
       '@xyflow/react':
         specifier: 'catalog:'
         version: 12.10.2(@types/react@19.2.15)(immer@11.1.8)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -279,7 +291,7 @@ importers:
         version: '@voidzero-dev/vite-plus-core@0.1.22(@types/node@24.12.4)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(typescript@5.9.3)(yaml@2.9.0)'
       vite-plus:
         specifier: 'catalog:'
-        version: 0.1.22(@types/node@24.12.4)(@voidzero-dev/vite-plus-core@0.1.22(@types/node@24.12.4)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(typescript@5.9.3)(yaml@2.9.0))(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(typescript@5.9.3)(yaml@2.9.0)
+        version: 0.1.22(@types/node@24.12.4)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(typescript@5.9.3)(vite@8.0.14(@types/node@24.12.4)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(yaml@2.9.0))(yaml@2.9.0)
 
   examples/todo-backend/browser-tests:
     dependencies:
@@ -1923,6 +1935,12 @@ packages:
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [win32]
+
+  '@xterm/addon-fit@0.11.0':
+    resolution: {integrity: sha512-jYcgT6xtVYhnhgxh3QgYDnnNMYTcf8ElbxxFzX0IZo+vabQqSPAjC3c1wJrKB5E19VwQei89QCiZZP86DCPF7g==}
+
+  '@xterm/xterm@6.0.0':
+    resolution: {integrity: sha512-TQwDdQGtwwDt+2cgKDLn0IRaSxYu1tSUjgKarSDkUM0ZNiSRXFpjxEsvc/Zgc5kq5omJ+V0a8/kIM2WD3sMOYg==}
 
   '@xyflow/react@12.10.2':
     resolution: {integrity: sha512-CgIi6HwlcHXwlkTpr0fxLv/0sRVNZ8IdwKLzzeCscaYBwpvfcH1QFOCeaTCuEn1FQEs/B8CjnTSjhs8udgmBgQ==}
@@ -4915,46 +4933,6 @@ snapshots:
   '@voidzero-dev/vite-plus-linux-x64-musl@0.1.22':
     optional: true
 
-  '@voidzero-dev/vite-plus-test@0.1.22(@types/node@24.12.4)(@voidzero-dev/vite-plus-core@0.1.22(@types/node@24.12.4)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(typescript@5.9.3)(yaml@2.9.0))(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(typescript@5.9.3)(yaml@2.9.0)':
-    dependencies:
-      '@standard-schema/spec': 1.1.0
-      '@types/chai': 5.2.3
-      '@voidzero-dev/vite-plus-core': 0.1.22(@types/node@24.12.4)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(typescript@5.9.3)(yaml@2.9.0)
-      es-module-lexer: 1.7.0
-      obug: 2.1.1
-      pixelmatch: 7.2.0
-      pngjs: 7.0.0
-      sirv: 3.0.2
-      std-env: 4.1.0
-      tinybench: 2.9.0
-      tinyexec: 1.1.2
-      tinyglobby: 0.2.16
-      vite: '@voidzero-dev/vite-plus-core@0.1.22(@types/node@24.12.4)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(typescript@5.9.3)(yaml@2.9.0)'
-      ws: 8.21.0
-    optionalDependencies:
-      '@types/node': 24.12.4
-    transitivePeerDependencies:
-      - '@arethetypeswrong/core'
-      - '@tsdown/css'
-      - '@tsdown/exe'
-      - '@vitejs/devtools'
-      - bufferutil
-      - esbuild
-      - jiti
-      - less
-      - publint
-      - sass
-      - sass-embedded
-      - stylus
-      - sugarss
-      - terser
-      - tsx
-      - typescript
-      - unplugin-unused
-      - unrun
-      - utf-8-validate
-      - yaml
-
   '@voidzero-dev/vite-plus-test@0.1.22(@types/node@24.12.4)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(typescript@5.9.3)(vite@8.0.14(@types/node@24.12.4)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(yaml@2.9.0))(yaml@2.9.0)':
     dependencies:
       '@standard-schema/spec': 1.1.0
@@ -5000,6 +4978,10 @@ snapshots:
 
   '@voidzero-dev/vite-plus-win32-x64-msvc@0.1.22':
     optional: true
+
+  '@xterm/addon-fit@0.11.0': {}
+
+  '@xterm/xterm@6.0.0': {}
 
   '@xyflow/react@12.10.2(@types/react@19.2.15)(immer@11.1.8)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
     dependencies:
@@ -6651,55 +6633,6 @@ snapshots:
       d3-shape: 3.2.0
       d3-time: 3.1.0
       d3-timer: 3.0.1
-
-  vite-plus@0.1.22(@types/node@24.12.4)(@voidzero-dev/vite-plus-core@0.1.22(@types/node@24.12.4)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(typescript@5.9.3)(yaml@2.9.0))(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(typescript@5.9.3)(yaml@2.9.0):
-    dependencies:
-      '@oxc-project/types': 0.129.0
-      '@oxlint/plugins': 1.61.0
-      '@voidzero-dev/vite-plus-core': 0.1.22(@types/node@24.12.4)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(typescript@5.9.3)(yaml@2.9.0)
-      '@voidzero-dev/vite-plus-test': 0.1.22(@types/node@24.12.4)(@voidzero-dev/vite-plus-core@0.1.22(@types/node@24.12.4)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(typescript@5.9.3)(yaml@2.9.0))(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(typescript@5.9.3)(yaml@2.9.0)
-      oxfmt: 0.48.0
-      oxlint: 1.63.0(oxlint-tsgolint@0.22.1)
-      oxlint-tsgolint: 0.22.1
-    optionalDependencies:
-      '@voidzero-dev/vite-plus-darwin-arm64': 0.1.22
-      '@voidzero-dev/vite-plus-darwin-x64': 0.1.22
-      '@voidzero-dev/vite-plus-linux-arm64-gnu': 0.1.22
-      '@voidzero-dev/vite-plus-linux-arm64-musl': 0.1.22
-      '@voidzero-dev/vite-plus-linux-x64-gnu': 0.1.22
-      '@voidzero-dev/vite-plus-linux-x64-musl': 0.1.22
-      '@voidzero-dev/vite-plus-win32-arm64-msvc': 0.1.22
-      '@voidzero-dev/vite-plus-win32-x64-msvc': 0.1.22
-    transitivePeerDependencies:
-      - '@arethetypeswrong/core'
-      - '@edge-runtime/vm'
-      - '@opentelemetry/api'
-      - '@tsdown/css'
-      - '@tsdown/exe'
-      - '@types/node'
-      - '@vitejs/devtools'
-      - '@vitest/coverage-istanbul'
-      - '@vitest/coverage-v8'
-      - '@vitest/ui'
-      - bufferutil
-      - esbuild
-      - happy-dom
-      - jiti
-      - jsdom
-      - less
-      - publint
-      - sass
-      - sass-embedded
-      - stylus
-      - sugarss
-      - terser
-      - tsx
-      - typescript
-      - unplugin-unused
-      - unrun
-      - utf-8-validate
-      - vite
-      - yaml
 
   vite-plus@0.1.22(@types/node@24.12.4)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(typescript@5.9.3)(vite@8.0.14(@types/node@24.12.4)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(yaml@2.9.0))(yaml@2.9.0):
     dependencies:

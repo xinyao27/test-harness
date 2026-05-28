@@ -15,6 +15,7 @@ import {
   RiSettings3Line,
   RiShieldCheckLine,
   RiStackLine,
+  RiTerminalBoxLine,
   RiSidebarFoldLine,
   RiSidebarUnfoldLine,
 } from "@remixicon/react";
@@ -95,6 +96,7 @@ import type {
 } from "@/data/harness-snapshot";
 import { SettingsPanel } from "@/features/settings/settings-page";
 import { RunStatusBadge } from "@/features/status/status-badge";
+import { AgentPanel } from "@/features/studio/agent-panel";
 import {
   fallbackWorkbenchProjects,
   getDaemonConnectionStatus,
@@ -664,6 +666,7 @@ export function HarnessStudioPage({
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isInboxOpen, setIsInboxOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(settingsOpenByDefault);
+  const [isAgentPanelOpen, setIsAgentPanelOpen] = useState(false);
   const [hasReadQueryState, setHasReadQueryState] = useState(false);
   const [editingModule, setEditingModule] = useState<HarnessModule | null>(null);
   const [editingPromiseContext, setEditingPromiseContext] = useState<{
@@ -1126,6 +1129,25 @@ export function HarnessStudioPage({
                       <Button
                         type="button"
                         size="icon-sm"
+                        variant={isAgentPanelOpen ? "default" : "outline"}
+                        aria-label={m.studio_agent_panel_open({}, { locale })}
+                        className="studio-floating-control"
+                        onClick={() => setIsAgentPanelOpen((open) => !open)}
+                      />
+                    }
+                  >
+                    <RiTerminalBoxLine />
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    {m.studio_agent_panel_open({}, { locale })}
+                  </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        type="button"
+                        size="icon-sm"
                         variant="outline"
                         aria-label={m.nav_settings({}, { locale })}
                         className="studio-floating-control"
@@ -1203,6 +1225,8 @@ export function HarnessStudioPage({
             />
           )}
         </ReactFlow>
+
+        {isAgentPanelOpen ? <AgentPanel onClose={() => setIsAgentPanelOpen(false)} /> : null}
 
         {data?.source && data.source !== "daemon" ? (
           <div className="studio-connect-overlay">

@@ -320,12 +320,16 @@ async fn run_tests(
 async fn agent_pty(
     ws: WebSocketUpgrade,
     State(state): State<AppState>,
+    Query(query): Query<AgentPtyQuery>,
     headers: HeaderMap,
 ) -> Response {
-    let Some(token) = bearer_token_from_headers(&headers) else {
+    // Browser WebSockets cannot set Authorization, so we accept either the
+    // header (set by curl/native clients) or a ?token=… query parameter.
+    let token = bearer_token_from_headers(&headers).or(query.token);
+    let Some(token) = token else {
         return error_response(
             StatusCode::UNAUTHORIZED,
-            "agent pty endpoint requires an Authorization: Bearer header.".to_string(),
+            "agent pty endpoint requires a bearer token (Authorization header or ?token=).".to_string(),
         );
     };
     let Some(origin) = request_origin_from_headers(&headers) else {
@@ -344,6 +348,11 @@ async fn agent_pty(
             eprintln!("agent pty session ended with error: {error}");
         }
     })
+}
+
+#[derive(Debug, Deserialize)]
+struct AgentPtyQuery {
+    token: Option<String>,
 }
 
 /// Bidirectional bridge between a WebSocket and a freshly spawned PTY child
@@ -1586,14 +1595,30 @@ impl DaemonAuth {
 }
 
 fn bearer_token(request: &Request) -> Option<&str> {
-    request
-        .headers()
-        .get(AUTHORIZATION)?
-        .to_str()
-        .ok()?
-        .strip_prefix("Bearer ")
-        .map(str::trim)
-        .filter(|token| !token.is_empty())
+    // Prefer the standard Authorization: Bearer header.
+    if let Some(header) = request.headers().get(AUTHORIZATION) {
+        if let Ok(value) = header.to_str() {
+            if let Some(token) = value
+                .strip_prefix("Bearer ")
+                .map(str::trim)
+                .filter(|token| !token.is_empty())
+            {
+                return Some(token);
+            }
+        }
+    }
+    // Browser WebSocket clients cannot set custom headers; fall back to a
+    // `?token=…` query parameter so they can still authenticate.
+    request.uri().query().and_then(|query| {
+        query.split('&').find_map(|pair| {
+            let (key, value) = pair.split_once('=')?;
+            if key == "token" && !value.is_empty() {
+                Some(value)
+            } else {
+                None
+            }
+        })
+    })
 }
 
 fn request_origin(request: &Request) -> Option<String> {

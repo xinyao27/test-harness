@@ -45,6 +45,8 @@
     "@tanstack/react-query": "catalog:",
     "@tanstack/react-router": "catalog:",
     "@test-harness/i18n": "workspace:*",
+    "@xterm/addon-fit": "catalog:",
+    "@xterm/xterm": "catalog:",
     "@xyflow/react": "catalog:",
     "class-variance-authority": "catalog:",
     "clsx": "catalog:",

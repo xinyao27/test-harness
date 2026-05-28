@@ -55,6 +55,8 @@ catalog:
   embla-carousel-react: ^8.6.0
   recharts: 3.8.0
   cmdk: ^1.1.1
+  "@xterm/xterm": ^6.0.0
+  "@xterm/addon-fit": ^0.11.0
 overrides:
   vite: "catalog:"
   vitest: "catalog:"

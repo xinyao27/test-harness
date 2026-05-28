@@ -176,6 +176,18 @@ export async function openWorkbenchFile(projectId: string, file: string): Promis
   return isWorkbenchOpenResult(body) && body.opened;
 }
 
+// Build the WebSocket URL the Agent Panel connects to. Returns null when the
+// browser hasn't been paired yet (no token in localStorage) so the panel can
+// surface a "pair first" message instead of opening a doomed WebSocket.
+export function getAgentPtyWebSocketUrl(): string | null {
+  const token = readDaemonToken();
+  if (!token) return null;
+  const url = buildDaemonUrl("/api/agent/pty");
+  url.searchParams.set("token", token);
+  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+  return url.toString();
+}
+
 export async function saveWorkbenchModule(
   projectId: string,
   module: WorkbenchModuleRecord,
