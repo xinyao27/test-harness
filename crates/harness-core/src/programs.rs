@@ -24,9 +24,14 @@ pub fn check_seed_harness(root_dir: impl AsRef<Path>) -> Result<SeedCheckResult,
     let records = load_promise_records(root_dir)?;
     let modules = load_module_records(root_dir)?;
     let source_files = find_source_files(root_dir)?;
+    // Read whatever results are on disk (treating "no file" as "no results")
+    // so the evidence-binding rule can fire from `harness check` alone —
+    // not only after a fresh `harness test`.
+    let results = load_test_results(root_dir)?;
     let mut issues = validate_promise_records(&records);
     issues.extend(validate_module_records(&modules));
     issues.extend(validate_module_coverage(&modules, &source_files));
+    issues.extend(validate_test_results(&records, &modules, &results));
     Ok(SeedCheckResult {
         issues,
         modules,
@@ -46,12 +51,19 @@ pub fn build_seed_report(
 ) -> Result<SeedReport, HarnessError> {
     let root_dir = root_dir.as_ref();
     let check = check_seed_harness(root_dir)?;
-    let results = match options.results {
+    let override_results = options.results;
+    let has_override = override_results.is_some();
+    let results = match override_results {
         Some(results) => results,
         None => load_test_results(root_dir)?,
     };
     let mut issues = check.issues;
-    issues.extend(validate_test_results(&check.records, &results));
+    // If the caller passed a fresh `results` override (e.g. mid-`harness test`),
+    // re-run the evidence-binding rule against those instead of relying on the
+    // results.yaml snapshot taken inside `check_seed_harness`.
+    if has_override {
+        issues.extend(validate_test_results(&check.records, &check.modules, &results));
+    }
     Ok(generate_seed_report(
         &check.records,
         &issues,

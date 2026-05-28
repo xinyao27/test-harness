@@ -103,7 +103,7 @@ What to look for in the report:
 - `Errors: 0` in the summary header.
 - The Vitest output above the report shows the promise's tests ran.
 
-If something fails (`Run Status: unknown`, `missing_test_result`, `unknown_result_binding`, etc.), switch to the `harness-troubleshoot` skill.
+If something fails (`Run Status: unknown`, `accepted_promise_without_evidence`, `implemented_promise_without_evidence`, `unknown_result_binding`, etc.), switch to the `harness-troubleshoot` skill.
 
 ## Handoff
 

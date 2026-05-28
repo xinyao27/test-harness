@@ -3,7 +3,7 @@ Seed Harness Report
 Protocol: 1
 Promises: 1
 Errors: 0
-Warnings: 0
+Warnings: 1
 
 Feature: Seed Harness / Promise Registry
 
@@ -12,6 +12,8 @@ P0  Accepted promises are loaded from canonical YAML files
     Lifecycle: accepted
     Run Status: unknown
     Purpose: Protect the seed Harness's reviewed behavior promises.
+    Warnings:
+    - Promise `harness.promise_registry.load_canonical_yaml_promises` is `accepted` but has no bound test result — a reviewed promise without executable evidence is the gap promise-first review is meant to close.
     Given:
     - A promise file exists under the tests/promises root
     When:

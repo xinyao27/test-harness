@@ -371,34 +371,86 @@ fn matches_cover_glob(file_path: &str, pattern: &str) -> bool {
     }
 }
 
+/// Compare reviewed promises against collected test results and flag the gap.
+///
+/// Implements `harness.validation.flags_promises_without_test_results`:
+///   - `implemented` lifecycle + no matching result → **Error**
+///     (implemented = code + tests both exist; zero evidence is a contradiction)
+///   - `accepted` or `changed_requires_review` + no matching result → **Warning**
+///     (the human signed off but implementation/tests haven't caught up)
+///   - `proposed` or `deprecated` → silent
+///   - A test result whose promise id does not match any canonical promise →
+///     **Error** (`unknown_result_binding`), catching binding typos.
+///
+/// Each issue's message names the promise id, the owning module, and the
+/// lifecycle so a reviewer or agent can act without re-reading the YAML.
 pub fn validate_test_results(
     records: &[PromiseRecord],
+    modules: &[ModuleRecord],
     results: &[TestResult],
 ) -> Vec<ValidationIssue> {
-    let promise_ids = records
-        .iter()
-        .map(|record| record.id.as_str())
-        .collect::<HashSet<_>>();
-    let result_promise_ids = results
+    let promise_ids: HashSet<&str> = records.iter().map(|record| record.id.as_str()).collect();
+    let result_promise_ids: HashSet<&str> = results
         .iter()
         .map(|result| result.promise_id.as_str())
-        .collect::<HashSet<_>>();
+        .collect();
+
+    // Build a quick promise_id → module_id index so each issue can name the
+    // module that owns the promise.
+    let mut module_by_promise: HashMap<&str, &str> = HashMap::new();
+    for module in modules {
+        for promise_id in &module.promises {
+            module_by_promise.insert(promise_id.as_str(), module.id.as_str());
+        }
+    }
+
     let mut issues = Vec::new();
 
     for record in records {
-        if record.lifecycle == PromiseLifecycle::Implemented
-            && !result_promise_ids.contains(record.id.as_str())
-        {
-            issues.push(issue(
-                ValidationSeverity::Warning,
-                "missing_test_result",
-                format!(
-                    "Implemented promise \"{}\" has no collected test result.",
-                    record.id
-                ),
-                Some(record.id.clone()),
-                None,
-            ));
+        if result_promise_ids.contains(record.id.as_str()) {
+            continue;
+        }
+        let module_clause = module_by_promise
+            .get(record.id.as_str())
+            .map(|module_id| format!(" (module `{module_id}`)"))
+            .unwrap_or_default();
+
+        match record.lifecycle {
+            PromiseLifecycle::Implemented => {
+                issues.push(issue(
+                    ValidationSeverity::Error,
+                    "implemented_promise_without_evidence",
+                    format!(
+                        "Implemented promise `{}`{module_clause} has no bound test result — \
+                         `implemented` means code and tests both exist, so zero evidence is a contradiction.",
+                        record.id
+                    ),
+                    Some(record.id.clone()),
+                    None,
+                ));
+            }
+            PromiseLifecycle::Accepted | PromiseLifecycle::ChangedRequiresReview => {
+                let lifecycle_word = match record.lifecycle {
+                    PromiseLifecycle::Accepted => "accepted",
+                    PromiseLifecycle::ChangedRequiresReview => "changed_requires_review",
+                    _ => unreachable!(),
+                };
+                issues.push(issue(
+                    ValidationSeverity::Warning,
+                    "accepted_promise_without_evidence",
+                    format!(
+                        "Promise `{}`{module_clause} is `{lifecycle_word}` but has no bound test result — \
+                         a reviewed promise without executable evidence is the gap promise-first review is meant to close.",
+                        record.id
+                    ),
+                    Some(record.id.clone()),
+                    None,
+                ));
+            }
+            PromiseLifecycle::Proposed | PromiseLifecycle::Deprecated => {
+                // Silent: proposed has not been signed off yet; deprecated is
+                // no longer in scope.
+            }
         }
     }
 
@@ -408,7 +460,7 @@ pub fn validate_test_results(
                 ValidationSeverity::Error,
                 "unknown_result_binding",
                 format!(
-                    "Test result binding \"{}\" does not match any canonical promise.",
+                    "Test result binding `{}` does not match any canonical promise.",
                     result.promise_id
                 ),
                 Some(result.promise_id.clone()),

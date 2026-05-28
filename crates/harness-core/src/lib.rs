@@ -411,14 +411,73 @@ covers:
     }
 
     #[test]
-    fn validation_flags_promises_without_test_results() {
+    fn implemented_promise_without_evidence_is_an_error() {
         let mut record = valid_promise("harness.validation.flags_promises_without_test_results");
         record.lifecycle = PromiseLifecycle::Implemented;
 
-        let issues = validate_test_results(&[record], &[]);
-        assert!(issues.iter().any(|issue| {
-            issue.severity == ValidationSeverity::Warning && issue.code == "missing_test_result"
-        }));
+        let issues = validate_test_results(&[record], &[], &[]);
+        let issue = issues
+            .iter()
+            .find(|issue| issue.code == "implemented_promise_without_evidence")
+            .expect("expected an implemented_promise_without_evidence issue");
+        assert_eq!(issue.severity, ValidationSeverity::Error);
+        assert!(issue.message.contains("implemented"));
+    }
+
+    #[test]
+    fn accepted_promise_without_evidence_is_a_warning() {
+        // Bare `accepted` should warn, NOT error.
+        let mut record = valid_promise("harness.validation.flags_promises_without_test_results");
+        record.lifecycle = PromiseLifecycle::Accepted;
+
+        let issues = validate_test_results(&[record], &[], &[]);
+        let issue = issues
+            .iter()
+            .find(|issue| issue.code == "accepted_promise_without_evidence")
+            .expect("expected an accepted_promise_without_evidence issue");
+        assert_eq!(issue.severity, ValidationSeverity::Warning);
+        assert!(issue.message.contains("accepted"));
+    }
+
+    #[test]
+    fn proposed_or_deprecated_promises_are_silent() {
+        for lifecycle in [PromiseLifecycle::Proposed, PromiseLifecycle::Deprecated] {
+            let mut record =
+                valid_promise("harness.validation.flags_promises_without_test_results");
+            record.lifecycle = lifecycle.clone();
+            let issues = validate_test_results(&[record], &[], &[]);
+            assert!(
+                issues.is_empty(),
+                "expected no evidence-binding issue for {lifecycle:?}, got {issues:?}",
+            );
+        }
+    }
+
+    #[test]
+    fn issue_message_names_the_owning_module() {
+        let mut record = valid_promise("harness.validation.flags_promises_without_test_results");
+        record.lifecycle = PromiseLifecycle::Implemented;
+        let module = ModuleRecord {
+            api_version: ProtocolVersion,
+            id: "validation".to_string(),
+            title: LocalizedText::Text("Validation".to_string()),
+            summary: LocalizedText::Text("Loads canonical files.".to_string()),
+            purpose: LocalizedText::Text("Anchor module for evidence binding.".to_string()),
+            promises: vec![
+                "harness.validation.flags_promises_without_test_results".to_string(),
+            ],
+            covers: vec!["crates/harness-core/src/**".to_string()],
+        };
+        let issues = validate_test_results(&[record], &[module], &[]);
+        let issue = issues
+            .iter()
+            .find(|issue| issue.code == "implemented_promise_without_evidence")
+            .unwrap();
+        assert!(
+            issue.message.contains("module `validation`"),
+            "module not named in message: {}",
+            issue.message
+        );
     }
 
     #[test]
@@ -426,6 +485,7 @@ covers:
         let record = valid_promise("harness.validation.flags_unknown_scenario_bindings");
         let issues = validate_test_results(
             &[record],
+            &[],
             &[result_for(
                 "harness.unknown.promise",
                 TestResultStatus::Passing,

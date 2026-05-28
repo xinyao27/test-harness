@@ -221,36 +221,50 @@ promises:
   - id: harness.validation.flags_promises_without_test_results
     feature: Seed Harness / Validation
     title:
-      en: Implemented promises without collected test results are flagged
-      zh-CN: 没有 collected test results 的 implemented promises 会被标记
+      en: Reviewed promises without collected test results are flagged, with severity matching the lifecycle
+      zh-CN: 已 review 通过但没有 test results 的 promise 会被标记，严重度按 lifecycle 升级
     purpose:
-      en: Protect promise-first authoring by making unproven implemented promises visible after a Harness run.
-      zh-CN: 通过在 Harness run 后暴露尚未被证明的 implemented promises，保护 promise-first authoring。
+      en: Promise without test is meaningless — the whole "review promises, not code" premise rests on tests being the executable encoding of each promise. The check must close the gap between a human signing off and the code actually proving it, so an approved promise can never sit forever with zero results bound to its id.
+      zh-CN: 没有测试的 promise 是空头承诺——「review promise 不 review 代码」这个前提依赖测试是 promise 的可执行编码。Checker 必须堵住「人已经签字」和「代码真的证明它」之间的口子，让一个 approved promise 永远不可能长期挂着零绑定结果。
     priority: P0
     boundary: unit
     lifecycle: accepted
     given:
-      - en: Implemented canonical promises have been loaded
-        zh-CN: implemented canonical promises 已经被加载
+      - en: Canonical promises and the project's .harness/results.yaml have been loaded
+        zh-CN: canonical promises 和项目的 .harness/results.yaml 已被加载
     when:
-      - en: The seed Harness compares promises with collected test results
-        zh-CN: seed Harness 将 promises 与 collected test results 进行比较
+      - en: The seed Harness check compares each promise with the collected test results
+        zh-CN: seed Harness check 将每条 promise 与已收集的 test results 进行比较
     then:
-      - en: Each implemented promise without a matching result is reported as a warning
-        zh-CN: 每条没有 matching result 的 implemented promise 都会被报告为 warning
-      - en: Unknown result promise ids are still reported as errors
-        zh-CN: unknown result promise ids 仍然会被报告为 errors
+      - en: An `implemented` promise with no matching result is reported as an Error — implemented claims that both code and tests already exist, so zero evidence is a direct contradiction
+        zh-CN: lifecycle 为 `implemented` 但没有任何匹配 result 的 promise 报告为 Error——implemented 表示「代码和测试都到位」，零证据与之直接矛盾
+      - en: An `accepted` or `changed_requires_review` promise with no matching result is reported as a Warning — the human signed off but the implementation and tests have not caught up yet
+        zh-CN: lifecycle 为 `accepted` 或 `changed_requires_review` 且没有匹配 result 的 promise 报告为 Warning——人已经签字，但实现和测试还没跟上
+      - en: A `proposed` or `deprecated` promise is silent — proposed has not been signed off yet, and deprecated is no longer in scope
+        zh-CN: lifecycle 为 `proposed` 或 `deprecated` 的 promise 不报——proposed 尚未签字，deprecated 已经不在 scope 内
+      - en: A test result whose promise id does not match any canonical promise is still reported as an Error (catches binding typos in either direction)
+        zh-CN: promise id 不匹配任何 canonical promise 的 test result 仍然报告为 Error（两个方向的绑定 typo 都能抓住）
+      - en: Each issue includes the promise id, its module, and its lifecycle, so a reviewer (or agent) can act without re-reading the YAML
+        zh-CN: 每条 issue 都包含 promise id、其 module 和 lifecycle，让 reviewer（或 agent）无需重读 YAML 就能动手
     observes:
       - .harness/results.yaml
       - crates/harness-core/src/validation.rs
     failureMeaning:
-      en: A promise can be marked implemented while no executable test result proves it.
-      zh-CN: 一条 promise 可能已经 marked implemented，但没有任何可执行测试结果证明它。
+      en: A reviewed promise can be approved by a human while no executable evidence ties it to any code path; harness check happily reports "Errors 0, Warnings 0" and the team trusts a story that isn't actually grounded.
+      zh-CN: 一条 reviewed promise 能被人 approved，却没有任何可执行证据把它绑到任何代码路径；harness check 仍然报 "Errors 0, Warnings 0"，团队相信一个根本没落地的故事。
     review:
       state: approved
       decidedBy: xinyao
-      decidedAt: 2026-05-24
+      decidedAt: 2026-05-28
       events:
         - action: approved
           by: xinyao
           at: 2026-05-24
+        - action: changes_requested
+          by: claude
+          at: 2026-05-28
+          note: "Broaden scope and split severity: also flag accepted / changed_requires_review (Warning), and upgrade implemented to Error — implemented = code + tests, zero evidence is a contradiction."
+        - action: approved
+          by: xinyao
+          at: 2026-05-28
+          note: "Re-approved broadened scope."
