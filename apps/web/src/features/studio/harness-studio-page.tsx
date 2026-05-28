@@ -878,8 +878,27 @@ function HarnessStudioPageInner({
   // because we only push when the derivation actually changes.
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>(derivedNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(derivedEdges);
+  // When derived data changes (data fetch, agent card spawn, ELK
+  // settled), refresh React Flow's internal state — but merge in the
+  // interaction flags React Flow owns: `selected`, `dragging`,
+  // `measured`. A naive `setNodes(derivedNodes)` would drop the click
+  // selection the moment ELK publishes new positions, which would
+  // flicker the NodeResizer handles + lose `.react-flow__node.selected`
+  // styling on the architecture nodes.
   useEffect(() => {
-    setNodes(derivedNodes);
+    setNodes((prev) => {
+      const prevById = new Map(prev.map((node) => [node.id, node]));
+      return derivedNodes.map((next) => {
+        const old = prevById.get(next.id);
+        if (!old) return next;
+        return {
+          ...next,
+          selected: old.selected ?? next.selected,
+          dragging: old.dragging ?? next.dragging,
+          measured: old.measured ?? next.measured,
+        };
+      });
+    });
   }, [derivedNodes, setNodes]);
   useEffect(() => {
     setEdges(derivedEdges);
@@ -923,14 +942,19 @@ function HarnessStudioPageInner({
     hasFitInitialRef.current = false;
   }, [selectedProjectId]);
 
-  // Fit the overview once on initial load, then smoothly pan the
-  // selected node into the visible area whenever the user picks a
-  // different promise / module. We intentionally do NOT depend on
-  // `nodes` — that's React Flow's internal state now (via
-  // `useNodesState`), which mutates on every drag / select tick, and
-  // having it as a dep would fire `fitView()` on every internal
-  // change and snap the viewport back to centre while the user is
-  // trying to pan or zoom.
+  // Fit on mount, then pan to the selected node whenever the user
+  // picks a new promise / module. Important details:
+  //   - Deps include `elkPositions` so when ELK finishes re-laying out
+  //     the focused module's column, the pan re-runs against the FINAL
+  //     positions instead of the stale hand-rolled ones. Without this,
+  //     a module click panned to the old position, then ELK moved the
+  //     module elsewhere, leaving the camera looking at empty space.
+  //   - We use a `lastCenteredRef` keyed on `${targetId}:${elkRev}` so
+  //     the effect doesn't re-pan when the user pans the canvas
+  //     manually and elkPositions hasn't changed.
+  //   - We do NOT depend on `nodes` — that mutates on every internal
+  //     React Flow tick (selection, drag) and would yank the viewport
+  //     back every time.
   useEffect(() => {
     const instance = flowRef.current;
     const surface = surfaceRef.current;
@@ -948,10 +972,13 @@ function HarnessStudioPageInner({
       : selectedModuleId
         ? `module:${selectedModuleId}`
         : null;
-    if (targetId === lastCenteredRef.current) return;
+    // Re-pan when the layout revision changes (ELK published new
+    // positions). `elkPositions.size` works as a cheap revision marker.
+    const fingerprint = `${targetId ?? ""}:${elkPositions.size}`;
+    if (fingerprint === lastCenteredRef.current) return;
 
     if (!targetId) {
-      lastCenteredRef.current = null;
+      lastCenteredRef.current = fingerprint;
       void instance.fitView({ padding: studioGraphLayout.fitViewPadding, duration: 420 });
       return;
     }
@@ -960,7 +987,7 @@ function HarnessStudioPageInner({
     // need to subscribe to the whole `nodes` array.
     const node = instance.getNode(targetId);
     if (!node) return;
-    lastCenteredRef.current = targetId;
+    lastCenteredRef.current = fingerprint;
 
     const rect = surface.getBoundingClientRect();
     const panel = surface.querySelector<HTMLElement>(".studio-context-panel");
@@ -982,7 +1009,7 @@ function HarnessStudioPageInner({
       },
       { duration: 420 },
     );
-  }, [selectedPromiseId, selectedModuleId]);
+  }, [selectedPromiseId, selectedModuleId, elkPositions]);
   const reviewInbox = useMemo(
     () => (data ? buildReviewInbox(data.promises, locale) : []),
     [data, locale],
