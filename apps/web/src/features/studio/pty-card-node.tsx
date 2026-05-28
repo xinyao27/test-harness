@@ -1,5 +1,6 @@
 import { RiCloseLine, RiRobot2Line, RiTerminalBoxLine } from "@remixicon/react";
 import { FitAddon } from "@xterm/addon-fit";
+import { WebglAddon } from "@xterm/addon-webgl";
 import { Terminal } from "@xterm/xterm";
 
 import "@xterm/xterm/css/xterm.css";
@@ -60,10 +61,30 @@ export function PtyCardNode({ data }: NodeProps) {
     terminal.loadAddon(fit);
     terminal.open(container);
 
+    // WebGL renderer (the same one VS Code uses) — GPU atlas, dramatically
+    // faster scroll + bulk-write throughput than the default DOM renderer,
+    // which is mandatory once a card is showing a busy `claude` session and
+    // multiple cards are running side-by-side. If the GPU context is ever
+    // lost (laptop sleep, driver reset), we drop the addon and let xterm
+    // fall back to DOM rendering — slow but at least still functional.
+    let webgl: WebglAddon | null = null;
+    try {
+      webgl = new WebglAddon();
+      webgl.onContextLoss(() => {
+        webgl?.dispose();
+        webgl = null;
+      });
+      terminal.loadAddon(webgl);
+    } catch {
+      // No WebGL available in this browser; stay on the DOM renderer.
+      webgl = null;
+    }
+
     let socket: WebSocket | null = null;
     let cancelled = false;
     let dataDisposable: { dispose: () => void } | null = null;
     let resizeObserver: ResizeObserver | null = null;
+    let resizeTimer: ReturnType<typeof setTimeout> | null = null;
 
     // Defer fit + WebSocket open one frame so the container has its real
     // layout size — otherwise the daemon's PTY would spawn at a tiny default
@@ -105,13 +126,21 @@ export function PtyCardNode({ data }: NodeProps) {
         socket.send(new TextEncoder().encode(data));
       });
 
+      // ResizeObserver fires on every React Flow zoom step, which would
+      // otherwise call fit() + send a daemon resize on each frame while the
+      // user spins the trackpad. Coalesce them so we only fit once the
+      // resize gesture settles.
       resizeObserver = new ResizeObserver(() => {
-        try {
-          fit.fit();
-        } catch {
-          /* container not yet sized */
-        }
-        if (socket) sendResize(socket, terminal);
+        if (resizeTimer) clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+          resizeTimer = null;
+          try {
+            fit.fit();
+          } catch {
+            /* container not yet sized */
+          }
+          if (socket) sendResize(socket, terminal);
+        }, 120);
       });
       resizeObserver.observe(container);
     });
@@ -119,6 +148,7 @@ export function PtyCardNode({ data }: NodeProps) {
     return () => {
       cancelled = true;
       cancelAnimationFrame(raf);
+      if (resizeTimer) clearTimeout(resizeTimer);
       resizeObserver?.disconnect();
       dataDisposable?.dispose();
       if (
@@ -127,6 +157,10 @@ export function PtyCardNode({ data }: NodeProps) {
       ) {
         socket.close();
       }
+      // Dispose the WebGL addon explicitly so its texture atlas + canvas are
+      // released before the terminal is disposed (xterm.js dispose order
+      // matters for the GPU context).
+      webgl?.dispose();
       terminal.dispose();
     };
   }, [cardData.kind, cardData.initialPrompt]);
@@ -139,8 +173,11 @@ export function PtyCardNode({ data }: NodeProps) {
 
   return (
     <div className="studio-pty-card" data-kind={cardData.kind}>
-      {/* Handle for the edge connecting this card to its assigned promise. */}
-      <Handle id="link" type="source" position={Position.Left} className="opacity-0" />
+      {/* Target handle on the LEFT — the edge points FROM the originating
+          promise's right side INTO this card, so the line flows out of the
+          architecture column into the agent rather than cutting back across
+          the promise itself. */}
+      <Handle id="link" type="target" position={Position.Left} className="opacity-0" />
       <header className="studio-pty-card-header">
         <div className="flex min-w-0 items-center gap-(--studio-panel-gap-sm)">
           <Icon className="size-4 shrink-0 text-muted-foreground" />

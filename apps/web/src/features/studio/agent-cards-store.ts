@@ -34,8 +34,15 @@ interface AgentCardsState {
   updateCardPosition: (id: string, position: { x: number; y: number }) => void;
 }
 
-/** Where new cards spawn — to the right of the architecture columns, stacking down. */
-const SPAWN_BASE_X = 1200;
+/**
+ * Where new cards spawn — comfortably to the right of the promise column,
+ * with enough breathing room that the dashed "正在处理" link can curve out
+ * of the promise's right edge without the card visually overlapping it.
+ *
+ * Promise nodes sit at x=960 with width ~264 (`--studio-node-width` 16.5rem),
+ * ending around x=1224; the gap below puts the card at least 100px clear.
+ */
+const SPAWN_BASE_X = 1360;
 const SPAWN_BASE_Y = 0;
 const SPAWN_STEP_Y = 360;
 

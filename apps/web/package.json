@@ -46,6 +46,7 @@
     "@tanstack/react-router": "catalog:",
     "@test-harness/i18n": "workspace:*",
     "@xterm/addon-fit": "catalog:",
+    "@xterm/addon-webgl": "catalog:",
     "@xterm/xterm": "catalog:",
     "@xyflow/react": "catalog:",
     "class-variance-authority": "catalog:",

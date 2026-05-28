@@ -778,14 +778,20 @@ export function HarnessStudioPage({
     // a dashed edge per linked agent showing "this agent is working on that
     // promise" at a glance.
     const cardNodes = agentCards.map(toPtyCardNode);
+    // Direction: the edge flows from the originating promise OUT to the
+    // agent that's handling it — leaving the promise on its right side and
+    // landing in the card's left target. Sourcing from the promise's left
+    // (the older shape) routed the line back through the promise itself,
+    // which visually overlapped the card and crossed the architecture
+    // column.
     const linkEdges = agentCards
       .filter((card) => card.promiseId)
       .map<Edge>((card) => ({
         id: `pty-link:${card.id}`,
-        source: `pty:${card.id}`,
-        sourceHandle: "link",
-        target: `promise:${card.promiseId}`,
-        targetHandle: studioNodeHandles.targetLeft,
+        source: `promise:${card.promiseId}`,
+        sourceHandle: studioNodeHandles.sourceRight,
+        target: `pty:${card.id}`,
+        targetHandle: "link",
         type: "default",
         label: m.studio_agent_working_on({}, { locale }),
         markerEnd: { type: MarkerType.ArrowClosed },
