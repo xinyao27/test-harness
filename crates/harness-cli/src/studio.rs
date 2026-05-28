@@ -642,17 +642,86 @@ fn read_yaml_file(path: &str) -> Result<serde_json::Value, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Cursor;
+
+    /// The canonical list of `studio` subcommands the CLI must expose — one per
+    /// Studio-related daemon endpoint. Anchored by the promise; any divergence
+    /// between the dispatch in `run()` and this list is the bug the promise
+    /// warns against.
+    const EXPECTED_STUDIO_SUBCOMMANDS: &[&str] = &[
+        "snapshot",
+        "projects",
+        "save-module",
+        "save-promise",
+        "review",
+        "run",
+        "open",
+    ];
 
     #[test]
-    fn missing_env_var_is_named_clearly() {
-        // Ensure no env vars are set.
-        env::remove_var(ENV_DAEMON_URL);
-        env::remove_var(ENV_DAEMON_TOKEN);
-        env::remove_var(ENV_DAEMON_ORIGIN);
+    fn cli_studio_surface_mirrors_the_daemon_studio_endpoints() {
+        harness_adapter_rust::scenario_test!(
+            "harness.cli.studio_subcommands_mirror_daemon_api",
+            "harness studio … exposes one subcommand per Studio daemon endpoint",
+            {
+                // Every expected subcommand must appear in USAGE so a human or
+                // agent running `harness studio --help` sees the full surface.
+                for subcommand in EXPECTED_STUDIO_SUBCOMMANDS {
+                    assert!(
+                        USAGE.contains(subcommand),
+                        "USAGE missing subcommand `{subcommand}`:\n{USAGE}"
+                    );
+                }
+                // Dispatching with no args prints USAGE on stderr and returns a
+                // non-zero exit code so a caller (or agent) can detect misuse
+                // without parsing the message.
+                let mut stdout = Cursor::new(Vec::new());
+                let mut stderr = Cursor::new(Vec::new());
+                let exit = run(&[], &mut stdout, &mut stderr);
+                assert_eq!(exit, 2);
+                let stderr = String::from_utf8(stderr.into_inner()).unwrap();
+                assert!(stderr.contains("snapshot") && stderr.contains("review"));
+            }
+        );
+    }
 
-        let error = load_daemon_config().expect_err("expected missing env error");
-        assert!(error.contains(ENV_DAEMON_URL));
-        assert!(error.to_lowercase().contains("studio"));
+    #[test]
+    fn cli_writes_fail_clearly_when_env_is_missing() {
+        harness_adapter_rust::scenario_test!(
+            "harness.cli.inherits_paired_daemon_session_from_env",
+            "missing env var produces a clear message naming the variable and pointing to Studio Settings",
+            {
+                env::remove_var(ENV_DAEMON_URL);
+                env::remove_var(ENV_DAEMON_TOKEN);
+                env::remove_var(ENV_DAEMON_ORIGIN);
+                let error = load_daemon_config().expect_err("expected missing env error");
+                assert!(
+                    error.contains(ENV_DAEMON_URL),
+                    "error must name the missing env var: {error}"
+                );
+                assert!(
+                    error.to_lowercase().contains("studio"),
+                    "error must point to Studio Settings: {error}"
+                );
+            }
+        );
+    }
+
+    #[test]
+    fn cli_emits_json_when_piped_or_requested() {
+        harness_adapter_rust::scenario_test!(
+            "harness.cli.studio_output_is_machine_parseable",
+            "should_emit_json prefers JSON when --json is set or when stdout is not a TTY",
+            {
+                // --json forces JSON regardless of TTY.
+                assert!(should_emit_json(true, true));
+                assert!(should_emit_json(true, false));
+                // No --json: JSON only when stdout is NOT a TTY (i.e. piped /
+                // captured by an agent's Bash tool).
+                assert!(!should_emit_json(false, true));
+                assert!(should_emit_json(false, false));
+            }
+        );
     }
 
     #[test]

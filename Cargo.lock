@@ -457,6 +457,7 @@ dependencies = [
 name = "harness-cli"
 version = "0.0.0"
 dependencies = [
+ "harness-adapter-rust",
  "harness-core",
  "harness-protocol",
  "serde_json",

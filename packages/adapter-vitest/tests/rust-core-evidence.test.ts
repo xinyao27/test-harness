@@ -77,7 +77,10 @@ const rustCoreEvidenceMarkers = {
     "tests::validation_checks_examples_table_shape",
   ],
   "harness.validation.flags_promises_without_test_results": [
-    "tests::validation_flags_promises_without_test_results",
+    "tests::implemented_promise_without_evidence_is_an_error",
+    "tests::accepted_promise_without_evidence_is_a_warning",
+    "tests::proposed_or_deprecated_promises_are_silent",
+    "tests::issue_message_names_the_owning_module",
   ],
   "harness.validation.flags_uncovered_source_files": [
     "tests::validation_flags_uncovered_source_files",

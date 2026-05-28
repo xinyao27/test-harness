@@ -13,4 +13,5 @@ serde_yaml = { workspace = true }
 ureq = { workspace = true }
 
 [dev-dependencies]
+harness-adapter-rust = { path = "../harness-adapter-rust" }
 tempfile.workspace = true
