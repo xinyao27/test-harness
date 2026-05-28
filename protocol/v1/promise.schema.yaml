@@ -61,6 +61,16 @@ properties:
         type: string
       note:
         type: string
+      contentHash:
+        type: string
+        description: >
+          Deterministic sha256 (`sha256:<hex>`) of the reviewable content fields
+          (title, purpose, priority, boundary, given, when, then, observes,
+          failureMeaning, examples) at the moment the review was approved.
+          `harness check` compares the stored value against the current content
+          and emits `accepted_promise_content_drifted` on mismatch. Absent for
+          promises approved before this field existed; absence is treated as
+          "drift undetectable", not "drift confirmed".
       events:
         type: array
         items:

@@ -268,3 +268,47 @@ promises:
           by: xinyao
           at: 2026-05-28
           note: "Re-approved broadened scope."
+
+  - id: harness.validation.detects_promise_content_drift_after_acceptance
+    feature: Seed Harness / Validation
+    title:
+      en: An accepted promise whose reviewable content changed after approval is flagged as drifted
+      zh-CN: 已 approved 的 promise，如果其可 review 内容在 approve 之后被改动，会被标记为漂移
+    purpose:
+      en: The whole "review promises, not code" premise rests on the reviewed text staying stable until the next review event. If the title, purpose, given / when / then, observes, priority, boundary, or examples of an `accepted` promise change while lifecycle stays `accepted`, the reviewer's signature no longer covers what's in the file. Make that gap impossible to hit by recording the content the human approved and re-checking it.
+      zh-CN: 「review promise 不 review 代码」这个前提，依赖被 review 的文本在下一次 review 之前保持稳定。一个 `accepted` promise 的 title、purpose、given/when/then、observes、priority、boundary 或 examples 在 approve 之后被改动了，而 lifecycle 还停在 `accepted`，那 reviewer 的签字就不再代表文件里的内容。通过把人 approve 的内容记录下来再重新比对，让这个漏洞不可达。
+    priority: P0
+    boundary: unit
+    lifecycle: accepted
+    given:
+      - en: A promise is approved through the daemon (the review action records the content the human signed off on)
+        zh-CN: 一条 promise 通过 daemon 被 approved（review 动作记录下了人当时签字所对应的内容）
+      - en: Later, that promise's reviewable fields are edited
+        zh-CN: 之后，该 promise 的可 review 字段被修改
+    when:
+      - en: harness check runs against the current promise file
+        zh-CN: harness check 在当前 promise 文件上运行
+    then:
+      - en: On approval, the daemon stores a deterministic hash of the reviewable content (title, purpose, priority, boundary, given/when/then, observes, failureMeaning, examples) under `review.contentHash`
+        zh-CN: approve 时，daemon 会把可 review 内容（title、purpose、priority、boundary、given/when/then、observes、failureMeaning、examples）的确定性 hash 写到 `review.contentHash`
+      - en: An `accepted` (or `implemented`) promise whose current content hash does not match the stored `review.contentHash` is reported as a Warning `accepted_promise_content_drifted`, naming the promise id, its module, and that the review signature no longer covers the file's content
+        zh-CN: lifecycle 为 `accepted`（或 `implemented`）但当前内容 hash 与 `review.contentHash` 不一致的 promise 会被报告为 Warning `accepted_promise_content_drifted`，并指出 promise id、module，以及 review 签字已不覆盖当前文件内容
+      - en: A promise whose `review.contentHash` is absent is silent — this is the migration path for promises approved before the field existed; no false positives
+        zh-CN: 缺 `review.contentHash` 字段的 promise 不报——这是字段加入前已 approved 的 promise 的迁移路径；不引入误报
+      - en: A `proposed`, `changed_requires_review`, or `deprecated` promise is silent — drift only matters once the reviewer has signed off and the lifecycle has not since transitioned through a review event
+        zh-CN: "`proposed`、`changed_requires_review` 或 `deprecated` 的 promise 不报——只在人已经签字、且 lifecycle 后续没有再走 review 事件时，drift 才有意义"
+    observes:
+      - crates/harness-core/src/validation.rs
+      - crates/harness-protocol/src/lib.rs
+      - crates/harness-daemon/src/main.rs
+    failureMeaning:
+      en: A reviewer can sign off on a promise, then the text quietly changes underneath them — title shifts, then-clauses weaken, observes shrinks — and the report still shows "approved" while the meaning has moved. Promise-first review becomes ceremony.
+      zh-CN: Reviewer 签完字之后，文本可以在他们脚下悄悄变化——title 改了、then 条款被削弱、observes 收窄——而 report 仍显示「approved」，意义已经偏移。Promise-first review 就变成走过场。
+    review:
+      state: approved
+      decidedBy: xinyao
+      decidedAt: 2026-05-28
+      events:
+        - action: approved
+          by: xinyao
+          at: 2026-05-28

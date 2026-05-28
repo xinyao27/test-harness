@@ -9,8 +9,11 @@ version.workspace = true
 harness-protocol = { path = "../harness-protocol" }
 regex.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 serde_yaml.workspace = true
+sha2.workspace = true
 walkdir.workspace = true
 
 [dev-dependencies]
+harness-adapter-rust = { path = "../harness-adapter-rust" }
 tempfile.workspace = true

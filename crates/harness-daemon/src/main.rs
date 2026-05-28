@@ -865,6 +865,15 @@ fn apply_review_decision(
         }
         _ => {}
     }
+
+    // On approval, capture the hash of the reviewable content the reviewer
+    // just signed off on; on any non-approval, clear it so a stale hash doesn't
+    // outlive its review. Drives `validate_promise_content_drift`.
+    if matches!(action, PromiseReviewAction::Approved) {
+        promise.review.content_hash = Some(harness_core::compute_promise_content_hash(promise));
+    } else {
+        promise.review.content_hash = None;
+    }
 }
 
 fn review_state_for_action(action: &PromiseReviewAction) -> PromiseReviewState {
@@ -1903,6 +1912,7 @@ mod tests {
                         decided_by: None,
                         decided_at: None,
                         note: None,
+                        content_hash: None,
                         events: Vec::new(),
                     };
                     record
@@ -1955,6 +1965,52 @@ mod tests {
                     last_event.note.as_deref(),
                     Some("Approved end-to-end via the loop test.")
                 );
+            }
+        );
+    }
+
+    #[test]
+    fn approval_stamps_content_hash_and_non_approval_clears_it() {
+        harness_adapter_rust::scenario_test!(
+            "harness.validation.detects_promise_content_drift_after_acceptance",
+            "apply_review_decision records review.contentHash on approval and clears it on non-approval",
+            {
+                use harness_core::compute_promise_content_hash;
+
+                let mut promise = valid_authoring_promise("harness.demo.drift_subject");
+                promise.lifecycle = PromiseLifecycle::Proposed;
+                promise.review = PromiseReview::default();
+
+                // Approving captures the hash the reviewer signed off on.
+                apply_review_decision(
+                    &mut promise,
+                    PromiseReviewAction::Approved,
+                    "xinyao",
+                    None,
+                );
+                let expected = compute_promise_content_hash(&promise);
+                assert_eq!(promise.lifecycle, PromiseLifecycle::Accepted);
+                assert_eq!(promise.review.content_hash.as_deref(), Some(expected.as_str()));
+
+                // Re-approving stays consistent: the same content yields the same hash.
+                apply_review_decision(
+                    &mut promise,
+                    PromiseReviewAction::Approved,
+                    "xinyao",
+                    None,
+                );
+                assert_eq!(promise.review.content_hash.as_deref(), Some(expected.as_str()));
+
+                // A non-approval clears the hash — a stale hash from a previous approval
+                // must not outlive its review.
+                apply_review_decision(
+                    &mut promise,
+                    PromiseReviewAction::ChangesRequested,
+                    "xinyao",
+                    None,
+                );
+                assert_eq!(promise.review.content_hash, None);
+                assert_eq!(promise.lifecycle, PromiseLifecycle::ChangedRequiresReview);
             }
         );
     }
@@ -2123,6 +2179,7 @@ mod tests {
                     decided_by: Some("manual-review".to_string()),
                     decided_at: Some("2026-05-27".to_string()),
                     note: Some("Preserve this review note.".to_string()),
+                    content_hash: None,
                     events: vec![PromiseReviewEvent {
                         action: PromiseReviewAction::Approved,
                         by: "manual-review".to_string(),

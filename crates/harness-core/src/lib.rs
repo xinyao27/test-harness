@@ -23,8 +23,8 @@ pub use results::{
     write_test_results_file, HARNESS_RESULTS_PATH, HARNESS_ROOT_ENV_VAR,
 };
 pub use validation::{
-    validate_module_coverage, validate_module_records, validate_promise_records,
-    validate_test_results,
+    compute_promise_content_hash, validate_module_coverage, validate_module_records,
+    validate_promise_content_drift, validate_promise_records, validate_test_results,
 };
 
 pub use harness_protocol::{
@@ -127,6 +127,7 @@ promises:
                 decided_by: Some("xinyao".to_string()),
                 decided_at: Some("2026-05-25".to_string()),
                 note: None,
+                content_hash: None,
                 events: vec![PromiseReviewEvent {
                     action: PromiseReviewAction::Approved,
                     by: "xinyao".to_string(),
@@ -407,6 +408,117 @@ covers:
         assert_eq!(
             issues[0].path.as_deref(),
             Some("crates/harness-core/src/uncovered.rs")
+        );
+    }
+
+    #[test]
+    fn content_hash_is_stable_across_calls_and_changes_with_reviewable_fields() {
+        harness_adapter_rust::scenario_test!(
+            "harness.validation.detects_promise_content_drift_after_acceptance",
+            "compute_promise_content_hash is deterministic and only depends on the reviewable subset",
+            {
+                let baseline =
+                    valid_promise("harness.validation.detects_promise_content_drift_after_acceptance");
+
+                // Determinism: same input → same hash.
+                let h1 = compute_promise_content_hash(&baseline);
+                let h2 = compute_promise_content_hash(&baseline);
+                assert_eq!(h1, h2);
+                assert!(h1.starts_with("sha256:"));
+
+                // Changing a non-reviewable field (lifecycle/review/supersedes/deprecatedBy/id-via-clone)
+                // must not change the hash — only the reviewable subset matters.
+                let mut non_reviewable = baseline.clone();
+                non_reviewable.lifecycle = PromiseLifecycle::Implemented;
+                non_reviewable.supersedes = Some(vec!["harness.demo.previous".to_string()]);
+                non_reviewable.review.events.push(PromiseReviewEvent {
+                    action: PromiseReviewAction::Approved,
+                    by: "someone-else".to_string(),
+                    at: "2099-01-01".to_string(),
+                    note: None,
+                });
+                assert_eq!(
+                    compute_promise_content_hash(&non_reviewable),
+                    h1,
+                    "lifecycle/review/supersedes changes should NOT shift the hash",
+                );
+
+                // Changing a reviewable field (title) MUST change the hash.
+                let mut drifted = baseline.clone();
+                drifted.title = LocalizedText::Text("Drifted title".to_string());
+                assert_ne!(compute_promise_content_hash(&drifted), h1);
+
+                // Changing another reviewable field (priority) MUST change the hash.
+                let mut priority_drifted = baseline.clone();
+                priority_drifted.priority = PromisePriority::P2;
+                assert_ne!(compute_promise_content_hash(&priority_drifted), h1);
+            }
+        );
+    }
+
+    #[test]
+    fn drift_validator_flags_mismatched_hash_on_accepted_promises() {
+        harness_adapter_rust::scenario_test!(
+            "harness.validation.detects_promise_content_drift_after_acceptance",
+            "validate_promise_content_drift warns when an accepted promise's content no longer matches the stored hash, and is silent otherwise",
+            {
+                use harness_protocol::PromiseLifecycle;
+                let mut record = valid_promise(
+                    "harness.validation.detects_promise_content_drift_after_acceptance",
+                );
+                record.lifecycle = PromiseLifecycle::Accepted;
+                // Approve the original content: store the hash.
+                record.review.content_hash = Some(compute_promise_content_hash(&record));
+
+                // No drift: stored hash matches current → silent.
+                let issues = validate_promise_content_drift(&[record.clone()], &[]);
+                assert!(
+                    issues.is_empty(),
+                    "stored hash matches → no drift, got {issues:?}",
+                );
+
+                // Drift: the title changes after approval → warning.
+                let mut drifted = record.clone();
+                drifted.title = LocalizedText::Text("Drifted title".to_string());
+                let issues = validate_promise_content_drift(&[drifted], &[]);
+                let issue = issues
+                    .iter()
+                    .find(|issue| issue.code == "accepted_promise_content_drifted")
+                    .expect("expected accepted_promise_content_drifted issue");
+                assert_eq!(issue.severity, ValidationSeverity::Warning);
+                assert!(
+                    issue.message.contains("drifted")
+                        || issue.message.contains("no longer covers"),
+                    "message should explain the drift: {}",
+                    issue.message,
+                );
+
+                // No stored hash → silent (migration path for promises approved before
+                // the field existed; no false positives).
+                let mut no_hash = record.clone();
+                no_hash.review.content_hash = None;
+                no_hash.title = LocalizedText::Text("Drifted but no hash".to_string());
+                assert!(
+                    validate_promise_content_drift(&[no_hash], &[]).is_empty(),
+                    "missing stored hash must NOT flag drift"
+                );
+
+                // Lifecycle not signed-off → silent.
+                for lifecycle in [
+                    PromiseLifecycle::Proposed,
+                    PromiseLifecycle::ChangedRequiresReview,
+                    PromiseLifecycle::Deprecated,
+                ] {
+                    let mut not_signed = record.clone();
+                    not_signed.lifecycle = lifecycle.clone();
+                    not_signed.title =
+                        LocalizedText::Text(format!("Drifted but {lifecycle:?}"));
+                    assert!(
+                        validate_promise_content_drift(&[not_signed], &[]).is_empty(),
+                        "lifecycle {lifecycle:?} must not flag drift",
+                    );
+                }
+            }
         );
     }
 

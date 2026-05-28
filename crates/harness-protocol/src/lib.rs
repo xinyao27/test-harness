@@ -184,6 +184,15 @@ pub struct PromiseReview {
     pub decided_at: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
+    /// Deterministic hash of the reviewable content (`title`, `purpose`,
+    /// `priority`, `boundary`, `given`, `when`, `then`, `observes`,
+    /// `failureMeaning`, `examples`) at the moment the review was approved.
+    /// Compared by `harness check` against the current content so an
+    /// `accepted` promise whose text drifted is flagged. Missing on promises
+    /// approved before this field existed; absent means "drift undetectable
+    /// for this promise" (no false positives).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content_hash: Option<String>,
     pub events: Vec<PromiseReviewEvent>,
 }
 

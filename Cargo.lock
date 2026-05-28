@@ -470,10 +470,13 @@ dependencies = [
 name = "harness-core"
 version = "0.0.0"
 dependencies = [
+ "harness-adapter-rust",
  "harness-protocol",
  "regex",
  "serde",
+ "serde_json",
  "serde_yaml",
+ "sha2",
  "tempfile",
  "walkdir",
 ]

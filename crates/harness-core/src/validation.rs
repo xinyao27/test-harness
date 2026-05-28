@@ -6,7 +6,8 @@ use harness_protocol::{
     TestResult, ValidationIssue, ValidationSeverity,
 };
 use regex::Regex;
-use std::collections::{HashMap, HashSet};
+use sha2::{Digest, Sha256};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::LazyLock;
 
 static ID_PATTERN: LazyLock<Regex> =
@@ -469,5 +470,123 @@ pub fn validate_test_results(
         }
     }
 
+    issues
+}
+
+/// Compute a deterministic hash of the reviewable content of a promise — the
+/// subset of fields whose change should require a re-review:
+/// `title`, `purpose`, `priority`, `boundary`, `given`, `when`, `then`,
+/// `observes`, `failureMeaning`, `examples`. Anything outside that set (the
+/// `id`, `lifecycle`, `review`, `supersedes`, `deprecatedBy`) is excluded.
+///
+/// The hash is sha256 of a JSON object built from a BTreeMap, which gives
+/// stable lexicographic key ordering across runs and platforms.
+pub fn compute_promise_content_hash(promise: &PromiseRecord) -> String {
+    let mut fields: BTreeMap<&str, serde_json::Value> = BTreeMap::new();
+    fields.insert(
+        "title",
+        serde_json::to_value(&promise.title).expect("LocalizedText serializes"),
+    );
+    fields.insert(
+        "purpose",
+        serde_json::to_value(&promise.purpose).expect("LocalizedText serializes"),
+    );
+    fields.insert(
+        "priority",
+        serde_json::to_value(&promise.priority).expect("priority serializes"),
+    );
+    fields.insert(
+        "boundary",
+        serde_json::to_value(&promise.boundary).expect("boundary serializes"),
+    );
+    fields.insert(
+        "given",
+        serde_json::to_value(&promise.given).expect("given serializes"),
+    );
+    fields.insert(
+        "when",
+        serde_json::to_value(&promise.when).expect("when serializes"),
+    );
+    fields.insert(
+        "then",
+        serde_json::to_value(&promise.then_steps).expect("then serializes"),
+    );
+    fields.insert(
+        "observes",
+        serde_json::to_value(&promise.observes).expect("observes serializes"),
+    );
+    fields.insert(
+        "failureMeaning",
+        serde_json::to_value(&promise.failure_meaning).expect("failureMeaning serializes"),
+    );
+    fields.insert(
+        "examples",
+        serde_json::to_value(&promise.examples).expect("examples serializes"),
+    );
+
+    let json = serde_json::to_string(&fields).expect("BTreeMap serializes to JSON");
+    let digest = Sha256::digest(json.as_bytes());
+    let mut hex = String::with_capacity(64);
+    for byte in digest {
+        use std::fmt::Write;
+        write!(&mut hex, "{:02x}", byte).expect("hex write");
+    }
+    format!("sha256:{hex}")
+}
+
+/// Flag every `accepted` (or `implemented`) promise whose stored
+/// `review.contentHash` no longer matches its current reviewable content.
+///
+/// Implements `harness.validation.detects_promise_content_drift_after_acceptance`.
+/// Promises without a stored hash are silent (migration path for promises
+/// approved before the field existed). Promises in lifecycle `proposed`,
+/// `changed_requires_review`, or `deprecated` are silent (drift only matters
+/// once a human has signed off and the lifecycle has not since transitioned).
+pub fn validate_promise_content_drift(
+    records: &[PromiseRecord],
+    modules: &[ModuleRecord],
+) -> Vec<ValidationIssue> {
+    let mut module_by_promise: HashMap<&str, &str> = HashMap::new();
+    for module in modules {
+        for promise_id in &module.promises {
+            module_by_promise.insert(promise_id.as_str(), module.id.as_str());
+        }
+    }
+
+    let mut issues = Vec::new();
+    for record in records {
+        // Only signed-off lifecycles can drift in a meaningful way.
+        let is_signed_off = matches!(
+            record.lifecycle,
+            PromiseLifecycle::Accepted | PromiseLifecycle::Implemented
+        );
+        if !is_signed_off {
+            continue;
+        }
+        let Some(stored) = record.review.content_hash.as_deref() else {
+            continue;
+        };
+        let current = compute_promise_content_hash(record);
+        if stored == current.as_str() {
+            continue;
+        }
+        let module_clause = module_by_promise
+            .get(record.id.as_str())
+            .map(|module_id| format!(" (module `{module_id}`)"))
+            .unwrap_or_default();
+        issues.push(issue(
+            ValidationSeverity::Warning,
+            "accepted_promise_content_drifted",
+            format!(
+                "Promise `{}`{module_clause} is `{}` but its reviewable content has changed \
+                 since the last approval — the recorded review signature no longer covers \
+                 the file's content. Re-review (and re-approve) the promise, or move it \
+                 to `changed_requires_review`.",
+                record.id, record.lifecycle
+            ),
+            Some(record.id.clone()),
+            None,
+        ));
+    }
     issues
 }

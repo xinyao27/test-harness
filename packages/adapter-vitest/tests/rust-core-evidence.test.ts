@@ -82,6 +82,10 @@ const rustCoreEvidenceMarkers = {
     "tests::proposed_or_deprecated_promises_are_silent",
     "tests::issue_message_names_the_owning_module",
   ],
+  "harness.validation.detects_promise_content_drift_after_acceptance": [
+    "tests::content_hash_is_stable_across_calls_and_changes_with_reviewable_fields",
+    "tests::drift_validator_flags_mismatched_hash_on_accepted_promises",
+  ],
   "harness.validation.flags_uncovered_source_files": [
     "tests::validation_flags_uncovered_source_files",
   ],
