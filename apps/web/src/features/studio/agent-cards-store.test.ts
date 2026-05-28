@@ -25,8 +25,9 @@ import { useAgentCardsStore } from "./agent-cards-store";
 
 describe("Studio canvas hosts terminal and agent cards", () => {
   beforeEach(() => {
-    // Reset the singleton store between tests so positions / counts don't bleed.
-    useAgentCardsStore.setState({ cards: [] });
+    // Reset the singleton store between tests so positions / counts /
+    // focus state don't bleed.
+    useAgentCardsStore.setState({ cards: [], pendingFocusId: null });
   });
 
   scenarioTest(
@@ -117,7 +118,26 @@ describe("Studio canvas hosts terminal and agent cards", () => {
       expect(terminal.size.width, "spawn default width").toBeGreaterThanOrEqual(320);
       expect(terminal.size.height, "spawn default height").toBeGreaterThanOrEqual(200);
 
-      // -- Contract 5: close removes the card ----------------------------------
+      // -- Contract 5: addCard requests focus on the new card -----------------
+      // `addCard` sets `pendingFocusId` to `pty:<id>` so the canvas
+      // can auto-centre the newcomer using the same panel-aware
+      // viewport logic that module / promise selection uses. The
+      // page calls `consumeFocus` once the camera is moving so the
+      // store-cleared follow-up render doesn't loop.
+      useAgentCardsStore.setState({ pendingFocusId: null });
+      const focusable = useAgentCardsStore.getState().addCard({ kind: "agent", tool: "claude" });
+      expect(
+        useAgentCardsStore.getState().pendingFocusId,
+        "newly spawned card requests focus",
+      ).toBe(`pty:${focusable.id}`);
+      useAgentCardsStore.getState().consumeFocus();
+      expect(
+        useAgentCardsStore.getState().pendingFocusId,
+        "consumeFocus clears the request",
+      ).toBeNull();
+      useAgentCardsStore.getState().removeCard(focusable.id);
+
+      // -- Contract 6: close removes the card ----------------------------------
       // Closing the card removes it from the store, which removes the React Flow
       // node (and its edge if any), which closes the WebSocket — the daemon
       // then kills + reaps the spawned child. The store removal is the trigger

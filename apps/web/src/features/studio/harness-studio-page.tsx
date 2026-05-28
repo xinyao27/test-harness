@@ -731,6 +731,8 @@ function HarnessStudioPageInner({
   const agentCards = useAgentCardsStore((store) => store.cards);
   const addAgentCard = useAgentCardsStore((store) => store.addCard);
   const updateCardPosition = useAgentCardsStore((store) => store.updateCardPosition);
+  const pendingFocusId = useAgentCardsStore((store) => store.pendingFocusId);
+  const consumeFocus = useAgentCardsStore((store) => store.consumeFocus);
   const [hasReadQueryState, setHasReadQueryState] = useState(false);
   const [editingModule, setEditingModule] = useState<HarnessModule | null>(null);
   const [editingPromiseContext, setEditingPromiseContext] = useState<{
@@ -967,11 +969,19 @@ function HarnessStudioPageInner({
       return;
     }
 
-    const targetId = selectedPromiseId
-      ? `promise:${selectedPromiseId}`
-      : selectedModuleId
-        ? `module:${selectedModuleId}`
-        : null;
+    // Focus priority: a freshly spawned pty card wins over the
+    // currently-selected promise / module. The agent-cards store
+    // sets `pendingFocusId` from inside `addCard`, no matter whether
+    // the card came from the toolbar or from a "Hand to Agent"
+    // handoff — so every entry point that creates a card reuses the
+    // same panel-aware centering logic below.
+    const targetId =
+      pendingFocusId ??
+      (selectedPromiseId
+        ? `promise:${selectedPromiseId}`
+        : selectedModuleId
+          ? `module:${selectedModuleId}`
+          : null);
     // Re-pan when the layout revision changes (ELK published new
     // positions). `elkPositions.size` works as a cheap revision marker.
     const fingerprint = `${targetId ?? ""}:${elkPositions.size}`;
@@ -1009,7 +1019,23 @@ function HarnessStudioPageInner({
       },
       { duration: 420 },
     );
-  }, [selectedPromiseId, selectedModuleId, elkPositions]);
+
+    // Consume a one-shot focus request now that the camera is moving
+    // toward the new card. Before clearing, pre-claim the SELECTION
+    // target's fingerprint as already-centered so the follow-up effect
+    // run (triggered by `pendingFocusId` going null) sees a match and
+    // doesn't yank the camera back to the stale promise / module the
+    // user happened to have selected before spawning the card.
+    if (pendingFocusId) {
+      const selectionTarget = selectedPromiseId
+        ? `promise:${selectedPromiseId}`
+        : selectedModuleId
+          ? `module:${selectedModuleId}`
+          : "";
+      lastCenteredRef.current = `${selectionTarget}:${elkPositions.size}`;
+      consumeFocus();
+    }
+  }, [pendingFocusId, consumeFocus, selectedPromiseId, selectedModuleId, elkPositions]);
   const reviewInbox = useMemo(
     () => (data ? buildReviewInbox(data.promises, locale) : []),
     [data, locale],

@@ -36,6 +36,15 @@ export interface PtyCard {
 
 interface AgentCardsState {
   cards: PtyCard[];
+  /**
+   * One-shot focus request: the id of the most recently spawned card,
+   * set by `addCard` and meant to be read + cleared by the page so it
+   * can pan the camera to centre the newcomer. Stays `null` after the
+   * page consumes it.
+   */
+  pendingFocusId: string | null;
+  /** Clear `pendingFocusId` after the page has handled it. */
+  consumeFocus: () => void;
   addCard: (input: {
     kind: PtyCardKind;
     /** Required for `kind: "agent"`; ignored otherwise. */
@@ -82,6 +91,8 @@ function nextId(): string {
 
 export const useAgentCardsStore = create<AgentCardsState>((set) => ({
   cards: [],
+  pendingFocusId: null,
+  consumeFocus: () => set({ pendingFocusId: null }),
   addCard: ({ kind, tool, promiseId = null, initialPrompt = null, position }) => {
     // `kind="terminal"` ignores the tool — the daemon always opens the shell.
     // For `kind="agent"`, default to Claude when the caller doesn't pick one
@@ -115,7 +126,10 @@ export const useAgentCardsStore = create<AgentCardsState>((set) => ({
           y: SPAWN_BASE_Y + index * SPAWN_STEP_Y,
         };
       }
-      return { cards: [...state.cards, card] };
+      // Mark the new card as the focus request so the canvas can
+      // centre on it. The page's pan effect picks this up, pans,
+      // and clears via `consumeFocus`.
+      return { cards: [...state.cards, card], pendingFocusId: `pty:${card.id}` };
     });
     return card;
   },
