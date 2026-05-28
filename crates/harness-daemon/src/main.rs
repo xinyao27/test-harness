@@ -1116,7 +1116,9 @@ fn open_project_file(root: &Path, file: &str) -> Result<OpenFileResponse, String
 /// Open a file in the human's local editor. Prefer the VS Code CLI (which focuses
 /// the file in a running window); fall back to the platform file opener.
 fn launch_editor(path: &Path) -> Result<(), String> {
-    if let Ok(status) = Command::new("code").arg("-g").arg(path).status() {
+    // Pass the path as a plain argument, not via `-g` (which parses `file:line:column`
+    // and would misread a filename that legally contains colons on Unix).
+    if let Ok(status) = Command::new("code").arg(path).status() {
         if status.success() {
             return Ok(());
         }

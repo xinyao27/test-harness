@@ -94,6 +94,7 @@ import type {
   SnapshotSource,
 } from "@/data/harness-snapshot";
 import { SettingsPanel } from "@/features/settings/settings-page";
+import { RunStatusBadge } from "@/features/status/status-badge";
 import {
   fallbackWorkbenchProjects,
   getDaemonConnectionStatus,
@@ -3075,7 +3076,7 @@ function EvidenceSection({
         <div className="flex flex-wrap items-center justify-between gap-(--studio-panel-gap-sm)">
           <RunStatusBadge status={runStatus} />
           <span className="text-xs text-muted-foreground">
-            {resultsGeneratedAt
+            {evidence.length > 0 && resultsGeneratedAt
               ? `${m.studio_evidence_last_run({}, { locale })}: ${formatRunTimestamp(resultsGeneratedAt, locale)}`
               : m.studio_evidence_never_run({}, { locale })}
           </span>
@@ -3083,9 +3084,9 @@ function EvidenceSection({
 
         {evidence.length > 0 ? (
           <div className="divide-y divide-border border border-border">
-            {evidence.map((item) => (
+            {evidence.map((item, index) => (
               <EvidenceRow
-                key={`${item.file}::${item.testName}`}
+                key={`${item.file}::${item.testName}::${index}`}
                 canOpenFiles={canOpenFiles}
                 evidence={item}
                 onOpenFile={onOpenFile}
@@ -3148,40 +3149,6 @@ function EvidenceRow({
   );
 }
 
-function RunStatusBadge({ status }: { status: RunStatus }) {
-  const { locale, m } = useI18n();
-
-  let label: string;
-  switch (status) {
-    case "passing":
-      label = m.run_status_passing({}, { locale });
-      break;
-    case "failing":
-      label = m.run_status_failing({}, { locale });
-      break;
-    case "skipped":
-      label = m.run_status_skipped({}, { locale });
-      break;
-    case "missing_evidence":
-      label = m.run_status_missing_evidence({}, { locale });
-      break;
-    default:
-      label = m.run_status_unknown({}, { locale });
-      break;
-  }
-
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center border px-(--studio-panel-gap-sm) py-px text-xs font-medium",
-        runStatusTone(status),
-      )}
-    >
-      {label}
-    </span>
-  );
-}
-
 function FileList({
   canOpenFiles,
   files,
@@ -3232,20 +3199,6 @@ function FileLink({
   );
 }
 
-function runStatusTone(status: RunStatus): string {
-  switch (status) {
-    case "passing":
-      return "border-status-success-border bg-status-success text-status-success-foreground";
-    case "failing":
-    case "missing_evidence":
-      return "border-destructive/40 bg-destructive/10 text-destructive";
-    case "skipped":
-      return "border-status-warning-border bg-status-warning text-status-warning-foreground";
-    default:
-      return "border-border bg-muted text-muted-foreground";
-  }
-}
-
 function evidenceDotTone(status: PromiseEvidence["status"]): string {
   switch (status) {
     case "passing":
@@ -3261,9 +3214,15 @@ function formatRunTimestamp(value: string, locale: AppLocale): string {
   // Harness adapters stamp results as "unix-ms:<millis>"; fall back to native Date parsing
   // (e.g. RFC3339) and finally to the raw string so an unknown format still renders.
   const millisPrefix = "unix-ms:";
-  const date = value.startsWith(millisPrefix)
-    ? new Date(Number(value.slice(millisPrefix.length)))
-    : new Date(value);
+  let date: Date;
+  if (value.startsWith(millisPrefix)) {
+    const rawMillis = value.slice(millisPrefix.length).trim();
+    const millis = Number(rawMillis);
+    // Guard against Number("") === 0, which would otherwise render the Unix epoch.
+    date = rawMillis !== "" && Number.isFinite(millis) ? new Date(millis) : new Date(Number.NaN);
+  } else {
+    date = new Date(value);
+  }
   if (Number.isNaN(date.getTime())) return value;
 
   return new Intl.DateTimeFormat(locale === "zh-CN" ? "zh-CN" : "en-US", {
