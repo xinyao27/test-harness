@@ -300,7 +300,10 @@ export function PtyCardNode({ data, selected }: NodeProps) {
           variant="ghost"
           aria-label={m.studio_pty_card_close({}, { locale })}
           onClick={() => removeCard(cardData.cardId)}
-          className="studio-panel-icon-control nodrag"
+          /* `nodrag` keeps React Flow from interpreting the click as a
+             drag handle activation — the `.studio-pty-card-drag-handle`
+             on the header otherwise covers this button. */
+          className="nodrag"
         >
           <RiCloseLine />
         </Button>
