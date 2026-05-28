@@ -48,6 +48,24 @@ export function SettingsPanel() {
 
   return (
     <FieldGroup className="p-(--studio-panel-padding)">
+      {/* Daemon pairing is the gateway to all live data, so it sits at the top of
+          Settings — visible the moment the panel opens, before any cosmetic prefs. */}
+      <DaemonConnectionSettings />
+
+      <ItemGroup className="grid gap-(--studio-panel-gap) sm:grid-cols-2">
+        <SettingItem
+          label={m.settings_filesystem_label({}, { locale })}
+          value={m.settings_filesystem_value({}, { locale })}
+        />
+      </ItemGroup>
+
+      <SettingNote
+        body={m.settings_daemon_boundary({}, { locale })}
+        title={m.settings_no_filesystem({}, { locale })}
+      />
+
+      <Separator />
+
       <SettingsGroup
         description={m.settings_language_description({}, { locale })}
         title={m.settings_language_title({}, { locale })}
@@ -147,22 +165,6 @@ export function SettingsPanel() {
           ))}
         </div>
       </SettingsGroup>
-
-      <Separator />
-
-      <DaemonConnectionSettings />
-
-      <ItemGroup className="grid gap-(--studio-panel-gap) sm:grid-cols-2">
-        <SettingItem
-          label={m.settings_filesystem_label({}, { locale })}
-          value={m.settings_filesystem_value({}, { locale })}
-        />
-      </ItemGroup>
-
-      <SettingNote
-        body={m.settings_daemon_boundary({}, { locale })}
-        title={m.settings_no_filesystem({}, { locale })}
-      />
     </FieldGroup>
   );
 }
