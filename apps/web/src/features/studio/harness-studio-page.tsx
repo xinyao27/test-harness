@@ -24,6 +24,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Controls,
+  getNodesBounds,
   Handle,
   MarkerType,
   Panel,
@@ -944,37 +945,40 @@ function HarnessStudioPageInner({
     hasFitInitialRef.current = false;
   }, [selectedProjectId]);
 
-  // Fit on mount, then pan to the selected node whenever the user
-  // picks a new promise / module. Important details:
-  //   - Deps include `elkPositions` so when ELK finishes re-laying out
-  //     the focused module's column, the pan re-runs against the FINAL
-  //     positions instead of the stale hand-rolled ones. Without this,
-  //     a module click panned to the old position, then ELK moved the
-  //     module elsewhere, leaving the camera looking at empty space.
-  //   - We use a `lastCenteredRef` keyed on `${targetId}:${elkRev}` so
-  //     the effect doesn't re-pan when the user pans the canvas
-  //     manually and elkPositions hasn't changed.
-  //   - We do NOT depend on `nodes` — that mutates on every internal
-  //     React Flow tick (selection, drag) and would yank the viewport
-  //     back every time.
+  // One unified "center the focused thing in the visible area" effect.
+  //
+  // The visible area is everything LEFT of the Context Panel — so we
+  // can't just use React Flow's stock `fitView` (which centers on the
+  // full canvas including the area covered by the panel). Both the
+  // "no target" case (initial load / no selection) and the "focused
+  // target" case (selected promise, selected module, freshly spawned
+  // pty card) compute the camera through the same panel-aware
+  // `setViewport` math, so the same focus mechanics work no matter
+  // what the focused thing is.
+  //
+  // Focus priority:
+  //   pendingFocusId (one-shot from store, e.g. a new pty card)
+  //   > selectedPromiseId
+  //   > selectedModuleId
+  //   > "all" (fit everything panel-aware)
+  //
+  // Deps:
+  //   - `nodes.length` lets the effect re-run AFTER a freshly added
+  //     pty card lands in React Flow's internal store. Without it
+  //     `instance.getNode("pty:abc")` returns undefined on the same
+  //     tick `pendingFocusId` flipped, the effect early-returns, and
+  //     the new card never gets centered.
+  //   - `elkPositions` lets the effect re-run AFTER ELK publishes the
+  //     focused module's column. Without it the camera lands on the
+  //     module's stale hand-rolled position before ELK rearranges it.
+  //   - We do NOT depend on `nodes` (the whole array) — that mutates
+  //     on every React Flow internal tick (selection, drag) and would
+  //     yank the viewport back constantly.
   useEffect(() => {
     const instance = flowRef.current;
     const surface = surfaceRef.current;
     if (!instance || !surface) return;
 
-    if (!hasFitInitialRef.current) {
-      hasFitInitialRef.current = true;
-      lastCenteredRef.current = null;
-      void instance.fitView({ padding: studioGraphLayout.fitViewPadding });
-      return;
-    }
-
-    // Focus priority: a freshly spawned pty card wins over the
-    // currently-selected promise / module. The agent-cards store
-    // sets `pendingFocusId` from inside `addCard`, no matter whether
-    // the card came from the toolbar or from a "Hand to Agent"
-    // handoff — so every entry point that creates a card reuses the
-    // same panel-aware centering logic below.
     const targetId =
       pendingFocusId ??
       (selectedPromiseId
@@ -982,60 +986,99 @@ function HarnessStudioPageInner({
         : selectedModuleId
           ? `module:${selectedModuleId}`
           : null);
-    // Re-pan when the layout revision changes (ELK published new
-    // positions). `elkPositions.size` works as a cheap revision marker.
-    const fingerprint = `${targetId ?? ""}:${elkPositions.size}`;
+    const fingerprint = `${targetId ?? "all"}:${elkPositions.size}:${nodes.length}`;
     if (fingerprint === lastCenteredRef.current) return;
-
-    if (!targetId) {
-      lastCenteredRef.current = fingerprint;
-      void instance.fitView({ padding: studioGraphLayout.fitViewPadding, duration: 420 });
-      return;
-    }
-
-    // Look the target up through React Flow's live store so we don't
-    // need to subscribe to the whole `nodes` array.
-    const node = instance.getNode(targetId);
-    if (!node) return;
-    lastCenteredRef.current = fingerprint;
 
     const rect = surface.getBoundingClientRect();
     const panel = surface.querySelector<HTMLElement>(".studio-context-panel");
     const panelWidth = panel ? panel.getBoundingClientRect().width : 0;
-    // Bump to a readable zoom when coming from the zoomed-out overview, but never zoom out if the
-    // user is already closer.
+    const visibleWidth = Math.max(rect.width - panelWidth, 1);
+    const padding = studioGraphLayout.fitViewPadding;
+    // Soft animation after the first paint; instantaneous on the very
+    // first centering pass so the user doesn't see the camera slide
+    // in from the React Flow default (0, 0) on page load.
+    const duration = hasFitInitialRef.current ? 420 : 0;
+
+    if (!targetId) {
+      // Fit-all panel-aware. Use `getNodesBounds` on whatever React
+      // Flow currently has in its store (its measured dimensions when
+      // available, falling back to node.width/height).
+      const allNodes = instance.getNodes();
+      if (allNodes.length === 0) return;
+      const bounds = getNodesBounds(allNodes);
+      if (bounds.width <= 0 || bounds.height <= 0) return;
+      const zoomX = visibleWidth / (bounds.width * (1 + 2 * padding));
+      const zoomY = rect.height / (bounds.height * (1 + 2 * padding));
+      const zoom = Math.min(zoomX, zoomY, studioGraphLayout.maxZoom);
+      const centerX = bounds.x + bounds.width / 2;
+      const centerY = bounds.y + bounds.height / 2;
+      void instance.setViewport(
+        {
+          x: visibleWidth / 2 - centerX * zoom,
+          y: rect.height / 2 - centerY * zoom,
+          zoom,
+        },
+        { duration },
+      );
+      hasFitInitialRef.current = true;
+      lastCenteredRef.current = fingerprint;
+      return;
+    }
+
+    // Focused target. Pull from React Flow's live store so we get
+    // whatever the latest layout pass produced.
+    const node = instance.getNode(targetId);
+    if (!node) {
+      // The new node hasn't landed in the internal store yet (setNodes
+      // is queued for the next render). Leave `lastCenteredRef`
+      // untouched so the effect re-runs once `nodes.length` ticks up.
+      return;
+    }
     const zoom = Math.min(
       Math.max(instance.getViewport().zoom, studioGraphLayout.focusZoom),
       studioGraphLayout.maxZoom,
     );
-    // Half a studio node (--studio-node-width is 16.5rem ≈ 264px) to reach its center.
-    const nodeCenterX = node.position.x + 132;
-    const nodeCenterY = node.position.y + 52;
+    // Use the measured width/height when React Flow has them; fall
+    // back to whatever was declared so a freshly-spawned pty card
+    // (with style-driven size) still centers correctly.
+    const nodeWidth = node.measured?.width ?? node.width ?? 264;
+    const nodeHeight = node.measured?.height ?? node.height ?? 104;
+    const nodeCenterX = node.position.x + nodeWidth / 2;
+    const nodeCenterY = node.position.y + nodeHeight / 2;
     void instance.setViewport(
       {
-        x: (rect.width - panelWidth) / 2 - nodeCenterX * zoom,
+        x: visibleWidth / 2 - nodeCenterX * zoom,
         y: rect.height / 2 - nodeCenterY * zoom,
         zoom,
       },
-      { duration: 420 },
+      { duration },
     );
+    hasFitInitialRef.current = true;
+    lastCenteredRef.current = fingerprint;
 
-    // Consume a one-shot focus request now that the camera is moving
-    // toward the new card. Before clearing, pre-claim the SELECTION
-    // target's fingerprint as already-centered so the follow-up effect
-    // run (triggered by `pendingFocusId` going null) sees a match and
-    // doesn't yank the camera back to the stale promise / module the
-    // user happened to have selected before spawning the card.
+    // Consume a one-shot pty-card focus request now that the camera is
+    // moving. Pre-claim the SELECTION target's fingerprint so the
+    // follow-up effect run (triggered by the store clearing
+    // `pendingFocusId`) sees "already centered" and doesn't yank the
+    // camera back to whatever promise / module the user happened to
+    // have selected before spawning the card.
     if (pendingFocusId) {
       const selectionTarget = selectedPromiseId
         ? `promise:${selectedPromiseId}`
         : selectedModuleId
           ? `module:${selectedModuleId}`
-          : "";
-      lastCenteredRef.current = `${selectionTarget}:${elkPositions.size}`;
+          : "all";
+      lastCenteredRef.current = `${selectionTarget}:${elkPositions.size}:${nodes.length}`;
       consumeFocus();
     }
-  }, [pendingFocusId, consumeFocus, selectedPromiseId, selectedModuleId, elkPositions]);
+  }, [
+    pendingFocusId,
+    consumeFocus,
+    selectedPromiseId,
+    selectedModuleId,
+    elkPositions,
+    nodes.length,
+  ]);
   const reviewInbox = useMemo(
     () => (data ? buildReviewInbox(data.promises, locale) : []),
     [data, locale],
