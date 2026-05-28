@@ -31,6 +31,7 @@ import {
   ReactFlow,
   type Edge,
   type Node,
+  type NodeChange,
   type NodeProps,
   type ReactFlowInstance,
 } from "@xyflow/react";
@@ -700,6 +701,34 @@ export function HarnessStudioPage({
   const agentCards = useAgentCardsStore((store) => store.cards);
   const addAgentCard = useAgentCardsStore((store) => store.addCard);
   const updateCardPosition = useAgentCardsStore((store) => store.updateCardPosition);
+  const updateCardSize = useAgentCardsStore((store) => store.updateCardSize);
+
+  // React Flow is in "controlled" mode here: `nodes` is derived from data +
+  // the agent-cards store, so React Flow needs us to apply its own
+  // mid-drag changes back into our source of truth — otherwise the card's
+  // visual stays pinned to the stale store position and only snaps after
+  // mouseup (`teleport on release`). We forward only the change types we
+  // own: position + resize for pty cards. Everything else (selection,
+  // removal) is driven by our own click handlers and store actions.
+  const handleNodesChange = useCallback(
+    (changes: NodeChange[]) => {
+      for (const change of changes) {
+        if (change.type === "position" && change.position && change.id.startsWith("pty:")) {
+          updateCardPosition(change.id.slice("pty:".length), change.position);
+        } else if (
+          change.type === "dimensions" &&
+          change.dimensions &&
+          change.id.startsWith("pty:")
+        ) {
+          updateCardSize(change.id.slice("pty:".length), {
+            width: change.dimensions.width,
+            height: change.dimensions.height,
+          });
+        }
+      }
+    },
+    [updateCardPosition, updateCardSize],
+  );
   const [hasReadQueryState, setHasReadQueryState] = useState(false);
   const [editingModule, setEditingModule] = useState<HarnessModule | null>(null);
   const [editingPromiseContext, setEditingPromiseContext] = useState<{
@@ -1090,14 +1119,7 @@ export function HarnessStudioPage({
           minZoom={studioGraphLayout.minZoom}
           maxZoom={studioGraphLayout.maxZoom}
           nodesDraggable={false}
-          onNodeDragStop={(_, node) => {
-            // Only Pty cards have user-controllable positions — module / promise / region
-            // nodes are laid out deterministically and not user-draggable.
-            if (node.type === "pty") {
-              const cardId = (node.data as { cardId?: string }).cardId;
-              if (cardId) updateCardPosition(cardId, node.position);
-            }
-          }}
+          onNodesChange={handleNodesChange}
           onNodeClick={(_, node) => {
             const [kind, id] = node.id.split(":");
             if (kind === "module") selectModule(id);
