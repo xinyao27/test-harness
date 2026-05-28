@@ -93,18 +93,26 @@ export function useStudioElkLayout(opts: {
    * module id, or a hash of the snapshot revision.
    */
   key: string;
+  /**
+   * Opt out for view modes ELK can't model well. Defaults to true.
+   * When false, the hook short-circuits without calling `elk.layout` —
+   * the caller is responsible for clearing any cached position map if
+   * the previous run had populated it.
+   */
+  enabled?: boolean;
   /** Called once per ELK pass with the new id → position map. */
   onLayout: (positions: Map<string, ElkPosition>) => void;
 }) {
   const nodesInitialized = useNodesInitialized();
   const { getNodes, getEdges } = useReactFlow();
+  const enabled = opts.enabled ?? true;
   // Keep the latest callback in a ref so a parent that recreates
   // `onLayout` per render doesn't restart the effect.
   const onLayoutRef = useRef(opts.onLayout);
   onLayoutRef.current = opts.onLayout;
 
   useEffect(() => {
-    if (!nodesInitialized) return;
+    if (!enabled || !nodesInitialized) return;
     let cancelled = false;
     void (async () => {
       const positions = await layoutWithElk(getNodes(), getEdges());
@@ -119,5 +127,5 @@ export function useStudioElkLayout(opts: {
     return () => {
       cancelled = true;
     };
-  }, [nodesInitialized, opts.key, getNodes, getEdges]);
+  }, [enabled, nodesInitialized, opts.key, getNodes, getEdges]);
 }

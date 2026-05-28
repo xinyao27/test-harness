@@ -885,15 +885,29 @@ function HarnessStudioPageInner({
     setEdges(derivedEdges);
   }, [derivedEdges, setEdges]);
 
-  // Run ELK whenever the visible node set changes (driven by the selected
-  // module — modules / promises / regions / layers all swap based on which
-  // module is in focus). The hook waits for `useNodesInitialized` so ELK
-  // sees the real, measured widths/heights — not the placeholder 264x124
-  // defaults — and then publishes positions into `elkPositions`.
+  // Run ELK ONLY in focused-module mode. The package overview groups
+  // modules visually inside `packageRegion` rectangles with no edges
+  // connecting them — ELK has no signal to keep modules contained
+  // within their package, so it lays everything out on one row and the
+  // module cards "fall out" of their package rectangles. The
+  // hand-rolled `buildOverviewPackageLayout` already positions modules
+  // inside their package regions correctly, so we leave that layout
+  // alone. In focused mode (a single module + its promises connected
+  // by `owns` edges) ELK's layered algorithm has real signal and
+  // produces a cleaner column than the hand-rolled fallback.
   useStudioElkLayout({
     key: selectedModule?.id ?? "overview",
+    enabled: Boolean(selectedModule),
     onLayout: setElkPositions,
   });
+
+  // When leaving focused-module mode, clear the cached ELK positions
+  // so the package overview returns to its hand-rolled containment.
+  useEffect(() => {
+    if (!selectedModule && elkPositions.size > 0) {
+      setElkPositions(new Map());
+    }
+  }, [selectedModule, elkPositions.size]);
   const searchResults = useMemo(
     () => (data ? buildStudioSearchResults(data, locale, m) : []),
     [data, locale, m],
