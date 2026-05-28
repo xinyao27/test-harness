@@ -17,7 +17,7 @@ catalog:
   react: ^19.2.6
   react-dom: ^19.2.6
   vite: npm:@voidzero-dev/vite-plus-core@latest
-  vitest: npm:@voidzero-dev/vite-plus-test@latest
+  vitest: npm:@voidzero-dev/vite-plus-test@^0.1.22
   vite-plus: latest
   taze: latest
   tsx: ^4.21.0
@@ -57,6 +57,10 @@ catalog:
   cmdk: ^1.1.1
   "@xterm/xterm": ^6.0.0
   "@xterm/addon-fit": ^0.11.0
+  jsdom: ^29.1.1
+  "@testing-library/react": ^16.3.2
+  "@testing-library/jest-dom": ^6.9.1
+  "@testing-library/user-event": ^14.6.1
 overrides:
   vite: "catalog:"
   vitest: "catalog:"

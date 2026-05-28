@@ -20,3 +20,4 @@ test:
       - test
       - run
       - packages/adapter-vitest/tests
+      - apps/web/src
