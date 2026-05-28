@@ -9,7 +9,13 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-const USAGE: &str = "Usage: harness <check|test|report|verify> [--lang <language>] [--summary]";
+pub mod studio;
+
+const USAGE: &str =
+    "Usage: harness <check|test|report|verify|studio> [--lang <language>] [--summary]\n\
+     \n\
+     Run `harness studio --help` for the daemon-backed subcommands (snapshot,\n\
+     projects, save-module, save-promise, review, run, open).";
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CliRunResult {
@@ -311,6 +317,15 @@ fn run_with_streams(
     streams: &mut Streams<'_>,
     runner: &mut ConfiguredTestRunner<'_>,
 ) -> i32 {
+    // `studio` subcommands have their own argument shape (positional + flags) and
+    // are network-bound, so they bypass parse_args and write directly to the
+    // process stdout/stderr — they're not captured by run_cli_collect.
+    if matches!(args.first().map(String::as_str), Some("studio")) {
+        let mut stdout = io::stdout().lock();
+        let mut stderr = io::stderr().lock();
+        return studio::run(&args[1..], &mut stdout, &mut stderr);
+    }
+
     let parsed = parse_args(args);
     if let Some(error) = parsed.error {
         (streams.stderr)(&format!("{error}\n{USAGE}"));

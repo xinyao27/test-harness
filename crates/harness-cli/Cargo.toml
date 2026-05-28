@@ -8,6 +8,9 @@ version.workspace = true
 [dependencies]
 harness-core = { path = "../harness-core" }
 harness-protocol = { path = "../harness-protocol" }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+ureq = { workspace = true }
 
 [dev-dependencies]
 tempfile.workspace = true
