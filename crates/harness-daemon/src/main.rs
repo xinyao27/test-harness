@@ -45,9 +45,46 @@ struct AppState {
     /// URL children spawned by /api/agent/pty should reach us at — e.g.
     /// "http://127.0.0.1:4101". Injected as HARNESS_DAEMON_URL into the agent.
     daemon_url: String,
-    /// The shell command line to spawn when a paired client connects to
-    /// /api/agent/pty. Defaults to ["claude"]; configurable via --agent-command.
-    agent_command: Vec<String>,
+    /// Per-tool command lines for /api/agent/pty?kind=agent&agent=…. Each
+    /// tool is identified by its `AgentTool` variant and resolved to the
+    /// binary the daemon should spawn (defaults to the tool's own name).
+    agent_commands: AgentCommands,
+}
+
+/// The set of agent CLIs the daemon knows how to spawn. Each entry is the
+/// command line for one tool; the studio picks which one to launch on a
+/// per-card basis via `?agent=…`.
+#[derive(Debug, Clone)]
+struct AgentCommands {
+    claude: Vec<String>,
+    codex: Vec<String>,
+    cursor: Vec<String>,
+}
+
+impl AgentCommands {
+    fn default_for(tool: AgentTool) -> Vec<String> {
+        match tool {
+            AgentTool::Claude => vec!["claude".to_string()],
+            AgentTool::Codex => vec!["codex".to_string()],
+            AgentTool::Cursor => vec!["cursor-agent".to_string()],
+        }
+    }
+
+    fn defaults() -> Self {
+        Self {
+            claude: Self::default_for(AgentTool::Claude),
+            codex: Self::default_for(AgentTool::Codex),
+            cursor: Self::default_for(AgentTool::Cursor),
+        }
+    }
+
+    fn for_tool(&self, tool: AgentTool) -> Vec<String> {
+        match tool {
+            AgentTool::Claude => self.claude.clone(),
+            AgentTool::Codex => self.codex.clone(),
+            AgentTool::Cursor => self.cursor.clone(),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -181,7 +218,7 @@ async fn run() -> Result<(), String> {
         auth: Arc::new(Mutex::new(DaemonAuth::default())),
         workspace_root: options.root,
         daemon_url,
-        agent_command: options.agent_command,
+        agent_commands: options.agent_commands,
     };
     let protected_routes = Router::new()
         .route("/api/projects", get(projects))
@@ -340,7 +377,12 @@ async fn agent_pty(
     };
     let kind = query.kind.unwrap_or(PtyKind::Agent);
     let command = match kind {
-        PtyKind::Agent => state.agent_command.clone(),
+        // `kind=agent` always pairs with a specific `agent=…` choice; default
+        // to Claude when the client omits it so the toolbar's bare "agent"
+        // entry still has somewhere to go.
+        PtyKind::Agent => state
+            .agent_commands
+            .for_tool(query.agent.unwrap_or(AgentTool::Claude)),
         PtyKind::Terminal => terminal_command(),
     };
     let daemon_url = state.daemon_url.clone();
@@ -356,19 +398,33 @@ async fn agent_pty(
 struct AgentPtyQuery {
     token: Option<String>,
     kind: Option<PtyKind>,
+    /// Only meaningful when `kind=agent` — picks which CLI to spawn. Ignored
+    /// for `kind=terminal`, which always spawns the user's shell.
+    agent: Option<AgentTool>,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize)]
 #[serde(rename_all = "lowercase")]
 enum PtyKind {
-    /// Spawn the configured agent CLI (default `claude`). Default if the
-    /// client doesn't pass `?kind=`, so existing connection patterns keep
-    /// working.
+    /// Spawn the agent CLI selected by the companion `agent` query param
+    /// (claude / codex / cursor). Default if the client doesn't pass
+    /// `?kind=`, so the toolbar's "Hand to Agent" path keeps working.
     Agent,
     /// Spawn the user's interactive shell ($SHELL → bash → sh). The pty still
     /// inherits HARNESS_DAEMON_* env, so `harness studio …` works directly
     /// inside the shell with no extra setup.
     Terminal,
+}
+
+/// Which agent CLI to spawn when `kind=agent`. Each variant maps to a
+/// `Vec<String>` command line on `AgentCommands`; the daemon picks the
+/// command, the studio picks the kind.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum AgentTool {
+    Claude,
+    Codex,
+    Cursor,
 }
 
 /// Pick a sensible interactive shell for the terminal kind. Falls back through
@@ -1395,12 +1451,10 @@ fn ensure_safe_record_id(value: &str, label: &str) -> Result<(), String> {
 
 struct Options {
     addr: SocketAddr,
-    agent_command: Vec<String>,
+    agent_commands: AgentCommands,
     allowed_origins: Vec<String>,
     root: PathBuf,
 }
-
-const DEFAULT_AGENT_COMMAND: &str = "claude";
 
 fn parse_options(args: Vec<String>) -> Result<Options, String> {
     let mut addr = "127.0.0.1:4101"
@@ -1408,7 +1462,7 @@ fn parse_options(args: Vec<String>) -> Result<Options, String> {
         .map_err(|error| error.to_string())?;
     let mut root = env::current_dir().map_err(|error| error.to_string())?;
     let mut allowed_origins = Vec::new();
-    let mut agent_command: Vec<String> = Vec::new();
+    let mut agent_commands = AgentCommands::defaults();
     let mut index = 0;
 
     while index < args.len() {
@@ -1436,20 +1490,34 @@ fn parse_options(args: Vec<String>) -> Result<Options, String> {
                 allowed_origins.push(normalize_origin(value)?);
                 index += 2;
             }
-            "--agent-command" => {
-                // Everything after --agent-command is the command line (program + args).
-                // We collect the rest of the args so users can write:
-                //   harness-daemon --addr 127.0.0.1:4101 --agent-command claude --resume
-                if index + 1 >= args.len() {
-                    return Err("--agent-command requires at least one argument.".to_string());
+            // Per-tool overrides. Each takes a single whitespace-separated
+            // command line (e.g. `--claude-command "claude --resume"`) — kept
+            // single-arg so the operator can mix and match overrides on the
+            // same command line without one flag swallowing another's tail.
+            flag @ ("--claude-command" | "--codex-command" | "--cursor-command") => {
+                let value = args
+                    .get(index + 1)
+                    .ok_or_else(|| format!("{flag} requires a value."))?;
+                let parts: Vec<String> = value
+                    .split_whitespace()
+                    .map(|part| part.to_string())
+                    .collect();
+                if parts.is_empty() {
+                    return Err(format!("{flag} value is empty."));
                 }
-                agent_command = args[index + 1..].to_vec();
-                index = args.len();
+                match flag {
+                    "--claude-command" => agent_commands.claude = parts,
+                    "--codex-command" => agent_commands.codex = parts,
+                    "--cursor-command" => agent_commands.cursor = parts,
+                    _ => unreachable!(),
+                }
+                index += 2;
             }
             "--help" | "-h" => {
                 return Err(
                     "Usage: harness-daemon [--root <path>] [--addr <host:port>] \
-                     [--studio-origin <origin>]... [--agent-command <program> [args...]]"
+                     [--studio-origin <origin>]... \
+                     [--claude-command <cmd>] [--codex-command <cmd>] [--cursor-command <cmd>]"
                         .to_string(),
                 );
             }
@@ -1466,13 +1534,10 @@ fn parse_options(args: Vec<String>) -> Result<Options, String> {
     if allowed_origins.is_empty() {
         allowed_origins = default_studio_origins();
     }
-    if agent_command.is_empty() {
-        agent_command.push(DEFAULT_AGENT_COMMAND.to_string());
-    }
 
     Ok(Options {
         addr,
-        agent_command,
+        agent_commands,
         allowed_origins,
         root,
     })
@@ -2052,51 +2117,82 @@ mod tests {
     fn agent_pty_endpoint_is_paired_only_and_injects_daemon_env() {
         harness_adapter_rust::scenario_test!(
             "harness.daemon.spawns_agent_pty_with_paired_env",
-            "the agent pty endpoint requires auth and the spawned child receives HARNESS_DAEMON_* env",
+            "the agent pty endpoint requires auth, dispatches kind+agent to the right CLI, and the spawned child receives HARNESS_DAEMON_* env",
             {
                 // The daemon middleware (`require_session`) gates /api/agent/pty
                 // before the handler ever runs, so an unauthenticated client
                 // cannot trigger a process spawn at all — that path is covered
                 // by the existing pairing tests, which verify the auth structure.
                 //
-                // Two pieces of this endpoint's behaviour are unit-testable
-                // without spawning a real pty + websocket:
-                //   1. The agent command defaults to `claude` (the bundled
-                //      reference) and is parsed verbatim from `--agent-command`,
-                //      so the operator can swap to `codex` or anything else
-                //      without code changes.
-                //   2. The query extractor for the bearer token: browser
-                //      WebSockets can't set custom headers, so AgentPtyQuery
-                //      must carry a `token` field that fallback auth can read.
-                //      We assert the struct shape (compile-time + a smoke
-                //      construction) here.
+                // What we pin here without spawning a real pty + websocket:
+                //   1. Each agent tool resolves to its standard binary by
+                //      default (claude / codex / cursor-agent), so the studio
+                //      can offer a tool picker without per-host configuration.
+                //   2. Per-tool overrides via `--claude-command` /
+                //      `--codex-command` / `--cursor-command` accept a single
+                //      whitespace-separated command line, so an operator can
+                //      pass flags (e.g. `--claude-command "claude --resume"`)
+                //      without one flag swallowing another's tail.
+                //   3. AgentPtyQuery carries `token`, `kind`, and `agent` —
+                //      browser WebSockets can't set headers, so all three live
+                //      in the query string. The handler defaults `agent` to
+                //      Claude when omitted, so the toolbar "+ Agent" path
+                //      still resolves to a runnable command.
 
-                // Default agent command is the one we ship with — `claude`.
                 let default = parse_options(vec![]).unwrap();
-                assert_eq!(default.agent_command, vec!["claude".to_string()]);
+                assert_eq!(default.agent_commands.claude, vec!["claude".to_string()]);
+                assert_eq!(default.agent_commands.codex, vec!["codex".to_string()]);
+                assert_eq!(
+                    default.agent_commands.cursor,
+                    vec!["cursor-agent".to_string()]
+                );
 
-                // --agent-command captures the whole tail so the operator can
-                // pass program + flags without quoting tricks.
+                // Overrides take a single value that's split on whitespace, so
+                // operators can pass `program flag1 flag2` in one token.
                 let configured = parse_options(vec![
                     "--studio-origin".to_string(),
                     "http://localhost:47627".to_string(),
-                    "--agent-command".to_string(),
+                    "--claude-command".to_string(),
+                    "claude --resume".to_string(),
+                    "--codex-command".to_string(),
                     "codex".to_string(),
-                    "--resume".to_string(),
                 ])
                 .unwrap();
                 assert_eq!(
-                    configured.agent_command,
-                    vec!["codex".to_string(), "--resume".to_string()]
+                    configured.agent_commands.claude,
+                    vec!["claude".to_string(), "--resume".to_string()]
+                );
+                assert_eq!(configured.agent_commands.codex, vec!["codex".to_string()]);
+                // Untouched tools still resolve to their built-in defaults.
+                assert_eq!(
+                    configured.agent_commands.cursor,
+                    vec!["cursor-agent".to_string()]
                 );
 
-                // AgentPtyQuery must accept a token field so the browser-side
-                // ?token= fallback authenticates. (Compile-time presence is
-                // enforced; we also construct an instance to make sure the
-                // shape stays public-as-test-visible.)
+                // `for_tool` is the actual dispatch path the handler uses —
+                // verify each variant maps to the right command line.
+                let commands = configured.agent_commands;
+                assert_eq!(
+                    commands.for_tool(AgentTool::Claude),
+                    vec!["claude".to_string(), "--resume".to_string()]
+                );
+                assert_eq!(
+                    commands.for_tool(AgentTool::Codex),
+                    vec!["codex".to_string()]
+                );
+                assert_eq!(
+                    commands.for_tool(AgentTool::Cursor),
+                    vec!["cursor-agent".to_string()]
+                );
+
+                // AgentPtyQuery must carry token + kind + agent so the browser
+                // ?token=&kind=&agent= flow authenticates and dispatches in
+                // one shot. (Compile-time presence is enforced; we also
+                // construct an instance to keep the shape test-visible.)
                 let query = AgentPtyQuery {
                     token: Some("paired-token".to_string()),
-                    kind: None,
+                    kind: Some(PtyKind::Agent),
+                    agent: Some(AgentTool::Codex),
                 };
                 assert_eq!(query.token.as_deref(), Some("paired-token"));
 

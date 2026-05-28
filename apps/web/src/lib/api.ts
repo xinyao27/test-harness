@@ -177,18 +177,29 @@ export async function openWorkbenchFile(projectId: string, file: string): Promis
 }
 
 export type PtyKind = "terminal" | "agent";
+/**
+ * Which agent CLI to launch when `kind=agent`. The daemon picks the actual
+ * binary (e.g. `claude`, `codex`, `cursor-agent`) — we just say which tool.
+ */
+export type AgentTool = "claude" | "codex" | "cursor";
 
 // Build the WebSocket URL a Pty card connects to. The `kind` tells the daemon
-// what to spawn — `agent` (default) runs the configured agent CLI, `terminal`
-// runs the user's shell. Returns null when the browser hasn't been paired yet
-// (no token in localStorage) so the card can surface a "pair first" message
-// instead of opening a doomed WebSocket.
-export function getAgentPtyWebSocketUrl(kind: PtyKind = "agent"): string | null {
+// what to spawn — `agent` runs the configured agent CLI (picked by `tool`),
+// `terminal` runs the user's shell. Returns null when the browser hasn't
+// been paired yet (no token in localStorage) so the card can surface a
+// "pair first" message instead of opening a doomed WebSocket.
+export function getAgentPtyWebSocketUrl(
+  kind: PtyKind = "agent",
+  tool: AgentTool = "claude",
+): string | null {
   const token = readDaemonToken();
   if (!token) return null;
   const url = buildDaemonUrl("/api/agent/pty");
   url.searchParams.set("token", token);
   url.searchParams.set("kind", kind);
+  if (kind === "agent") {
+    url.searchParams.set("agent", tool);
+  }
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
   return url.toString();
 }

@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useAgentCardsStore, type PtyCardKind } from "@/features/studio/agent-cards-store";
-import { getAgentPtyWebSocketUrl } from "@/lib/api";
+import { getAgentPtyWebSocketUrl, type AgentTool } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +18,7 @@ type ConnectionState = "idle" | "connecting" | "connected" | "closed" | "unpaire
 export type PtyCardNodeData = {
   cardId: string;
   kind: PtyCardKind;
+  tool: AgentTool | null;
   promiseId: string | null;
   initialPrompt: string | null;
 };
@@ -25,14 +26,17 @@ export type PtyCardNodeData = {
 /**
  * PtyCardNode — a canvas-level node hosting a live pty session. Two kinds:
  *   - `terminal`: pty runs the user's shell.
- *   - `agent`: pty runs the configured agent CLI (default `claude`).
+ *   - `agent`: pty runs the agent CLI picked by `tool` (Claude Code / Codex /
+ *     Cursor CLI). The daemon owns the actual binary mapping; we just pass
+ *     the tool name in the WebSocket URL.
  *
  * Implements `harness.web_dashboard.canvas_hosts_terminal_and_agent_cards`.
  *
- * The card body is an xterm.js terminal wired to /api/agent/pty?kind=…&token=…
- * on the local daemon. Closing the card removes it from the agent-cards store
- * (which removes the React Flow node from the canvas), which closes the
- * WebSocket, which lets the daemon kill + reap the spawned child process.
+ * The card body is an xterm.js terminal wired to
+ * /api/agent/pty?kind=…&agent=…&token=… on the local daemon. Closing the
+ * card removes it from the agent-cards store (which removes the React Flow
+ * node from the canvas), which closes the WebSocket, which lets the daemon
+ * kill + reap the spawned child process.
  */
 export function PtyCardNode({ data }: NodeProps) {
   const cardData = data as PtyCardNodeData;
@@ -45,7 +49,7 @@ export function PtyCardNode({ data }: NodeProps) {
     const container = containerRef.current;
     if (!container) return;
 
-    const url = getAgentPtyWebSocketUrl(cardData.kind);
+    const url = getAgentPtyWebSocketUrl(cardData.kind, cardData.tool ?? "claude");
     if (!url) {
       setState("unpaired");
       return;
@@ -163,12 +167,15 @@ export function PtyCardNode({ data }: NodeProps) {
       webgl?.dispose();
       terminal.dispose();
     };
-  }, [cardData.kind, cardData.initialPrompt]);
+  }, [cardData.kind, cardData.tool, cardData.initialPrompt]);
 
   const Icon = cardData.kind === "agent" ? RiRobot2Line : RiTerminalBoxLine;
+  // Title surfaces which CLI the card is actually running — "Claude Code" /
+  // "Codex" / "Cursor CLI" — so a reviewer with three cards open can tell
+  // them apart at a glance. Terminal cards just say "Terminal".
   const title =
     cardData.kind === "agent"
-      ? m.studio_pty_card_agent_title({}, { locale })
+      ? agentToolLabel(cardData.tool ?? "claude", locale, m)
       : m.studio_pty_card_terminal_title({}, { locale });
 
   return (
@@ -252,5 +259,25 @@ function connectionLabel(
       return m.studio_pty_card_state_unpaired({}, { locale });
     default:
       return "";
+  }
+}
+
+/**
+ * Public-facing name for an agent CLI. The card header surfaces this so a
+ * reviewer with three agent cards open can tell "Claude Code", "Codex", and
+ * "Cursor CLI" apart without inspecting the URL or pty output.
+ */
+export function agentToolLabel(
+  tool: AgentTool,
+  locale: ReturnType<typeof useI18n>["locale"],
+  m: ReturnType<typeof useI18n>["m"],
+): string {
+  switch (tool) {
+    case "claude":
+      return m.studio_agent_tool_claude({}, { locale });
+    case "codex":
+      return m.studio_agent_tool_codex({}, { locale });
+    case "cursor":
+      return m.studio_agent_tool_cursor({}, { locale });
   }
 }

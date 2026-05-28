@@ -37,27 +37,41 @@ describe("Studio canvas hosts terminal and agent cards", () => {
 
       // -- Contract 1: toolbar paths -------------------------------------------
       // A toolbar "+ Terminal" / "+ Agent" click spawns an unlinked card.
+      // The agent picker lets the operator choose Claude Code / Codex / Cursor
+      // CLI at spawn time — that choice round-trips into `card.tool` so the
+      // pty-card-node can pass it to the daemon as `?agent=…`.
       const terminal = store.addCard({ kind: "terminal" });
-      const toolbarAgent = useAgentCardsStore.getState().addCard({ kind: "agent" });
+      const toolbarAgent = useAgentCardsStore.getState().addCard({ kind: "agent", tool: "codex" });
 
       expect(terminal.kind, "toolbar terminal kind").toBe("terminal");
+      expect(terminal.tool, "terminal kind ignores tool").toBeNull();
       expect(terminal.promiseId, "toolbar terminal not linked").toBeNull();
       expect(terminal.initialPrompt, "toolbar terminal no canned prompt").toBeNull();
 
       expect(toolbarAgent.kind, "toolbar agent kind").toBe("agent");
+      expect(toolbarAgent.tool, "toolbar agent carries picked tool").toBe("codex");
       expect(toolbarAgent.promiseId, "toolbar agent not linked").toBeNull();
 
+      // A bare `kind: "agent"` (no tool) must still resolve to a runnable CLI
+      // — Claude is the default so the daemon's `?agent` query has somewhere
+      // to dispatch even from a legacy entry point.
+      const bareAgent = useAgentCardsStore.getState().addCard({ kind: "agent" });
+      expect(bareAgent.tool, "bare agent defaults to claude").toBe("claude");
+
       // -- Contract 2: review-handoff path -------------------------------------
-      // "Hand to Agent" on a promise must produce an agent card carrying both
-      // the promiseId (so the canvas can draw the link edge) and an initial
-      // prompt naming that promise (so the agent immediately knows the target).
+      // "Hand to Agent" on a promise must produce an agent card carrying:
+      //   - the picked tool (so the right CLI launches)
+      //   - the promiseId (so the canvas can draw the link edge)
+      //   - an initial prompt naming that promise (so the agent knows the target)
       const handoff = useAgentCardsStore.getState().addCard({
         kind: "agent",
+        tool: "cursor",
         promiseId: "harness.web_dashboard.canvas_hosts_terminal_and_agent_cards",
         initialPrompt:
           "# Assigned to promise: harness.web_dashboard.canvas_hosts_terminal_and_agent_cards\n",
       });
       expect(handoff.kind, "handoff card is an agent").toBe("agent");
+      expect(handoff.tool, "handoff carries picked tool").toBe("cursor");
       expect(handoff.promiseId, "handoff card carries promise id").toBe(
         "harness.web_dashboard.canvas_hosts_terminal_and_agent_cards",
       );
@@ -69,15 +83,15 @@ describe("Studio canvas hosts terminal and agent cards", () => {
       // Each card gets its own slot; positions are distinct so cards don't
       // overlap on the canvas.
       const cards = useAgentCardsStore.getState().cards;
-      expect(cards.length, "three cards coexist").toBe(3);
+      expect(cards.length, "four cards coexist").toBe(4);
       const xs = new Set(cards.map((card) => card.position.x));
       const ys = new Set(cards.map((card) => card.position.y));
       expect(xs.size, "all cards share the spawn column").toBe(1);
-      expect(ys.size, "each card gets a distinct row").toBe(3);
+      expect(ys.size, "each card gets a distinct row").toBe(4);
 
       // Ids are unique so React Flow can key edges to the right node.
       const ids = new Set(cards.map((card) => card.id));
-      expect(ids.size, "card ids unique").toBe(3);
+      expect(ids.size, "card ids unique").toBe(4);
 
       // -- Contract 4: position update mutates exactly one card ----------------
       // The card.id round-trips through React Flow's onNodeDragStop to update
@@ -99,7 +113,7 @@ describe("Studio canvas hosts terminal and agent cards", () => {
       // for that whole chain.
       useAgentCardsStore.getState().removeCard(handoff.id);
       const remaining = useAgentCardsStore.getState().cards;
-      expect(remaining.length, "card removed").toBe(2);
+      expect(remaining.length, "one card removed leaves three").toBe(3);
       expect(
         remaining.find((card) => card.id === handoff.id),
         "removed card gone",

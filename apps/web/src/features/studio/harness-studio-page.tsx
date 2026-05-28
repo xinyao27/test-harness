@@ -99,7 +99,7 @@ import type {
 import { SettingsPanel } from "@/features/settings/settings-page";
 import { RunStatusBadge } from "@/features/status/status-badge";
 import { useAgentCardsStore, type PtyCard } from "@/features/studio/agent-cards-store";
-import { PtyCardNode } from "@/features/studio/pty-card-node";
+import { agentToolLabel, PtyCardNode } from "@/features/studio/pty-card-node";
 import {
   fallbackWorkbenchProjects,
   getDaemonConnectionStatus,
@@ -134,6 +134,7 @@ function toPtyCardNode(card: PtyCard): Node {
     data: {
       cardId: card.id,
       kind: card.kind,
+      tool: card.tool,
       promiseId: card.promiseId,
       initialPrompt: card.initialPrompt,
     },
@@ -1204,7 +1205,7 @@ export function HarnessStudioPage({
                   >
                     <RiAddLine />
                   </PopoverTrigger>
-                  <PopoverContent align="end" className="w-44 p-1">
+                  <PopoverContent align="end" className="w-48 p-1">
                     <button
                       type="button"
                       className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted"
@@ -1213,14 +1214,25 @@ export function HarnessStudioPage({
                       <RiTerminalBoxLine className="size-4" />
                       {m.studio_add_terminal({}, { locale })}
                     </button>
-                    <button
-                      type="button"
-                      className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted"
-                      onClick={() => addAgentCard({ kind: "agent" })}
-                    >
-                      <RiRobot2Line className="size-4" />
-                      {m.studio_add_agent({}, { locale })}
-                    </button>
+                    {/* Agent kind splits into one row per supported CLI — the
+                        user picks Claude Code / Codex / Cursor CLI at spawn
+                        time, and the daemon dispatches `?agent=…` accordingly. */}
+                    <div className="mt-1 border-t border-border pt-1">
+                      <div className="px-2 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                        {m.studio_add_agent({}, { locale })}
+                      </div>
+                      {(["claude", "codex", "cursor"] as const).map((tool) => (
+                        <button
+                          key={tool}
+                          type="button"
+                          className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted"
+                          onClick={() => addAgentCard({ kind: "agent", tool })}
+                        >
+                          <RiRobot2Line className="size-4" />
+                          {agentToolLabel(tool, locale, m)}
+                        </button>
+                      ))}
+                    </div>
                   </PopoverContent>
                 </Popover>
                 <Tooltip>
@@ -2509,21 +2521,39 @@ function PromiseContext({
           placeholder={m.review_notes_placeholder({}, { locale })}
           onChange={(event) => setReviewNote(event.currentTarget.value)}
         />
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full"
-          onClick={() => {
-            useAgentCardsStore.getState().addCard({
-              kind: "agent",
-              promiseId: promise.id,
-              initialPrompt: `# Assigned to promise: ${promise.id}\n# Use \`harness studio …\` to inspect and review.\n`,
-            });
-          }}
-        >
-          <RiRobot2Line className="mr-1 size-4" />
-          {m.studio_hand_to_agent({}, { locale })}
-        </Button>
+        {/* "Hand to Agent" splits into one row per supported CLI; the picked
+            tool propagates through the agent-cards store into ?agent=… so the
+            daemon spawns the right binary. */}
+        <Popover>
+          <PopoverTrigger
+            render={
+              <Button type="button" variant="outline" className="w-full">
+                <RiRobot2Line className="mr-1 size-4" />
+                {m.studio_hand_to_agent({}, { locale })}
+              </Button>
+            }
+          />
+          <PopoverContent align="start" className="w-(--popover-trigger-width) p-1">
+            {(["claude", "codex", "cursor"] as const).map((tool) => (
+              <button
+                key={tool}
+                type="button"
+                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted"
+                onClick={() => {
+                  useAgentCardsStore.getState().addCard({
+                    kind: "agent",
+                    tool,
+                    promiseId: promise.id,
+                    initialPrompt: `# Assigned to promise: ${promise.id}\n# Use \`harness studio …\` to inspect and review.\n`,
+                  });
+                }}
+              >
+                <RiRobot2Line className="size-4" />
+                {agentToolLabel(tool, locale, m)}
+              </button>
+            ))}
+          </PopoverContent>
+        </Popover>
       </section>
     </div>
   );
