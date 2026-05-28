@@ -30,6 +30,9 @@ import {
   Position,
   ReactFlow,
   ReactFlowProvider,
+  useEdgesState,
+  useNodesState,
+  useReactFlow,
   type Edge,
   type Node,
   type NodeProps,
@@ -813,7 +816,7 @@ function HarnessStudioPageInner({
     new Map(),
   );
 
-  const { edges, nodes } = useMemo(() => {
+  const { edges: derivedEdges, nodes: derivedNodes } = useMemo(() => {
     const base = data
       ? buildStudioGraph(data, selectedModule?.id ?? null, selectedPromise?.id ?? null, locale, m)
       : { edges: [] as Edge[], nodes: [] as Node[] };
@@ -864,6 +867,23 @@ function HarnessStudioPageInner({
       edges: [...base.edges, ...linkEdges],
     };
   }, [data, locale, m, selectedModule?.id, selectedPromise?.id, agentCards, elkPositions]);
+
+  // Hand the derived nodes / edges to React Flow via its own `useNodesState`
+  // / `useEdgesState` hooks. That gives us a stable internal store with
+  // `applyNodeChanges` plumbed in — React Flow's drag / resize handlers
+  // mutate it in place per frame, so a pty card actually follows the
+  // cursor instead of teleporting on mouseup. A `useEffect` sync below
+  // pushes new derived snapshots (data fetched, agent card spawned, ELK
+  // re-laid out) into the internal store; in-flight drag state survives
+  // because we only push when the derivation actually changes.
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>(derivedNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(derivedEdges);
+  useEffect(() => {
+    setNodes(derivedNodes);
+  }, [derivedNodes, setNodes]);
+  useEffect(() => {
+    setEdges(derivedEdges);
+  }, [derivedEdges, setEdges]);
 
   // Run ELK whenever the visible node set changes (driven by the selected
   // module — modules / promises / regions / layers all swap based on which
@@ -1144,16 +1164,18 @@ function HarnessStudioPageInner({
           }}
           nodes={nodes}
           edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
           nodeTypes={studioNodeTypes}
           minZoom={studioGraphLayout.minZoom}
           maxZoom={studioGraphLayout.maxZoom}
           nodesDraggable={false}
           onNodeDragStop={(_, node) => {
-            // Persist a pty card's final position into the store when the
-            // user lets go. React Flow owns the live drag — we only commit
-            // the result on stop, so a new pty card arriving in the
-            // `nodes` prop doesn't reset measurement on every other node
-            // (the symptom of onNodesChange-driven controlled mode).
+            // React Flow's internal state already has the live position
+            // (via `onNodesChange` + `applyNodeChanges`). On stop, also
+            // commit it into the Zustand store so the agent-cards data
+            // survives reloads + matches what `toPtyCardNode` reads on
+            // the next derive.
             if (node.type !== "pty") return;
             const cardId = (node.data as { cardId?: string }).cardId;
             if (cardId) updateCardPosition(cardId, node.position);
@@ -2453,6 +2475,10 @@ function PromiseContext({
   writeState: StudioWriteState;
 }) {
   const { locale, m } = useI18n();
+  // Read the promise's current canvas position so a "Hand to Agent" spawn
+  // can land the new card right next to it instead of in the hardcoded
+  // toolbar-stack column far off to the right.
+  const reactFlow = useReactFlow();
   const [reviewNote, setReviewNote] = useState("");
   const moduleNeighborhood = sortPromisesForReview(
     snapshot.promises.filter((item) => item.moduleId === module.id && item.id !== promise.id),
@@ -2605,11 +2631,18 @@ function PromiseContext({
                 type="button"
                 className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted"
                 onClick={() => {
+                  // Anchor the new card next to the promise it's working
+                  // on. Promise nodes are ~264px wide; offset 320 right
+                  // leaves a comfortable gap for the dashed "正在处理"
+                  // edge to curve out of the promise's right side.
+                  const promiseNode = reactFlow.getNode(`promise:${promise.id}`);
+                  const anchor = promiseNode?.position;
                   useAgentCardsStore.getState().addCard({
                     kind: "agent",
                     tool,
                     promiseId: promise.id,
                     initialPrompt: `# Assigned to promise: ${promise.id}\n# Use \`harness studio …\` to inspect and review.\n`,
+                    position: anchor ? { x: anchor.x + 320, y: anchor.y } : undefined,
                   });
                 }}
               >

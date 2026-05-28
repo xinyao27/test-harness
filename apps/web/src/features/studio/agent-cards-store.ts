@@ -42,6 +42,12 @@ interface AgentCardsState {
     tool?: AgentTool;
     promiseId?: string | null;
     initialPrompt?: string | null;
+    /**
+     * Optional explicit spawn position. If omitted, the card lands at the
+     * default stack column at `SPAWN_BASE_X`. Use this when spawning from a
+     * promise review to anchor the card next to its originating promise.
+     */
+    position?: { x: number; y: number };
   }) => PtyCard;
   removeCard: (id: string) => void;
   updateCardPosition: (id: string, position: { x: number; y: number }) => void;
@@ -76,7 +82,7 @@ function nextId(): string {
 
 export const useAgentCardsStore = create<AgentCardsState>((set) => ({
   cards: [],
-  addCard: ({ kind, tool, promiseId = null, initialPrompt = null }) => {
+  addCard: ({ kind, tool, promiseId = null, initialPrompt = null, position }) => {
     // `kind="terminal"` ignores the tool — the daemon always opens the shell.
     // For `kind="agent"`, default to Claude when the caller doesn't pick one
     // so legacy entry points (currently none after the picker refactor, but
@@ -89,15 +95,26 @@ export const useAgentCardsStore = create<AgentCardsState>((set) => ({
       promiseId,
       initialPrompt,
       createdAt: Date.now(),
+      // Placeholder; real position filled in by the setter below so we can
+      // see the current card count (for the toolbar-stack fallback).
       position: { x: 0, y: 0 },
       size: { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT },
     };
     set((state) => {
-      const index = state.cards.length;
-      card.position = {
-        x: SPAWN_BASE_X,
-        y: SPAWN_BASE_Y + index * SPAWN_STEP_Y,
-      };
+      if (position) {
+        // Caller (e.g. "Hand to Agent") provided an anchor — usually a few
+        // hundred px to the right of the originating promise. Use it
+        // verbatim so the card lands where the user is looking.
+        card.position = position;
+      } else {
+        // Toolbar path: stack new cards down the same column to the right
+        // of the architecture region.
+        const index = state.cards.length;
+        card.position = {
+          x: SPAWN_BASE_X,
+          y: SPAWN_BASE_Y + index * SPAWN_STEP_Y,
+        };
+      }
       return { cards: [...state.cards, card] };
     });
     return card;
