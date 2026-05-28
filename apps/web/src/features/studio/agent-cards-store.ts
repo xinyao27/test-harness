@@ -27,6 +27,8 @@ export interface PtyCard {
   promiseId: string | null;
   /** Canvas position; can be updated when the user drags the card. */
   position: { x: number; y: number };
+  /** Canvas size; can be updated when the user drags a resize handle. */
+  size: { width: number; height: number };
   /** Initial prompt to send into the pty's stdin once the WebSocket is open. */
   initialPrompt: string | null;
   createdAt: number;
@@ -43,6 +45,7 @@ interface AgentCardsState {
   }) => PtyCard;
   removeCard: (id: string) => void;
   updateCardPosition: (id: string, position: { x: number; y: number }) => void;
+  updateCardSize: (id: string, size: { width: number; height: number }) => void;
 }
 
 /**
@@ -56,6 +59,11 @@ interface AgentCardsState {
 const SPAWN_BASE_X = 1360;
 const SPAWN_BASE_Y = 0;
 const SPAWN_STEP_Y = 360;
+// Default pty card dimensions. The user can drag the corner / edge handles
+// to resize at any time; the new size persists in the store so re-renders
+// (module switches, promise selection) don't snap back to the default.
+const DEFAULT_WIDTH = 480;
+const DEFAULT_HEIGHT = 320;
 
 function nextId(): string {
   // Crypto random for stable, debuggable ids that the React Flow node + the
@@ -82,6 +90,7 @@ export const useAgentCardsStore = create<AgentCardsState>((set) => ({
       initialPrompt,
       createdAt: Date.now(),
       position: { x: 0, y: 0 },
+      size: { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT },
     };
     set((state) => {
       const index = state.cards.length;
@@ -97,5 +106,9 @@ export const useAgentCardsStore = create<AgentCardsState>((set) => ({
   updateCardPosition: (id, position) =>
     set((state) => ({
       cards: state.cards.map((card) => (card.id === id ? { ...card, position } : card)),
+    })),
+  updateCardSize: (id, size) =>
+    set((state) => ({
+      cards: state.cards.map((card) => (card.id === id ? { ...card, size } : card)),
     })),
 }));

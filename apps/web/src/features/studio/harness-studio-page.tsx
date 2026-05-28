@@ -130,6 +130,11 @@ function toPtyCardNode(card: PtyCard): Node {
     id: `pty:${card.id}`,
     type: "pty",
     position: card.position,
+    // NodeResizer inside PtyCardNode writes back into the store via
+    // updateCardSize on resize-end, so this width/height stays in sync with
+    // the user's most recent drag.
+    width: card.size.width,
+    height: card.size.height,
     draggable: true,
     data: {
       cardId: card.id,

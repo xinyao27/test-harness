@@ -694,8 +694,11 @@
      terminal itself (.nodrag.nowheel on the inner div) so xterm can scroll
      internally without dragging the card around. */
   .studio-pty-card {
-    width: 30rem;
-    height: 20rem;
+    /* Width/height come from the React Flow node wrapper (driven by
+       NodeResizer + persisted in the agent-cards store), so the card just
+       fills whatever box React Flow gives it. */
+    width: 100%;
+    height: 100%;
     display: flex;
     flex-direction: column;
     background: #0a0a0a;
@@ -703,6 +706,14 @@
     border-radius: var(--radius-md);
     overflow: hidden;
     color: #e5e5e5;
+    /* Isolate the card's layout + paint from the rest of the canvas during
+       drag so a transform update doesn't trigger a repaint of the whole
+       Studio. `paint` is enough on its own; the others harden the scope. */
+    contain: layout style paint;
+    /* Hint the compositor to keep this on its own GPU layer — combined with
+       React Flow's translate-only transform during drag, the card moves
+       without triggering raster work each frame. */
+    will-change: transform;
   }
 
   .studio-pty-card[data-kind="agent"] {

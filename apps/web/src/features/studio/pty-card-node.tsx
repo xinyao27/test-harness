@@ -4,7 +4,7 @@ import { WebglAddon } from "@xterm/addon-webgl";
 import { Terminal } from "@xterm/xterm";
 
 import "@xterm/xterm/css/xterm.css";
-import { Handle, Position, type NodeProps } from "@xyflow/react";
+import { Handle, NodeResizer, Position, type NodeProps } from "@xyflow/react";
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,7 @@ export function PtyCardNode({ data }: NodeProps) {
   const cardData = data as PtyCardNodeData;
   const { locale, m } = useI18n();
   const removeCard = useAgentCardsStore((state) => state.removeCard);
+  const updateCardSize = useAgentCardsStore((state) => state.updateCardSize);
   const containerRef = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<ConnectionState>("idle");
 
@@ -180,6 +181,18 @@ export function PtyCardNode({ data }: NodeProps) {
 
   return (
     <div className="studio-pty-card" data-kind={cardData.kind}>
+      {/* Corner + edge handles for resizing. The xterm.js ResizeObserver
+          inside the body picks up the new size and re-fits the terminal
+          (cols/rows) so the agent's output rewraps cleanly. We persist the
+          final dimensions in the agent-cards store on resize-end so they
+          survive re-renders (module switches, promise selection). */}
+      <NodeResizer
+        minWidth={320}
+        minHeight={200}
+        onResizeEnd={(_event, params) =>
+          updateCardSize(cardData.cardId, { width: params.width, height: params.height })
+        }
+      />
       {/* Target handle on the LEFT — the edge points FROM the originating
           promise's right side INTO this card, so the line flows out of the
           architecture column into the agent rather than cutting back across

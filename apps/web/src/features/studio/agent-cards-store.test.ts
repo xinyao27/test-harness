@@ -93,18 +93,29 @@ describe("Studio canvas hosts terminal and agent cards", () => {
       const ids = new Set(cards.map((card) => card.id));
       expect(ids.size, "card ids unique").toBe(4);
 
-      // -- Contract 4: position update mutates exactly one card ----------------
-      // The card.id round-trips through React Flow's onNodeDragStop to update
-      // only the dragged card's position — siblings stay put.
+      // -- Contract 4: position + size updates mutate exactly one card ---------
+      // The card.id round-trips through React Flow — onNodeDragStop for the
+      // position, NodeResizer's onResizeEnd for the size. Both must update
+      // only the targeted card; siblings stay put on either dimension.
       const beforeMove = useAgentCardsStore.getState().cards;
       useAgentCardsStore.getState().updateCardPosition(terminal.id, { x: 99, y: 77 });
+      useAgentCardsStore.getState().updateCardSize(terminal.id, { width: 600, height: 400 });
       const afterMove = useAgentCardsStore.getState().cards;
       const moved = afterMove.find((card) => card.id === terminal.id)!;
       expect(moved.position, "dragged card moves").toEqual({ x: 99, y: 77 });
+      expect(moved.size, "resized card resizes").toEqual({ width: 600, height: 400 });
       for (const sibling of afterMove.filter((card) => card.id !== terminal.id)) {
         const original = beforeMove.find((card) => card.id === sibling.id)!;
-        expect(sibling.position, `sibling ${sibling.id} unchanged`).toEqual(original.position);
+        expect(sibling.position, `sibling ${sibling.id} position unchanged`).toEqual(
+          original.position,
+        );
+        expect(sibling.size, `sibling ${sibling.id} size unchanged`).toEqual(original.size);
       }
+
+      // Defaults: new cards spawn with a readable size (not so small that
+      // the agent banner wraps inside the first paint).
+      expect(terminal.size.width, "spawn default width").toBeGreaterThanOrEqual(320);
+      expect(terminal.size.height, "spawn default height").toBeGreaterThanOrEqual(200);
 
       // -- Contract 5: close removes the card ----------------------------------
       // Closing the card removes it from the store, which removes the React Flow
