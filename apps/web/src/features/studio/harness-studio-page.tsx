@@ -24,7 +24,6 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Controls,
-  getNodesBounds,
   Handle,
   MarkerType,
   Panel,
@@ -963,17 +962,20 @@ function HarnessStudioPageInner({
   //   > "all" (fit everything panel-aware)
   //
   // Deps:
-  //   - `nodes.length` lets the effect re-run AFTER a freshly added
-  //     pty card lands in React Flow's internal store. Without it
-  //     `instance.getNode("pty:abc")` returns undefined on the same
-  //     tick `pendingFocusId` flipped, the effect early-returns, and
-  //     the new card never gets centered.
-  //   - `elkPositions` lets the effect re-run AFTER ELK publishes the
-  //     focused module's column. Without it the camera lands on the
-  //     module's stale hand-rolled position before ELK rearranges it.
-  //   - We do NOT depend on `nodes` (the whole array) — that mutates
-  //     on every React Flow internal tick (selection, drag) and would
-  //     yank the viewport back constantly.
+  //   - `derivedNodes` is our source-of-truth render — it captures
+  //     ELK position publishes, agent-card spawns, snapshot loads, and
+  //     module switches in a single stable reference. The effect
+  //     re-runs whenever any of those layout-relevant inputs changes.
+  //   - `elkPositions` is in deps for fingerprint composition (we
+  //     read its size below) and to ensure we re-run on layout
+  //     publish even on the rare path where `derivedNodes` happens to
+  //     be identity-stable.
+  //   - We do NOT depend on `nodes` (React Flow's internal useNodesState
+  //     value) — that mutates on every React Flow internal tick
+  //     (selection, drag) and would yank the viewport back constantly.
+  //   - We do NOT call `instance.getNode(...)` for positions. The
+  //     internal store lags one tick behind `setNodes`; reading from
+  //     `derivedNodes` (this render's truth) avoids the staleness.
   useEffect(() => {
     const instance = flowRef.current;
     const surface = surfaceRef.current;
@@ -986,7 +988,7 @@ function HarnessStudioPageInner({
         : selectedModuleId
           ? `module:${selectedModuleId}`
           : null);
-    const fingerprint = `${targetId ?? "all"}:${elkPositions.size}:${nodes.length}`;
+    const fingerprint = `${targetId ?? "all"}:${elkPositions.size}:${derivedNodes.length}`;
     if (fingerprint === lastCenteredRef.current) return;
 
     const rect = surface.getBoundingClientRect();
@@ -999,19 +1001,43 @@ function HarnessStudioPageInner({
     // in from the React Flow default (0, 0) on page load.
     const duration = hasFitInitialRef.current ? 420 : 0;
 
+    // Compute target / bbox positions from `derivedNodes`, not from
+    // React Flow's internal store. The internal store lags one tick
+    // behind `setNodes` — when the pan effect fires on `elkPositions`
+    // change, `instance.getNode(...)` still returns the pre-ELK
+    // position. `derivedNodes` is the same render's truth: it already
+    // has the ELK overlay applied.
+    const sizeOf = (node: Node) => ({
+      width: node.measured?.width ?? (node.style?.width as number | undefined) ?? node.width ?? 264,
+      height:
+        node.measured?.height ?? (node.style?.height as number | undefined) ?? node.height ?? 104,
+    });
+
     if (!targetId) {
-      // Fit-all panel-aware. Use `getNodesBounds` on whatever React
-      // Flow currently has in its store (its measured dimensions when
-      // available, falling back to node.width/height).
-      const allNodes = instance.getNodes();
-      if (allNodes.length === 0) return;
-      const bounds = getNodesBounds(allNodes);
-      if (bounds.width <= 0 || bounds.height <= 0) return;
-      const zoomX = visibleWidth / (bounds.width * (1 + 2 * padding));
-      const zoomY = rect.height / (bounds.height * (1 + 2 * padding));
+      // Fit-all panel-aware. Ignore pty cards — they roam free and
+      // would otherwise drag the camera out to wherever the user
+      // happens to have moved them.
+      const visibleNodes = derivedNodes.filter((node) => node.type !== "pty");
+      if (visibleNodes.length === 0) return;
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+      for (const node of visibleNodes) {
+        const { width, height } = sizeOf(node);
+        if (node.position.x < minX) minX = node.position.x;
+        if (node.position.y < minY) minY = node.position.y;
+        if (node.position.x + width > maxX) maxX = node.position.x + width;
+        if (node.position.y + height > maxY) maxY = node.position.y + height;
+      }
+      const bboxW = maxX - minX;
+      const bboxH = maxY - minY;
+      if (bboxW <= 0 || bboxH <= 0) return;
+      const zoomX = visibleWidth / (bboxW * (1 + 2 * padding));
+      const zoomY = rect.height / (bboxH * (1 + 2 * padding));
       const zoom = Math.min(zoomX, zoomY, studioGraphLayout.maxZoom);
-      const centerX = bounds.x + bounds.width / 2;
-      const centerY = bounds.y + bounds.height / 2;
+      const centerX = minX + bboxW / 2;
+      const centerY = minY + bboxH / 2;
       void instance.setViewport(
         {
           x: visibleWidth / 2 - centerX * zoom,
@@ -1025,9 +1051,10 @@ function HarnessStudioPageInner({
       return;
     }
 
-    // Focused target. Pull from React Flow's live store so we get
-    // whatever the latest layout pass produced.
-    const node = instance.getNode(targetId);
+    // Focused target. Look up in `derivedNodes` so we get the
+    // ELK-overlaid position even if React Flow's internal store hasn't
+    // caught up yet this tick.
+    const node = derivedNodes.find((n) => n.id === targetId);
     if (!node) {
       // The new node hasn't landed in the internal store yet (setNodes
       // is queued for the next render). Leave `lastCenteredRef`
@@ -1041,8 +1068,7 @@ function HarnessStudioPageInner({
     // Use the measured width/height when React Flow has them; fall
     // back to whatever was declared so a freshly-spawned pty card
     // (with style-driven size) still centers correctly.
-    const nodeWidth = node.measured?.width ?? node.width ?? 264;
-    const nodeHeight = node.measured?.height ?? node.height ?? 104;
+    const { width: nodeWidth, height: nodeHeight } = sizeOf(node);
     const nodeCenterX = node.position.x + nodeWidth / 2;
     const nodeCenterY = node.position.y + nodeHeight / 2;
     void instance.setViewport(
@@ -1068,7 +1094,7 @@ function HarnessStudioPageInner({
         : selectedModuleId
           ? `module:${selectedModuleId}`
           : "all";
-      lastCenteredRef.current = `${selectionTarget}:${elkPositions.size}:${nodes.length}`;
+      lastCenteredRef.current = `${selectionTarget}:${elkPositions.size}:${derivedNodes.length}`;
       consumeFocus();
     }
   }, [
@@ -1077,7 +1103,7 @@ function HarnessStudioPageInner({
     selectedPromiseId,
     selectedModuleId,
     elkPositions,
-    nodes.length,
+    derivedNodes,
   ]);
   const reviewInbox = useMemo(
     () => (data ? buildReviewInbox(data.promises, locale) : []),
