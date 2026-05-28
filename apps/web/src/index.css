@@ -693,27 +693,30 @@
      module / promise nodes. Body must not eat canvas pan/zoom events on the
      terminal itself (.nodrag.nowheel on the inner div) so xterm can scroll
      internally without dragging the card around. */
-  /* Pty card visual style — lifted from collab-public's `.canvas-tile`.
-     Architectural rather than "card-like": square corners, no shadow,
-     thin 1px border with crosshair extensions at each corner, header
-     and body share the same background so the title bar feels welded
-     to the terminal instead of stacked on top of it. */
+  /* Pty card visual style — collab-public's `.canvas-tile` shape, but
+     using the Studio's own radius / token system so the card matches
+     module and promise nodes elsewhere on the canvas instead of looking
+     like an alien square. */
   .studio-pty-card {
     /* Width/height come from the React Flow node wrapper (driven by
        NodeResizer + persisted in the agent-cards store), so the card just
        fills whatever box React Flow gives it. */
     width: 100%;
     height: 100%;
-    /* Pseudo-element crosshair extensions anchor to this box, not the
-       React Flow node wrapper. */
-    position: relative;
     display: flex;
     flex-direction: column;
     background: var(--card);
     color: var(--card-foreground);
     border: 1px solid var(--border);
-    border-radius: 0;
+    /* Same radius the module / promise cards use, so all canvas tiles
+       share one rounded silhouette across the studio. */
+    border-radius: var(--studio-node-radius);
     box-shadow: none;
+    /* Clip the inner xterm canvas to the rounded border. The card's
+       own `border` is drawn outside this box, the body's terminal
+       paints inside it — without overflow the WebGL canvas paints
+       past the corner curve and leaks a square block over the edge. */
+    overflow: hidden;
     /* Isolate the card's layout + paint from the rest of the canvas during
        drag so a transform update doesn't trigger a repaint of the whole
        Studio. `paint` is enough on its own; the others harden the scope. */
@@ -724,42 +727,9 @@
     will-change: transform;
   }
 
-  /* Crosshair corner extensions — thin lines that overshoot each corner
-     by 9px, giving the floating tile a draftsman / blueprint feel that
-     ties it visually to the canvas grid. Two pseudo-elements form the
-     plus sign at each corner: ::before draws the horizontal pair,
-     ::after the vertical pair. */
-  .studio-pty-card::before,
-  .studio-pty-card::after {
-    content: "";
-    position: absolute;
-    pointer-events: none;
-  }
-
-  .studio-pty-card::before {
-    top: -1px;
-    bottom: -1px;
-    left: -9px;
-    right: -9px;
-    border-top: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
-  }
-
-  .studio-pty-card::after {
-    left: -1px;
-    right: -1px;
-    top: -9px;
-    bottom: -9px;
-    border-left: 1px solid var(--border);
-    border-right: 1px solid var(--border);
-  }
-
-  /* When the React Flow node is selected, brighten the border and the
-     crosshair extensions so the focused tile stands out without
-     stomping into a heavy outline. */
-  .react-flow__node.selected .studio-pty-card,
-  .react-flow__node.selected .studio-pty-card::before,
-  .react-flow__node.selected .studio-pty-card::after {
+  /* When the React Flow node is selected, brighten the border so the
+     focused tile stands out without stomping into a heavy outline. */
+  .react-flow__node.selected .studio-pty-card {
     border-color: var(--foreground);
   }
 
@@ -790,10 +760,6 @@
     min-height: 0;
     display: flex;
     flex-direction: column;
-    /* The card root used to own `overflow: hidden` so its body / xterm
-       canvas couldn't escape the border. We need the crosshair pseudo-
-       elements to escape, so the clip is pushed down to the body. */
-    overflow: hidden;
   }
 
   .studio-pty-card-terminal {
