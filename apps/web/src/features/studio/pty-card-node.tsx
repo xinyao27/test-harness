@@ -224,7 +224,7 @@ export function PtyCardNode({ data }: NodeProps) {
         </div>
         <Button
           type="button"
-          size="icon-sm"
+          size="icon-xs"
           variant="ghost"
           aria-label={m.studio_pty_card_close({}, { locale })}
           onClick={() => removeCard(cardData.cardId)}

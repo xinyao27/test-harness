@@ -726,7 +726,10 @@
     align-items: center;
     justify-content: space-between;
     gap: var(--studio-panel-gap-sm);
-    padding: var(--studio-panel-gap-xs) var(--studio-panel-gap-sm);
+    /* Tight vertical rhythm — the close button is `icon-xs` (24px), so the
+       header lands around 26px tall (24px button + 2px×2 padding). Any
+       taller and the title chrome eats into the terminal viewport. */
+    padding: 1px var(--studio-panel-gap-sm);
     border-bottom: 1px solid var(--border);
     background: var(--background);
     color: var(--foreground);
