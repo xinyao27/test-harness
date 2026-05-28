@@ -32,7 +32,7 @@ Modules are the project's architecture map. Do not create a module just because 
 
 3. **If the new promise needs a new module**, surface it to the human as an architecture change — that is a bigger move. Usually a new promise fits into an existing module under `tests/modules/`.
 
-4. **Ask for human review when the meaning shifts.** Any change to `title`, `purpose`, `priority`, `boundary`, `given` / `when` / `then`, `observes`, or `lifecycle` is a review event — even if the test still passes. Do not set `lifecycle: accepted` yourself; the human does that by filling in `review.approvedBy` / `approvedAt`.
+4. **Ask for human review when the meaning shifts.** Any change to `title`, `purpose`, `priority`, `boundary`, `given` / `when` / `then`, `observes`, or `lifecycle` is a review event — even if the test still passes. Do not approve a promise unilaterally: either the human fills the `review` block themselves in Studio, or you drive the review through `AskUserQuestion` (see [Driving the Review](#driving-the-review)) and only write the approval back to YAML after an explicit affirmative answer.
 
 5. **Bind tests to the promise id.** Once a promise is accepted, write adapter tests that prove it, bound to the promise id from the YAML. For Vitest, existing tests in the workspace show the `scenarioTest(promiseId, name, fn)` shape. Other adapters should emit the same canonical promise id in their result metadata. Assert on what the promise's `observes` list names — DB state, UI text, files, events, exit codes — and prefer exact matchers (`toBe`, `toEqual`) over loose ones. If a test would weaken to "mock was called" or `toBeDefined()`, that is evidence drift; surface it in the PR rather than silently lowering the bar.
 
@@ -41,6 +41,51 @@ Modules are the project's architecture map. Do not create a module just because 
 7. **Hand back at promise level.** See [Handoff](#handoff).
 
 A passing Vitest test alone does not mean the promise is satisfied — it is only a runtime pass. Do not declare done after `vitest run`; declare done after `harness test` shows `Run Status: passing` for the promise you touched.
+
+## Driving the Review
+
+A promise stays `lifecycle: proposed` until a human reviews it. There are two surfaces for that:
+
+- **Studio UI** — open Studio, pair the daemon, use the review panel. Best for batching, since you see canvas + neighbourhood + evidence at the same time.
+- **Terminal-driven (this skill)** — Claude walks the human through pending promises one at a time using `AskUserQuestion`. Best when they'd rather stay in the terminal, when Studio isn't running, or when they want the agent to handle the bookkeeping.
+
+When driving the review from the terminal:
+
+1. **Pick the queue.** Find pending promises with `grep -rn "state: pending" tests/promises/`. Treat `lifecycle: changed_requires_review` promises as a separate queue — they need a re-review note explaining what changed.
+
+2. **For each pending promise, present a readable summary** — id, priority, boundary, title, purpose, given/when/then, `failureMeaning`, `observes`. Quote the human-language fields exactly; don't paraphrase. Keep it scannable so the human can decide in seconds.
+
+3. **Ask once, with three options**, via `AskUserQuestion`:
+   - **通过 / pass** — approve it.
+   - **改一下 / needs changes** — direction is right but content needs editing; pause to discuss the specific change before re-asking.
+   - **不要这条 / reject** — drop the promise.
+
+4. **Land the decision in YAML** (until a `harness studio review` subcommand exists, this is a direct edit; once it exists, prefer the CLI):
+
+   For **approved**:
+
+   ```yaml
+   priority: P0
+   boundary: integration
+   lifecycle: accepted # proposed → accepted
+   ...
+   review:
+     state: approved
+     decidedBy: <user> # short handle, e.g. xinyao
+     decidedAt: 2026-05-28 # plain YYYY-MM-DD is fine
+     events:
+       - action: approved
+         by: <user>
+         at: 2026-05-28
+   ```
+
+   For **changes_requested**: set `review.state: changes_requested`, append an event, leave `lifecycle` as it was, then iterate on the content with the human. Re-present and re-ask after editing.
+
+   For **rejected**: set `review.state: rejected`, set `lifecycle: deprecated`, and remove the promise id from its module's `promises:` list. If anything bound a test to it, surface that as drift.
+
+5. **Run `harness check` after each batch** to confirm the YAML still parses and module ↔ promise wiring stays consistent.
+
+The agent is the conduit, not the authority — every transition must be confirmed by the human through `AskUserQuestion`. Never mark a promise approved without an explicit affirmative answer in the current chat.
 
 ## Verifying Your Change
 
