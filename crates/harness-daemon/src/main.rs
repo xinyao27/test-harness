@@ -1,3 +1,4 @@
+use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{Extension, Query, Request, State};
 use axum::http::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE, HOST, ORIGIN};
 use axum::http::{HeaderMap, HeaderValue, Method, StatusCode};
@@ -5,6 +6,7 @@ use axum::middleware::{from_fn_with_state, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
+use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 use harness_core::{find_module_files, find_promise_files, MODULES_DIRECTORY, PROMISES_DIRECTORY};
 use harness_daemon::{
     build_studio_snapshot, empty_snapshot, known_projects, resolve_project_root, KnownProject,
@@ -40,6 +42,12 @@ struct AppState {
     allowed_hosts: Vec<String>,
     auth: Arc<Mutex<DaemonAuth>>,
     workspace_root: PathBuf,
+    /// URL children spawned by /api/agent/pty should reach us at — e.g.
+    /// "http://127.0.0.1:4101". Injected as HARNESS_DAEMON_URL into the agent.
+    daemon_url: String,
+    /// The shell command line to spawn when a paired client connects to
+    /// /api/agent/pty. Defaults to ["claude"]; configurable via --agent-command.
+    agent_command: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -167,16 +175,20 @@ async fn main() {
 async fn run() -> Result<(), String> {
     let options = parse_options(env::args().skip(1).collect())?;
     let allowed_origins = options.allowed_origins.clone();
+    let daemon_url = format!("http://{}", options.addr);
     let state = AppState {
         allowed_hosts: allowed_hosts(options.addr),
         auth: Arc::new(Mutex::new(DaemonAuth::default())),
         workspace_root: options.root,
+        daemon_url,
+        agent_command: options.agent_command,
     };
     let protected_routes = Router::new()
         .route("/api/projects", get(projects))
         .route("/api/snapshot", get(snapshot))
         .route("/api/run/tests", post(run_tests))
         .route("/api/studio/open", post(open_file))
+        .route("/api/agent/pty", get(agent_pty))
         .route("/api/session/revoke", post(revoke_session))
         .route("/api/studio/module", post(upsert_module))
         .route("/api/studio/promise", post(upsert_promise))
@@ -303,6 +315,168 @@ async fn run_tests(
             .into_response(),
         Err(error) => error_response(StatusCode::INTERNAL_SERVER_ERROR, error.to_string()),
     }
+}
+
+async fn agent_pty(
+    ws: WebSocketUpgrade,
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Response {
+    let Some(token) = bearer_token_from_headers(&headers) else {
+        return error_response(
+            StatusCode::UNAUTHORIZED,
+            "agent pty endpoint requires an Authorization: Bearer header.".to_string(),
+        );
+    };
+    let Some(origin) = request_origin_from_headers(&headers) else {
+        return error_response(
+            StatusCode::BAD_REQUEST,
+            "agent pty endpoint requires an Origin header.".to_string(),
+        );
+    };
+    let agent_command = state.agent_command.clone();
+    let daemon_url = state.daemon_url.clone();
+
+    ws.on_upgrade(move |socket| async move {
+        if let Err(error) =
+            handle_agent_pty(socket, agent_command, daemon_url, token, origin).await
+        {
+            eprintln!("agent pty session ended with error: {error}");
+        }
+    })
+}
+
+/// Bidirectional bridge between a WebSocket and a freshly spawned PTY child
+/// running the configured agent CLI. The child inherits HARNESS_DAEMON_* env
+/// so `harness studio …` works inside it immediately. The session ends — and
+/// the child is killed + reaped — when either side closes.
+async fn handle_agent_pty(
+    mut socket: WebSocket,
+    agent_command: Vec<String>,
+    daemon_url: String,
+    token: String,
+    origin: String,
+) -> Result<(), String> {
+    use std::io::{Read, Write};
+    use tokio::sync::mpsc;
+
+    if agent_command.is_empty() {
+        return Err("daemon was started without --agent-command".to_string());
+    }
+
+    let pty_system = native_pty_system();
+    let pair = pty_system
+        .openpty(PtySize {
+            rows: 24,
+            cols: 80,
+            pixel_width: 0,
+            pixel_height: 0,
+        })
+        .map_err(|error| format!("openpty failed: {error}"))?;
+    let master = pair.master;
+
+    let mut command = CommandBuilder::new(&agent_command[0]);
+    for arg in &agent_command[1..] {
+        command.arg(arg);
+    }
+    command.env("HARNESS_DAEMON_URL", &daemon_url);
+    command.env("HARNESS_DAEMON_TOKEN", &token);
+    command.env("HARNESS_DAEMON_ORIGIN", &origin);
+    if let Ok(term) = std::env::var("TERM") {
+        command.env("TERM", &term);
+    } else {
+        command.env("TERM", "xterm-256color");
+    }
+
+    let mut child = pair
+        .slave
+        .spawn_command(command)
+        .map_err(|error| format!("failed to spawn agent: {error}"))?;
+    drop(pair.slave);
+
+    let reader = master
+        .try_clone_reader()
+        .map_err(|error| format!("clone pty reader failed: {error}"))?;
+    let mut writer = master
+        .take_writer()
+        .map_err(|error| format!("take pty writer failed: {error}"))?;
+
+    let (out_tx, mut out_rx) = mpsc::unbounded_channel::<Vec<u8>>();
+    let reader_handle = tokio::task::spawn_blocking(move || {
+        let mut reader = reader;
+        let mut buffer = [0u8; 4096];
+        loop {
+            match reader.read(&mut buffer) {
+                Ok(0) => break,
+                Ok(read) => {
+                    if out_tx.send(buffer[..read].to_vec()).is_err() {
+                        break;
+                    }
+                }
+                Err(_) => break,
+            }
+        }
+    });
+
+    loop {
+        tokio::select! {
+            outgoing = out_rx.recv() => {
+                let Some(bytes) = outgoing else { break };
+                if socket.send(Message::Binary(bytes.into())).await.is_err() {
+                    break;
+                }
+            }
+            incoming = socket.recv() => {
+                let Some(Ok(message)) = incoming else { break };
+                match message {
+                    Message::Binary(bytes) => {
+                        if writer.write_all(&bytes).is_err() { break; }
+                    }
+                    Message::Text(text) => {
+                        if let Ok(control) = serde_json::from_str::<PtyClientMessage>(&text) {
+                            match control {
+                                PtyClientMessage::Resize { cols, rows } => {
+                                    let _ = master.resize(PtySize {
+                                        rows,
+                                        cols,
+                                        pixel_width: 0,
+                                        pixel_height: 0,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                    Message::Close(_) => break,
+                    Message::Ping(_) | Message::Pong(_) => {}
+                }
+            }
+        }
+    }
+
+    // Cleanup: kill + reap the child so we never leave a zombie, then drain
+    // the reader so its blocking thread exits, then politely close the WS.
+    let _ = tokio::task::spawn_blocking(move || {
+        let _ = child.kill();
+        let _ = child.wait();
+    })
+    .await;
+    let _ = reader_handle.await;
+    let _ = socket.send(Message::Close(None)).await;
+    Ok(())
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "type")]
+enum PtyClientMessage {
+    Resize { cols: u16, rows: u16 },
+}
+
+fn bearer_token_from_headers(headers: &HeaderMap) -> Option<String> {
+    headers
+        .get(AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.strip_prefix("Bearer "))
+        .map(|token| token.trim().to_string())
 }
 
 async fn open_file(
@@ -1170,9 +1344,12 @@ fn ensure_safe_record_id(value: &str, label: &str) -> Result<(), String> {
 
 struct Options {
     addr: SocketAddr,
+    agent_command: Vec<String>,
     allowed_origins: Vec<String>,
     root: PathBuf,
 }
+
+const DEFAULT_AGENT_COMMAND: &str = "claude";
 
 fn parse_options(args: Vec<String>) -> Result<Options, String> {
     let mut addr = "127.0.0.1:4101"
@@ -1180,6 +1357,7 @@ fn parse_options(args: Vec<String>) -> Result<Options, String> {
         .map_err(|error| error.to_string())?;
     let mut root = env::current_dir().map_err(|error| error.to_string())?;
     let mut allowed_origins = Vec::new();
+    let mut agent_command: Vec<String> = Vec::new();
     let mut index = 0;
 
     while index < args.len() {
@@ -1207,9 +1385,20 @@ fn parse_options(args: Vec<String>) -> Result<Options, String> {
                 allowed_origins.push(normalize_origin(value)?);
                 index += 2;
             }
+            "--agent-command" => {
+                // Everything after --agent-command is the command line (program + args).
+                // We collect the rest of the args so users can write:
+                //   harness-daemon --addr 127.0.0.1:4101 --agent-command claude --resume
+                if index + 1 >= args.len() {
+                    return Err("--agent-command requires at least one argument.".to_string());
+                }
+                agent_command = args[index + 1..].to_vec();
+                index = args.len();
+            }
             "--help" | "-h" => {
                 return Err(
-                    "Usage: harness-daemon [--root <path>] [--addr <host:port>] [--studio-origin <origin>]..."
+                    "Usage: harness-daemon [--root <path>] [--addr <host:port>] \
+                     [--studio-origin <origin>]... [--agent-command <program> [args...]]"
                         .to_string(),
                 );
             }
@@ -1226,9 +1415,13 @@ fn parse_options(args: Vec<String>) -> Result<Options, String> {
     if allowed_origins.is_empty() {
         allowed_origins = default_studio_origins();
     }
+    if agent_command.is_empty() {
+        agent_command.push(DEFAULT_AGENT_COMMAND.to_string());
+    }
 
     Ok(Options {
         addr,
+        agent_command,
         allowed_origins,
         root,
     })
