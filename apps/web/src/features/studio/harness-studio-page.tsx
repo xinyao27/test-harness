@@ -909,12 +909,18 @@ function HarnessStudioPageInner({
     hasFitInitialRef.current = false;
   }, [selectedProjectId]);
 
-  // Fit the overview once, then smoothly pan the selected node into the visible area (the region
-  // left of the context panel) — instead of remounting/refitting the whole canvas, which jumps.
+  // Fit the overview once on initial load, then smoothly pan the
+  // selected node into the visible area whenever the user picks a
+  // different promise / module. We intentionally do NOT depend on
+  // `nodes` — that's React Flow's internal state now (via
+  // `useNodesState`), which mutates on every drag / select tick, and
+  // having it as a dep would fire `fitView()` on every internal
+  // change and snap the viewport back to centre while the user is
+  // trying to pan or zoom.
   useEffect(() => {
     const instance = flowRef.current;
     const surface = surfaceRef.current;
-    if (!instance || !surface || nodes.length === 0) return;
+    if (!instance || !surface) return;
 
     if (!hasFitInitialRef.current) {
       hasFitInitialRef.current = true;
@@ -936,7 +942,9 @@ function HarnessStudioPageInner({
       return;
     }
 
-    const node = nodes.find((item) => item.id === targetId);
+    // Look the target up through React Flow's live store so we don't
+    // need to subscribe to the whole `nodes` array.
+    const node = instance.getNode(targetId);
     if (!node) return;
     lastCenteredRef.current = targetId;
 
@@ -960,7 +968,7 @@ function HarnessStudioPageInner({
       },
       { duration: 420 },
     );
-  }, [nodes, selectedPromiseId, selectedModuleId]);
+  }, [selectedPromiseId, selectedModuleId]);
   const reviewInbox = useMemo(
     () => (data ? buildReviewInbox(data.promises, locale) : []),
     [data, locale],

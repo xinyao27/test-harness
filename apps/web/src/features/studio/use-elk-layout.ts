@@ -97,7 +97,7 @@ export function useStudioElkLayout(opts: {
   onLayout: (positions: Map<string, ElkPosition>) => void;
 }) {
   const nodesInitialized = useNodesInitialized();
-  const { getNodes, getEdges, fitView } = useReactFlow();
+  const { getNodes, getEdges } = useReactFlow();
   // Keep the latest callback in a ref so a parent that recreates
   // `onLayout` per render doesn't restart the effect.
   const onLayoutRef = useRef(opts.onLayout);
@@ -110,15 +110,14 @@ export function useStudioElkLayout(opts: {
       const positions = await layoutWithElk(getNodes(), getEdges());
       if (cancelled) return;
       onLayoutRef.current(positions);
-      // Tiny delay so React commits the new positions before the
-      // viewport animates to the new bounds.
-      requestAnimationFrame(() => {
-        if (cancelled) return;
-        void fitView({ padding: 0.14, duration: 420 });
-      });
+      // We deliberately do NOT call `fitView` here. The studio page
+      // owns viewport behaviour (initial fit-overview + smooth pan to
+      // selected promise/module) and competing with it from inside
+      // ELK would yank the camera around mid-pan / mid-zoom whenever
+      // a derived node array publishes new positions.
     })();
     return () => {
       cancelled = true;
     };
-  }, [nodesInitialized, opts.key, getNodes, getEdges, fitView]);
+  }, [nodesInitialized, opts.key, getNodes, getEdges]);
 }
