@@ -790,3 +790,50 @@
     background: rgba(121, 121, 121, 0.7);
   }
 }
+
+/* React Flow's NodeResizer renders 4 edge "lines" + 4 corner "handles"
+   as siblings of the card. Defaults are nearly invisible (1px lines
+   with no background; 5x5 corner handles in React Flow blue) which
+   made resize feel unreachable. The overrides below scope to pty
+   nodes only so other future resizers stay on the React Flow default.
+
+   These rules live OUTSIDE `@layer components` on purpose — React
+   Flow's bundled CSS is unlayered, and unlayered always wins over
+   layered in CSS cascade resolution. Keep them at root so the
+   selector specificity is what decides, not the @layer ordering. */
+
+/* Edge lines — make the user aware they're grabbable. Live where the
+   border would naturally sit; tinted with the foreground so they
+   fade in against the card chrome on hover. */
+.react-flow__node-pty .react-flow__resize-control.line {
+  background: var(--foreground);
+  opacity: 0.18;
+  transition: opacity 120ms ease;
+}
+.react-flow__node-pty .react-flow__resize-control.line:hover {
+  opacity: 0.6;
+}
+.react-flow__node-pty .react-flow__resize-control.line.top,
+.react-flow__node-pty .react-flow__resize-control.line.bottom {
+  /* Default is 1px; bump to 3px so it's reachable without precise
+     aim. Negative margins keep the visible line aligned to the card
+     border instead of sitting next to it. */
+  height: 3px;
+  margin-block: -1.5px;
+}
+.react-flow__node-pty .react-flow__resize-control.line.left,
+.react-flow__node-pty .react-flow__resize-control.line.right {
+  width: 3px;
+  margin-inline: -1.5px;
+}
+
+/* Corner handles — bigger so they're easy to grab on a high-DPI
+   screen, theme-coloured so they don't read as React Flow's stock
+   blue against our dark card. */
+.react-flow__node-pty .react-flow__resize-control.handle {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--foreground);
+  border: 2px solid var(--card);
+}
