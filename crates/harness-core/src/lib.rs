@@ -575,9 +575,7 @@ covers:
             title: LocalizedText::Text("Validation".to_string()),
             summary: LocalizedText::Text("Loads canonical files.".to_string()),
             purpose: LocalizedText::Text("Anchor module for evidence binding.".to_string()),
-            promises: vec![
-                "harness.validation.flags_promises_without_test_results".to_string(),
-            ],
+            promises: vec!["harness.validation.flags_promises_without_test_results".to_string()],
             covers: vec!["crates/harness-core/src/**".to_string()],
         };
         let issues = validate_test_results(&[record], &[module], &[]);
