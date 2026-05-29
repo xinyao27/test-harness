@@ -29,11 +29,7 @@ const USAGE: &str = "Usage: harness studio <subcommand> [flags]\n\
                        open          FILE [--project ID]";
 
 /// Entry point: dispatched from `run_cli_main` when the user runs `harness studio …`.
-pub fn run(
-    args: &[String],
-    stdout: &mut dyn Write,
-    stderr: &mut dyn Write,
-) -> i32 {
+pub fn run(args: &[String], stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32 {
     let Some(subcommand) = args.first() else {
         let _ = writeln!(stderr, "{USAGE}");
         return 2;
@@ -121,7 +117,9 @@ fn http_post(
     finish_request(req.send_string(&body.to_string()))
 }
 
-fn finish_request(result: Result<ureq::Response, ureq::Error>) -> Result<serde_json::Value, String> {
+fn finish_request(
+    result: Result<ureq::Response, ureq::Error>,
+) -> Result<serde_json::Value, String> {
     match result {
         Ok(response) => response
             .into_json::<serde_json::Value>()
@@ -298,9 +296,16 @@ fn cmd_save_module(args: &[String], out: &mut dyn Write, err: &mut dyn Write) ->
     let mut payload = serde_json::Map::new();
     payload.insert("module".to_string(), module);
     if let Some(project) = parsed.flags.get("--project") {
-        payload.insert("projectId".to_string(), serde_json::Value::from(project.clone()));
+        payload.insert(
+            "projectId".to_string(),
+            serde_json::Value::from(project.clone()),
+        );
     }
-    let body = match http_post(&config, "/api/studio/module", serde_json::Value::Object(payload)) {
+    let body = match http_post(
+        &config,
+        "/api/studio/module",
+        serde_json::Value::Object(payload),
+    ) {
         Ok(body) => body,
         Err(error) => return fail(err, error),
     };
@@ -310,7 +315,11 @@ fn cmd_save_module(args: &[String], out: &mut dyn Write, err: &mut dyn Write) ->
     } else {
         render_write_result_human(&body, out);
     }
-    if body.get("saved") == Some(&serde_json::Value::Bool(true)) { 0 } else { 1 }
+    if body.get("saved") == Some(&serde_json::Value::Bool(true)) {
+        0
+    } else {
+        1
+    }
 }
 
 fn cmd_save_promise(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
@@ -333,12 +342,22 @@ fn cmd_save_promise(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -
         Err(error) => return fail(err, error),
     };
     let mut payload = serde_json::Map::new();
-    payload.insert("moduleId".to_string(), serde_json::Value::from(module_id.clone()));
+    payload.insert(
+        "moduleId".to_string(),
+        serde_json::Value::from(module_id.clone()),
+    );
     payload.insert("promise".to_string(), promise);
     if let Some(project) = parsed.flags.get("--project") {
-        payload.insert("projectId".to_string(), serde_json::Value::from(project.clone()));
+        payload.insert(
+            "projectId".to_string(),
+            serde_json::Value::from(project.clone()),
+        );
     }
-    let body = match http_post(&config, "/api/studio/promise", serde_json::Value::Object(payload)) {
+    let body = match http_post(
+        &config,
+        "/api/studio/promise",
+        serde_json::Value::Object(payload),
+    ) {
         Ok(body) => body,
         Err(error) => return fail(err, error),
     };
@@ -348,7 +367,11 @@ fn cmd_save_promise(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -
     } else {
         render_write_result_human(&body, out);
     }
-    if body.get("saved") == Some(&serde_json::Value::Bool(true)) { 0 } else { 1 }
+    if body.get("saved") == Some(&serde_json::Value::Bool(true)) {
+        0
+    } else {
+        1
+    }
 }
 
 fn cmd_review(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
@@ -361,12 +384,21 @@ fn cmd_review(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 
         Err(error) => return fail(err, error),
     };
     let Some(promise_id) = parsed.positionals.first() else {
-        return fail(err, "review requires a PROMISE_ID as the first positional argument");
+        return fail(
+            err,
+            "review requires a PROMISE_ID as the first positional argument",
+        );
     };
     let Some(action) = parsed.flags.get("--action") else {
-        return fail(err, "--action ACTION is required (approved | rejected | changes_requested)");
+        return fail(
+            err,
+            "--action ACTION is required (approved | rejected | changes_requested)",
+        );
     };
-    if !matches!(action.as_str(), "approved" | "rejected" | "changes_requested") {
+    if !matches!(
+        action.as_str(),
+        "approved" | "rejected" | "changes_requested"
+    ) {
         return fail(
             err,
             format!(
@@ -385,14 +417,23 @@ fn cmd_review(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 
         .or_else(|| env::var("USER").ok())
         .unwrap_or_else(|| "agent".to_string());
     let mut payload = serde_json::Map::new();
-    payload.insert("promiseId".to_string(), serde_json::Value::from(promise_id.clone()));
-    payload.insert("action".to_string(), serde_json::Value::from(action.clone()));
+    payload.insert(
+        "promiseId".to_string(),
+        serde_json::Value::from(promise_id.clone()),
+    );
+    payload.insert(
+        "action".to_string(),
+        serde_json::Value::from(action.clone()),
+    );
     payload.insert("reviewer".to_string(), serde_json::Value::from(reviewer));
     if let Some(note) = parsed.flags.get("--note") {
         payload.insert("note".to_string(), serde_json::Value::from(note.clone()));
     }
     if let Some(project) = parsed.flags.get("--project") {
-        payload.insert("projectId".to_string(), serde_json::Value::from(project.clone()));
+        payload.insert(
+            "projectId".to_string(),
+            serde_json::Value::from(project.clone()),
+        );
     }
     let body = match http_post(
         &config,
@@ -408,7 +449,11 @@ fn cmd_review(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 
     } else {
         render_write_result_human(&body, out);
     }
-    if body.get("saved") == Some(&serde_json::Value::Bool(true)) { 0 } else { 1 }
+    if body.get("saved") == Some(&serde_json::Value::Bool(true)) {
+        0
+    } else {
+        1
+    }
 }
 
 fn cmd_run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
@@ -422,9 +467,16 @@ fn cmd_run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     };
     let mut payload = serde_json::Map::new();
     if let Some(project) = parsed.flags.get("--project") {
-        payload.insert("projectId".to_string(), serde_json::Value::from(project.clone()));
+        payload.insert(
+            "projectId".to_string(),
+            serde_json::Value::from(project.clone()),
+        );
     }
-    let body = match http_post(&config, "/api/run/tests", serde_json::Value::Object(payload)) {
+    let body = match http_post(
+        &config,
+        "/api/run/tests",
+        serde_json::Value::Object(payload),
+    ) {
         Ok(body) => body,
         Err(error) => return fail(err, error),
     };
@@ -447,7 +499,10 @@ fn cmd_open(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
         Err(error) => return fail(err, error),
     };
     let Some(file) = parsed.positionals.first() else {
-        return fail(err, "open requires a FILE path (relative to the project root)");
+        return fail(
+            err,
+            "open requires a FILE path (relative to the project root)",
+        );
     };
     let config = match load_daemon_config() {
         Ok(c) => c,
@@ -456,9 +511,16 @@ fn cmd_open(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     let mut payload = serde_json::Map::new();
     payload.insert("file".to_string(), serde_json::Value::from(file.clone()));
     if let Some(project) = parsed.flags.get("--project") {
-        payload.insert("projectId".to_string(), serde_json::Value::from(project.clone()));
+        payload.insert(
+            "projectId".to_string(),
+            serde_json::Value::from(project.clone()),
+        );
     }
-    let body = match http_post(&config, "/api/studio/open", serde_json::Value::Object(payload)) {
+    let body = match http_post(
+        &config,
+        "/api/studio/open",
+        serde_json::Value::Object(payload),
+    ) {
         Ok(body) => body,
         Err(error) => return fail(err, error),
     };
@@ -492,7 +554,10 @@ fn render_snapshot_human(snapshot: &serde_json::Value, out: &mut dyn Write) {
         .map(|array| array.len())
         .unwrap_or(0);
     let _ = writeln!(out, "Modules: {modules}    Promises: {promises}");
-    if let Some(generated_at) = snapshot.get("resultsGeneratedAt").and_then(|value| value.as_str()) {
+    if let Some(generated_at) = snapshot
+        .get("resultsGeneratedAt")
+        .and_then(|value| value.as_str())
+    {
         let _ = writeln!(out, "Last run: {generated_at}");
     } else {
         let _ = writeln!(out, "Last run: (never)");
@@ -530,7 +595,10 @@ fn render_snapshot_human(snapshot: &serde_json::Value, out: &mut dyn Write) {
     } else {
         let _ = writeln!(out, "Pending review ({}):", pending.len());
         for promise in pending.iter().take(20) {
-            let id = promise.get("id").and_then(|value| value.as_str()).unwrap_or("?");
+            let id = promise
+                .get("id")
+                .and_then(|value| value.as_str())
+                .unwrap_or("?");
             let priority = promise
                 .get("priority")
                 .and_then(|value| value.as_str())
@@ -553,20 +621,38 @@ fn render_projects_human(value: &serde_json::Value, out: &mut dyn Write) {
         return;
     };
     for project in projects {
-        let id = project.get("id").and_then(|value| value.as_str()).unwrap_or("?");
-        let name = project.get("name").and_then(|value| value.as_str()).unwrap_or("?");
-        let path = project.get("path").and_then(|value| value.as_str()).unwrap_or("?");
+        let id = project
+            .get("id")
+            .and_then(|value| value.as_str())
+            .unwrap_or("?");
+        let name = project
+            .get("name")
+            .and_then(|value| value.as_str())
+            .unwrap_or("?");
+        let path = project
+            .get("path")
+            .and_then(|value| value.as_str())
+            .unwrap_or("?");
         let _ = writeln!(out, "{id}\t{name}\t{path}");
     }
 }
 
 fn render_write_result_human(body: &serde_json::Value, out: &mut dyn Write) {
-    let saved = body.get("saved").and_then(|value| value.as_bool()).unwrap_or(false);
-    let exit_code = body.get("exitCode").and_then(|value| value.as_i64()).unwrap_or(-1);
+    let saved = body
+        .get("saved")
+        .and_then(|value| value.as_bool())
+        .unwrap_or(false);
+    let exit_code = body
+        .get("exitCode")
+        .and_then(|value| value.as_i64())
+        .unwrap_or(-1);
     if saved {
         let _ = writeln!(out, "saved (exit code {exit_code})");
     } else {
-        let _ = writeln!(out, "NOT saved (exit code {exit_code}) — daemon rolled back");
+        let _ = writeln!(
+            out,
+            "NOT saved (exit code {exit_code}) — daemon rolled back"
+        );
     }
     if let Some(stdout) = body.get("stdout").and_then(|value| value.as_str()) {
         if !stdout.is_empty() {
@@ -581,7 +667,10 @@ fn render_write_result_human(body: &serde_json::Value, out: &mut dyn Write) {
 }
 
 fn render_run_result_human(body: &serde_json::Value, out: &mut dyn Write) {
-    let exit_code = body.get("exitCode").and_then(|value| value.as_i64()).unwrap_or(-1);
+    let exit_code = body
+        .get("exitCode")
+        .and_then(|value| value.as_i64())
+        .unwrap_or(-1);
     let _ = writeln!(out, "exit code {exit_code}");
     if let Some(stdout) = body.get("stdout").and_then(|value| value.as_str()) {
         if !stdout.is_empty() {

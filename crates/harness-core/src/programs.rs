@@ -63,7 +63,11 @@ pub fn build_seed_report(
     // re-run the evidence-binding rule against those instead of relying on the
     // results.yaml snapshot taken inside `check_seed_harness`.
     if has_override {
-        issues.extend(validate_test_results(&check.records, &check.modules, &results));
+        issues.extend(validate_test_results(
+            &check.records,
+            &check.modules,
+            &results,
+        ));
     }
     Ok(generate_seed_report(
         &check.records,

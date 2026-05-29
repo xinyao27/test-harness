@@ -202,9 +202,7 @@ pub fn build_studio_snapshot(root: impl AsRef<Path>) -> Result<StudioSnapshot, H
     let modules = load_module_records(root)?;
     let promises = load_promise_records(root)?;
     let results_file = load_test_results_file(root)?;
-    let results_generated_at = results_file
-        .as_ref()
-        .map(|file| file.generated_at.clone());
+    let results_generated_at = results_file.as_ref().map(|file| file.generated_at.clone());
     let results = results_file.map_or_else(Vec::new, |file| file.results);
     let issues = validate_module_records(&modules)
         .into_iter()
