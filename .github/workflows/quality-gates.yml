@@ -48,9 +48,6 @@ jobs:
       - name: Run workspace tests
         run: pnpm test
 
-      - name: Run web tests
-        run: pnpm --filter @test-harness/web test
-
       - name: Build workspace
         run: pnpm run build
 
