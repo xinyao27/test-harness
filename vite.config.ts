@@ -21,6 +21,12 @@ export default defineConfig({
   },
   staged: {
     "*": "vp check --fix",
+    // vp check only understands the JS/TS toolchain, so staged Rust would
+    // otherwise reach CI unformatted and fail `cargo fmt --all --check`.
+    // Run rustfmt on staged *.rs (edition 2021, matching the workspace);
+    // vp staged re-stages whatever rustfmt rewrites. Requires the rustfmt
+    // component (`rustup component add rustfmt`).
+    "*.rs": "rustfmt --edition 2021",
   },
   lint: {
     options: {
