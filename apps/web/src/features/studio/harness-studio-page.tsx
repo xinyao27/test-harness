@@ -934,7 +934,15 @@ function HarnessStudioPageInner({
     [data, locale, m],
   );
 
-  const flowRef = useRef<ReactFlowInstance<Node, Edge> | null>(null);
+  // The React Flow instance is held in STATE, not a ref, so the centering
+  // effect below re-runs the moment `onInit` hands it over. A ref would be
+  // invisible to the effect's dependency array: on a fresh load `onInit`
+  // commonly fires AFTER the selection / data effects have already settled,
+  // and if nothing else perturbs the deps afterwards (e.g. ELK never
+  // publishes because the nodes weren't measured), the effect would keep
+  // its stale `null` instance and never frame the camera — leaving React
+  // Flow at its default (0, 0, zoom 1) viewport.
+  const [flowInstance, setFlowInstance] = useState<ReactFlowInstance<Node, Edge> | null>(null);
   const surfaceRef = useRef<HTMLElement | null>(null);
   const lastCenteredRef = useRef<string | null>(null);
   const hasFitInitialRef = useRef(false);
@@ -977,7 +985,7 @@ function HarnessStudioPageInner({
   //     internal store lags one tick behind `setNodes`; reading from
   //     `derivedNodes` (this render's truth) avoids the staleness.
   useEffect(() => {
-    const instance = flowRef.current;
+    const instance = flowInstance;
     const surface = surfaceRef.current;
     if (!instance || !surface) return;
 
@@ -1013,10 +1021,25 @@ function HarnessStudioPageInner({
         node.measured?.height ?? (node.style?.height as number | undefined) ?? node.height ?? 104,
     });
 
-    if (!targetId) {
-      // Fit-all panel-aware. Ignore pty cards — they roam free and
-      // would otherwise drag the camera out to wherever the user
-      // happens to have moved them.
+    // Fit a whole frame into the visible (left-of-panel) area. Used for:
+    //   - no target          → the package overview
+    //   - a focused MODULE    → that module + the promises it owns
+    // Both must SCALE to fit, not merely center. In focused-module mode
+    // ELK lays the promise column ~700px to the right of the module
+    // (264px module + 180px layer gap + 264px promise), which is wider
+    // than the visible strip once the 440px Context panel is subtracted.
+    // The single-node-center path below floored zoom at `focusZoom` (1.0)
+    // and never scaled, so it centered the module node alone and pushed
+    // the entire promise column off-screen, behind the panel — the
+    // "layout wider than the viewport" we see on a fresh focused load.
+    // The single-node path is kept only for a focused PROMISE or a
+    // freshly spawned pty card: one ~264px node that always fits.
+    const isModuleFocus = targetId?.startsWith("module:") ?? false;
+    if (!targetId || isModuleFocus) {
+      // Ignore pty cards — they roam free and would otherwise drag the
+      // camera out to wherever the user happens to have moved them. In
+      // focused-module mode the remaining non-pty nodes ARE exactly the
+      // module + its promises, so this bbox frames the module subtree.
       const visibleNodes = derivedNodes.filter((node) => node.type !== "pty");
       if (visibleNodes.length === 0) return;
       let minX = Infinity;
@@ -1098,6 +1121,7 @@ function HarnessStudioPageInner({
       consumeFocus();
     }
   }, [
+    flowInstance,
     pendingFocusId,
     consumeFocus,
     selectedPromiseId,
@@ -1304,7 +1328,7 @@ function HarnessStudioPageInner({
         <ReactFlow
           className="studio-flow-layer"
           onInit={(instance) => {
-            flowRef.current = instance;
+            setFlowInstance(instance);
           }}
           nodes={nodes}
           edges={edges}
