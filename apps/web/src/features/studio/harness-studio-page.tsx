@@ -3156,15 +3156,11 @@ function createPriorityLayerNode(priority: ModulePriority, y: number): StudioNod
 
 function moduleNeedsReviewAttention(module: HarnessModule, promises: HarnessPromise[]) {
   return promises.some(
-    (promise) => promise.moduleId === module.id && promiseNeedsInboxAttention(promise),
+    (promise) => promise.moduleId === module.id && promiseNeedsReviewAttention(promise),
   );
 }
 
 function promiseNeedsReviewAttention(promise: HarnessPromise) {
-  return promiseNeedsInboxAttention(promise);
-}
-
-function promiseNeedsInboxAttention(promise: HarnessPromise) {
   return (
     promise.lifecycle === "proposed" ||
     promise.lifecycle === "changed_requires_review" ||
