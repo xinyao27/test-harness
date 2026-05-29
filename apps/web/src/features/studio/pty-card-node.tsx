@@ -120,6 +120,7 @@ export function PtyCardNode({ data, selected }: NodeProps) {
     let dataDisposable: { dispose: () => void } | null = null;
     let resizeObserver: ResizeObserver | null = null;
     let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+    let initialPromptTimer: ReturnType<typeof setTimeout> | null = null;
 
     // Coalesce rapid inbound pty data into a single `term.write()` per
     // tick — the same 5 ms VS Code's TerminalDataBufferer uses. Without
@@ -163,9 +164,11 @@ export function PtyCardNode({ data, selected }: NodeProps) {
           if (!socket) return;
           sendResize(socket, terminal);
           if (cardData.initialPrompt) {
-            // Push the initial prompt as stdin bytes so the agent immediately
-            // knows what promise it has been handed.
-            socket.send(new TextEncoder().encode(cardData.initialPrompt));
+            const prompt = cardData.initialPrompt;
+            initialPromptTimer = setTimeout(() => {
+              if (cancelled || socket?.readyState !== WebSocket.OPEN) return;
+              socket.send(new TextEncoder().encode(formatInitialPromptForPty(prompt)));
+            }, 1800);
           }
         });
         socket.addEventListener("message", (event) => {
@@ -214,6 +217,7 @@ export function PtyCardNode({ data, selected }: NodeProps) {
     return () => {
       cancelled = true;
       cancelAnimationFrame(raf1);
+      if (initialPromptTimer) clearTimeout(initialPromptTimer);
       if (resizeTimer) clearTimeout(resizeTimer);
       if (flushTimer !== undefined) clearTimeout(flushTimer);
       resizeObserver?.disconnect();
@@ -376,4 +380,9 @@ export function agentToolLabel(
     case "cursor":
       return m.studio_agent_tool_cursor({}, { locale });
   }
+}
+
+function formatInitialPromptForPty(prompt: string) {
+  const normalized = prompt.trimEnd();
+  return `\x1b[200~${normalized}\x1b[201~\r`;
 }

@@ -1,3 +1,5 @@
+import type { ComponentProps } from "react";
+
 import { Badge } from "@/components/ui/badge";
 import type {
   PromiseLifecycle,
@@ -14,6 +16,8 @@ import {
   getRunStatusLabel,
 } from "./status-labels";
 
+type StatusBadgeSize = ComponentProps<typeof Badge>["size"];
+
 export function PriorityBadge({ priority }: { priority: PromisePriority }) {
   const { locale, m } = useI18n();
 
@@ -27,17 +31,23 @@ export function PriorityBadge({ priority }: { priority: PromisePriority }) {
   );
 }
 
-export function LifecycleBadge({ lifecycle }: { lifecycle: PromiseLifecycle }) {
+export function LifecycleBadge({
+  lifecycle,
+  size,
+}: {
+  lifecycle: PromiseLifecycle;
+  size?: StatusBadgeSize;
+}) {
   const { locale, m } = useI18n();
 
   return (
-    <Badge variant={lifecycle === "accepted" ? "outline" : "secondary"}>
+    <Badge size={size} variant={lifecycle === "accepted" ? "outline" : "secondary"}>
       {getLifecycleLabel(lifecycle, locale, m)}
     </Badge>
   );
 }
 
-export function RunStatusBadge({ status }: { status: RunStatus }) {
+export function RunStatusBadge({ size, status }: { size?: StatusBadgeSize; status: RunStatus }) {
   const { locale, m } = useI18n();
 
   const className = {
@@ -49,7 +59,7 @@ export function RunStatusBadge({ status }: { status: RunStatus }) {
   }[status];
 
   return (
-    <Badge variant="outline" className={className}>
+    <Badge size={size} variant="outline" className={className}>
       {getRunStatusLabel(status, locale, m)}
     </Badge>
   );

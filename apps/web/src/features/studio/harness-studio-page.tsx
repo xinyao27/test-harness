@@ -9,19 +9,15 @@ import {
   RiFolderAddLine,
   RiFolderLine,
   RiLightbulbLine,
-  RiInboxLine,
   RiPencilLine,
   RiSearchLine,
-  RiAddLine,
   RiRobot2Line,
   RiSettings3Line,
-  RiShieldCheckLine,
-  RiStackLine,
-  RiTerminalBoxLine,
   RiSidebarFoldLine,
   RiSidebarUnfoldLine,
 } from "@remixicon/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import {
   Controls,
   Handle,
@@ -81,7 +77,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { Label } from "@/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -100,7 +95,7 @@ import type {
   RunStatus,
   SnapshotSource,
 } from "@/data/harness-snapshot";
-import { SettingsPanel } from "@/features/settings/settings-page";
+import { SettingsDialog } from "@/features/settings/settings-page";
 import { RunStatusBadge } from "@/features/status/status-badge";
 import { useAgentCardsStore, type PtyCard } from "@/features/studio/agent-cards-store";
 import { agentToolLabel, PtyCardNode } from "@/features/studio/pty-card-node";
@@ -176,7 +171,7 @@ type StudioNodeData = {
 type StudioNode = Node<StudioNodeData>;
 type MessageModule = ReturnType<typeof useI18n>["m"];
 
-type StudioSearchResult = {
+export type StudioSearchResult = {
   id: string;
   kind: StudioNodeKind;
   moduleId: string;
@@ -193,7 +188,7 @@ type StudioRunState = {
   status: "idle" | "running" | "success" | "failed";
 };
 
-type StudioWriteState = {
+export type StudioWriteState = {
   result: WorkbenchWriteResult | null;
   status: "idle" | "saving" | "success" | "rejected" | "failed";
 };
@@ -312,7 +307,7 @@ const architectureLayerByModuleId: Record<string, number> = {
   "todo-backend-showcase": 3,
 };
 
-function ProjectSwitcher({
+export function ProjectSwitcher({
   knownProjects,
   onProjectChange,
   selectedProjectId,
@@ -606,7 +601,7 @@ function getStudioProjectName(projectId: string, knownProjects: WorkbenchProject
   return projectId.replace(/^directory:/, "").replaceAll("-", " ") || "test-harness";
 }
 
-function StudioBreadcrumbs({
+export function StudioBreadcrumbs({
   module,
   onModuleClick,
   onProjectClick,
@@ -684,7 +679,94 @@ function StudioBreadcrumbs({
   );
 }
 
-export function HarnessStudioPage(props: { settingsOpenByDefault?: boolean }) {
+// The app's top bar (project switcher + breadcrumb + search + settings),
+// shared by the studio canvas and the module workspace so every route gets the same
+// chrome. Presentational: all actions come in as handlers; each consumer owns its own
+// search/settings targets.
+export function WorkbenchHeader({
+  knownProjects,
+  selectedProjectId,
+  onProjectChange,
+  module,
+  promise,
+  projectName,
+  onProjectClick,
+  onModuleClick,
+  onOpenSearch,
+  onOpenSettings,
+}: {
+  knownProjects: WorkbenchProject[];
+  selectedProjectId: string;
+  onProjectChange: (projectId: string) => void;
+  module: HarnessModule | null;
+  promise: HarnessPromise | null;
+  projectName: string;
+  onProjectClick: () => void;
+  onModuleClick: () => void;
+  onOpenSearch: () => void;
+  onOpenSettings: () => void;
+}) {
+  const { locale, m } = useI18n();
+
+  return (
+    <div className="studio-top-bar">
+      <div className="studio-top-left">
+        <ProjectSwitcher
+          knownProjects={knownProjects}
+          onProjectChange={onProjectChange}
+          selectedProjectId={selectedProjectId}
+        />
+        <StudioBreadcrumbs
+          module={module}
+          onModuleClick={onModuleClick}
+          onProjectClick={onProjectClick}
+          projectName={projectName}
+          promise={promise}
+        />
+      </div>
+
+      <div className="studio-top-actions">
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="outline"
+                aria-label={m.studio_search_trigger({}, { locale })}
+                className="studio-floating-control"
+                onClick={onOpenSearch}
+              />
+            }
+          >
+            <RiSearchLine />
+          </TooltipTrigger>
+          <TooltipContent side="bottom">{m.studio_search_title({}, { locale })}</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="outline"
+                aria-label={m.nav_settings({}, { locale })}
+                className="studio-floating-control"
+                onClick={onOpenSettings}
+              />
+            }
+          >
+            <RiSettings3Line />
+          </TooltipTrigger>
+          <TooltipContent side="bottom">{m.nav_settings({}, { locale })}</TooltipContent>
+        </Tooltip>
+      </div>
+    </div>
+  );
+}
+
+export function HarnessStudioPage() {
   // `useStudioElkLayout` and any other React Flow hook (e.g. useReactFlow,
   // useNodesInitialized) needs to live underneath a ReactFlowProvider. The
   // <ReactFlow> component itself only provides the context to its own
@@ -694,20 +776,17 @@ export function HarnessStudioPage(props: { settingsOpenByDefault?: boolean }) {
   // gives every child access to the React Flow store.
   return (
     <ReactFlowProvider>
-      <HarnessStudioPageInner {...props} />
+      <HarnessStudioPageInner />
     </ReactFlowProvider>
   );
 }
 
-function HarnessStudioPageInner({
-  settingsOpenByDefault = false,
-}: {
-  settingsOpenByDefault?: boolean;
-}) {
+function HarnessStudioPageInner() {
   const [selectedProjectId, setSelectedProjectId] = useState(() =>
     readStoredSelectedProjectId(readStoredStudioProjects()),
   );
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const { data: knownProjects = fallbackWorkbenchProjects } = useQuery({
     queryKey: ["workbench-projects"],
     queryFn: getWorkbenchProjects,
@@ -726,14 +805,11 @@ function HarnessStudioPageInner({
   const [selectedPromiseId, setSelectedPromiseId] = useState<string | null>(null);
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(true);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [isInboxOpen, setIsInboxOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(settingsOpenByDefault);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const agentCards = useAgentCardsStore((store) => store.cards);
-  const addAgentCard = useAgentCardsStore((store) => store.addCard);
   const updateCardPosition = useAgentCardsStore((store) => store.updateCardPosition);
   const pendingFocusId = useAgentCardsStore((store) => store.pendingFocusId);
   const consumeFocus = useAgentCardsStore((store) => store.consumeFocus);
-  const [hasReadQueryState, setHasReadQueryState] = useState(false);
   const [editingModule, setEditingModule] = useState<HarnessModule | null>(null);
   const [editingPromiseContext, setEditingPromiseContext] = useState<{
     module: HarnessModule;
@@ -741,6 +817,12 @@ function HarnessStudioPageInner({
   } | null>(null);
   const [runState, setRunState] = useState<StudioRunState>({ result: null, status: "idle" });
   const [writeState, setWriteState] = useState<StudioWriteState>({ result: null, status: "idle" });
+
+  useEffect(() => {
+    if (window.sessionStorage.getItem("harness:open-settings") !== "1") return;
+    window.sessionStorage.removeItem("harness:open-settings");
+    setIsSettingsOpen(true);
+  }, []);
 
   useEffect(() => {
     const openSearch = (event: KeyboardEvent) => {
@@ -755,48 +837,28 @@ function HarnessStudioPageInner({
   }, []);
 
   useEffect(() => {
-    if (!data || hasReadQueryState || typeof window === "undefined") return;
-
+    if (typeof window === "undefined") return;
     const search = new URLSearchParams(window.location.search);
-    const promiseId = search.get("promise");
     const moduleId = search.get("module");
-    const promise = promiseId ? data.promises.find((item) => item.id === promiseId) : undefined;
-    const module = moduleId ? data.modules.find((item) => item.id === moduleId) : undefined;
+    const promiseId = search.get("promise");
 
+    if (moduleId) {
+      void navigate({ to: "/modules/$moduleId", params: { moduleId }, replace: true });
+      return;
+    }
+
+    if (!promiseId || !data) return;
+    const promise = data.promises.find((item) => item.id === promiseId);
     if (promise) {
-      setSelectedModuleId(promise.moduleId);
-      setSelectedPromiseId(promise.id);
-      setIsPanelCollapsed(false);
-    } else if (module) {
-      setSelectedModuleId(module.id);
-      setSelectedPromiseId(null);
-      setIsPanelCollapsed(false);
+      void navigate({
+        to: "/modules/$moduleId",
+        params: { moduleId: promise.moduleId },
+        replace: true,
+      });
+    } else {
+      void navigate({ to: "/", replace: true });
     }
-
-    setHasReadQueryState(true);
-  }, [data, hasReadQueryState]);
-
-  useEffect(() => {
-    if (!hasReadQueryState || typeof window === "undefined") return;
-    if (settingsOpenByDefault && isSettingsOpen) return;
-
-    const search = new URLSearchParams();
-    if (selectedPromiseId) {
-      search.set("promise", selectedPromiseId);
-    } else if (selectedModuleId) {
-      search.set("module", selectedModuleId);
-    }
-
-    const searchText = search.toString();
-    const nextUrl = searchText ? `/?${searchText}` : "/";
-    window.history.replaceState(null, "", nextUrl);
-  }, [
-    hasReadQueryState,
-    isSettingsOpen,
-    selectedModuleId,
-    selectedPromiseId,
-    settingsOpenByDefault,
-  ]);
+  }, [data, navigate]);
 
   const selectedPromise =
     data?.promises.find((promise) => promise.id === selectedPromiseId) ?? null;
@@ -1129,11 +1191,6 @@ function HarnessStudioPageInner({
     elkPositions,
     derivedNodes,
   ]);
-  const reviewInbox = useMemo(
-    () => (data ? buildReviewInbox(data.promises, locale) : []),
-    [data, locale],
-  );
-
   const selectModule = useCallback((moduleId: string) => {
     setSelectedModuleId(moduleId);
     setSelectedPromiseId(null);
@@ -1146,6 +1203,13 @@ function HarnessStudioPageInner({
     setIsPanelCollapsed(true);
   }, []);
 
+  const openModuleWorkspace = useCallback(
+    (moduleId: string) => {
+      void navigate({ to: "/modules/$moduleId", params: { moduleId } });
+    },
+    [navigate],
+  );
+
   const selectPromise = useCallback(
     (promiseId: string) => {
       const promise = data?.promises.find((item) => item.id === promiseId);
@@ -1157,25 +1221,16 @@ function HarnessStudioPageInner({
     [data],
   );
 
-  const selectInboxPromise = useCallback(
-    (promiseId: string) => {
-      selectPromise(promiseId);
-    },
-    [selectPromise],
-  );
-
-  // Ordered list to step through while reviewing: the review inbox if the selected promise is in
-  // it, otherwise the selected promise's module.
+  // Ordered list to step through while reviewing the selected promise's module.
   const promiseNavList = useMemo(() => {
     if (!selectedPromiseId || !data) return [];
-    if (reviewInbox.some((promise) => promise.id === selectedPromiseId)) return reviewInbox;
     const moduleId = data.promises.find((promise) => promise.id === selectedPromiseId)?.moduleId;
     if (!moduleId) return [];
     return sortPromisesForReview(
       data.promises.filter((promise) => promise.moduleId === moduleId),
       locale,
     );
-  }, [selectedPromiseId, data, reviewInbox, locale]);
+  }, [selectedPromiseId, data, locale]);
   const promiseNavIndex = promiseNavList.findIndex((promise) => promise.id === selectedPromiseId);
   const navigatePromise = useCallback(
     (direction: -1 | 1) => {
@@ -1207,14 +1262,10 @@ function HarnessStudioPageInner({
 
   const selectSearchResult = useCallback(
     (result: StudioSearchResult) => {
-      if (result.kind === "promise" && result.promiseId) {
-        selectPromise(result.promiseId);
-      } else {
-        selectModule(result.moduleId);
-      }
       setIsSearchOpen(false);
+      openModuleWorkspace(result.moduleId);
     },
-    [selectModule, selectPromise],
+    [openModuleWorkspace],
   );
 
   const changeProject = useCallback((projectId: string) => {
@@ -1320,7 +1371,7 @@ function HarnessStudioPageInner({
   );
 
   return (
-    <div className="studio-canvas-frame relative h-full min-h-0 overflow-hidden">
+    <div className="relative h-full min-h-0 overflow-hidden bg-background">
       <section
         ref={surfaceRef}
         className="studio-flow-surface relative h-full min-h-0 overflow-hidden"
@@ -1350,8 +1401,12 @@ function HarnessStudioPageInner({
           }}
           onNodeClick={(_, node) => {
             const [kind, id] = node.id.split(":");
-            if (kind === "module") selectModule(id);
-            if (kind === "promise") selectPromise(id);
+            // L1 → L2: opening a module enters its workspace route.
+            if (kind === "module") openModuleWorkspace(id);
+            if (kind === "promise") {
+              const promise = data?.promises.find((item) => item.id === id);
+              if (promise) openModuleWorkspace(promise.moduleId);
+            }
           }}
           onPaneClick={() => {
             setSelectedModuleId(null);
@@ -1360,155 +1415,20 @@ function HarnessStudioPageInner({
           }}
         >
           <Panel position="top-left" className="studio-flow-header-panel">
-            <div className="studio-top-bar">
-              <div className="studio-top-left">
-                <ProjectSwitcher
-                  knownProjects={knownProjects}
-                  onProjectChange={changeProject}
-                  selectedProjectId={selectedProjectId}
-                />
-                <StudioBreadcrumbs
-                  module={selectedModule}
-                  onModuleClick={() => {
-                    if (selectedModule) selectModule(selectedModule.id);
-                  }}
-                  onProjectClick={selectProjectRoot}
-                  projectName={selectedProjectName}
-                  promise={selectedPromise}
-                />
-              </div>
-
-              <div className="studio-top-search">
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        aria-label={m.studio_search_trigger({}, { locale })}
-                        className="studio-floating-control studio-search-trigger"
-                        onClick={() => setIsSearchOpen(true)}
-                      />
-                    }
-                  >
-                    <RiSearchLine />
-                    <span className="hidden sm:inline">
-                      {m.studio_search_trigger({}, { locale })}
-                    </span>
-                    <KbdGroup className="hidden opacity-70 sm:inline-flex">
-                      <Kbd>⌘</Kbd>
-                      <Kbd>K</Kbd>
-                    </KbdGroup>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    {m.studio_search_title({}, { locale })}
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-
-              <div className="studio-top-stats">
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={isInboxOpen ? "default" : "outline"}
-                        aria-label={m.nav_inbox({}, { locale })}
-                        className="studio-floating-control studio-metrics-control"
-                        onClick={() => setIsInboxOpen((current) => !current)}
-                      />
-                    }
-                  >
-                    <span className="studio-metric">
-                      <RiStackLine className="studio-metric-icon" />
-                      {data?.project.moduleCount ?? 0}
-                    </span>
-                    <span className="studio-metric">
-                      <RiShieldCheckLine className="studio-metric-icon" />
-                      {data?.project.promiseCount ?? 0}
-                    </span>
-                    <span className="studio-metric">
-                      {reviewInbox.length > 0 ? <span className="studio-metric-dot" /> : null}
-                      <RiInboxLine className="studio-metric-icon" />
-                      {reviewInbox.length}
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    {m.metric_total_modules({}, { locale })} ·{" "}
-                    {m.metric_total_promises(
-                      {},
-                      {
-                        locale,
-                      },
-                    )}{" "}
-                    · {m.nav_inbox({}, { locale })}
-                  </TooltipContent>
-                </Tooltip>
-                <Popover>
-                  <PopoverTrigger
-                    render={
-                      <Button
-                        type="button"
-                        size="icon-sm"
-                        variant="outline"
-                        aria-label={m.studio_add_card_menu({}, { locale })}
-                        className="studio-floating-control"
-                      />
-                    }
-                  >
-                    <RiAddLine />
-                  </PopoverTrigger>
-                  <PopoverContent align="end" className="w-48 p-1">
-                    <button
-                      type="button"
-                      className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted"
-                      onClick={() => addAgentCard({ kind: "terminal" })}
-                    >
-                      <RiTerminalBoxLine className="size-4" />
-                      {m.studio_add_terminal({}, { locale })}
-                    </button>
-                    {/* Agent kind splits into one row per supported CLI — the
-                        user picks Claude Code / Codex / Cursor CLI at spawn
-                        time, and the daemon dispatches `?agent=…` accordingly. */}
-                    <div className="mt-1 border-t border-border pt-1">
-                      <div className="px-2 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-                        {m.studio_add_agent({}, { locale })}
-                      </div>
-                      {(["claude", "codex", "cursor"] as const).map((tool) => (
-                        <button
-                          key={tool}
-                          type="button"
-                          className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted"
-                          onClick={() => addAgentCard({ kind: "agent", tool })}
-                        >
-                          <RiRobot2Line className="size-4" />
-                          {agentToolLabel(tool, locale, m)}
-                        </button>
-                      ))}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <Button
-                        type="button"
-                        size="icon-sm"
-                        variant="outline"
-                        aria-label={m.nav_settings({}, { locale })}
-                        className="studio-floating-control"
-                        onClick={() => setIsSettingsOpen(true)}
-                      />
-                    }
-                  >
-                    <RiSettings3Line />
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">{m.nav_settings({}, { locale })}</TooltipContent>
-                </Tooltip>
-              </div>
-            </div>
+            <WorkbenchHeader
+              knownProjects={knownProjects}
+              selectedProjectId={selectedProjectId}
+              onProjectChange={changeProject}
+              module={selectedModule}
+              promise={selectedPromise}
+              projectName={selectedProjectName}
+              onProjectClick={selectProjectRoot}
+              onModuleClick={() => {
+                if (selectedModule) selectModule(selectedModule.id);
+              }}
+              onOpenSearch={() => setIsSearchOpen(true)}
+              onOpenSettings={() => setIsSettingsOpen(true)}
+            />
           </Panel>
 
           {data?.source && data.source !== "daemon" ? (
@@ -1516,16 +1436,6 @@ function HarnessStudioPageInner({
               <span className="studio-source-toast-dot" />
               {snapshotSourceLabel(data.source, m, locale)}
             </Panel>
-          ) : null}
-
-          {isInboxOpen && data ? (
-            <ReviewInboxPanel
-              promises={reviewInbox}
-              selectedPromiseId={selectedPromise?.id ?? null}
-              snapshot={data}
-              onClose={() => setIsInboxOpen(false)}
-              onSelectPromise={selectInboxPromise}
-            />
           ) : null}
 
           <Controls showInteractive={false} />
@@ -1591,17 +1501,7 @@ function HarnessStudioPageInner({
         ) : null}
       </section>
 
-      <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{m.settings_title({}, { locale })}</DialogTitle>
-            <DialogDescription>{m.settings_description({}, { locale })}</DialogDescription>
-          </DialogHeader>
-          <ScrollArea className="h-(--studio-settings-scroll-height)">
-            <SettingsPanel />
-          </ScrollArea>
-        </DialogContent>
-      </Dialog>
+      <SettingsDialog isOpen={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
 
       <StudioSearchDialog
         isOpen={isSearchOpen}
@@ -1637,7 +1537,7 @@ function snapshotSourceLabel(source: SnapshotSource, m: MessageModule, locale: A
   return m.studio_source_empty({}, { locale });
 }
 
-function StudioSearchDialog({
+export function StudioSearchDialog({
   isOpen,
   onOpenChange,
   onSelectResult,
@@ -2175,117 +2075,6 @@ function splitLines(value: string) {
     .filter(Boolean);
 }
 
-function ReviewInboxPanel({
-  onClose,
-  onSelectPromise,
-  promises,
-  selectedPromiseId,
-  snapshot,
-}: {
-  onClose: () => void;
-  onSelectPromise: (promiseId: string) => void;
-  promises: HarnessPromise[];
-  selectedPromiseId: string | null;
-  snapshot: HarnessSnapshot;
-}) {
-  const { locale, m } = useI18n();
-  const [filter, setFilter] = useState<"changed" | "pending">("pending");
-  const modulesById = useMemo(
-    () => new Map(snapshot.modules.map((module) => [module.id, module])),
-    [snapshot.modules],
-  );
-  // `promises` is the review inbox (everything needing attention); partition it so the two tab
-  // counts always sum to the inbox badge and changes-requested items remain visible.
-  const isChanged = (promise: HarnessPromise) =>
-    promise.lifecycle === "changed_requires_review" || promise.review.state === "changes_requested";
-  const changedPromises = promises.filter(isChanged);
-  const pendingPromises = promises.filter((promise) => !isChanged(promise));
-  const filteredPromises = filter === "changed" ? changedPromises : pendingPromises;
-  const canScroll = filteredPromises.length > 5;
-
-  return (
-    <Panel position="top-left" className="studio-review-inbox-panel">
-      <div className="studio-review-inbox">
-        <div className="flex items-center justify-between gap-(--studio-panel-gap-sm)">
-          <h2 className="text-base font-medium">{m.review_title({}, { locale })}</h2>
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            aria-label={m.sidebar_close({}, { locale })}
-            className="studio-panel-icon-control"
-            onClick={onClose}
-          >
-            <RiCloseLine />
-          </Button>
-        </div>
-
-        <div className="mt-(--studio-panel-gap) flex gap-(--studio-panel-gap-sm)">
-          <Button
-            type="button"
-            size="sm"
-            variant={filter === "pending" ? "default" : "outline"}
-            onClick={() => setFilter("pending")}
-          >
-            {m.filter_pending_review({}, { locale })} {pendingPromises.length}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant={filter === "changed" ? "default" : "outline"}
-            onClick={() => setFilter("changed")}
-          >
-            {m.studio_review_filter_changed({}, { locale })} {changedPromises.length}
-          </Button>
-        </div>
-
-        <div className="studio-review-inbox-list mt-(--studio-panel-gap) overflow-hidden border border-border">
-          <ScrollArea className="studio-review-inbox-scroll" data-scrollable={canScroll}>
-            <div className="divide-y divide-border">
-              {filteredPromises.length > 0 ? (
-                filteredPromises.map((promise) => {
-                  const module = modulesById.get(promise.moduleId);
-                  const isSelected = promise.id === selectedPromiseId;
-                  return (
-                    <button
-                      key={promise.id}
-                      type="button"
-                      className="studio-review-inbox-item w-full text-left"
-                      data-selected={isSelected}
-                      onClick={() => onSelectPromise(promise.id)}
-                    >
-                      <div className="flex items-start gap-(--studio-panel-gap-sm)">
-                        <PriorityTag priority={promise.priority} />
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-start justify-between gap-(--studio-panel-gap-sm)">
-                            <div className="line-clamp-2 text-sm font-medium">
-                              {localizeText(promise.title, locale)}
-                            </div>
-                          </div>
-                          <div className="mt-(--studio-panel-gap-xs) truncate text-xs text-muted-foreground">
-                            {module ? localizeText(module.title, locale) : promise.moduleId}
-                          </div>
-                          <div className="mt-(--studio-panel-gap-xs) text-xs text-muted-foreground">
-                            {reviewInboxReason(promise, m, locale)}
-                          </div>
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })
-              ) : (
-                <div className="p-(--studio-panel-padding) text-sm text-muted-foreground">
-                  {m.studio_review_inbox_empty({}, { locale })}
-                </div>
-              )}
-            </div>
-          </ScrollArea>
-        </div>
-      </div>
-    </Panel>
-  );
-}
-
 function ContextPanel({
   canOpenFiles,
   canRunTests,
@@ -2395,17 +2184,15 @@ function ContextPanel({
           </div>
         </div>
 
-        {promise && module && snapshot ? (
+        {promise && snapshot ? (
           <PromiseContext
             canOpenFiles={canOpenFiles}
             canWrite={canWrite}
             isSaving={isSaving}
             promise={promise}
-            module={module}
             onOpenFile={onOpenFile}
             onReviewPromise={onReviewPromise}
             resultsGeneratedAt={snapshot.resultsGeneratedAt}
-            snapshot={snapshot}
             writeState={writeState}
           />
         ) : (
@@ -2615,22 +2402,21 @@ function ModuleContext({
   );
 }
 
-function PromiseContext({
+export function PromiseContext({
   canOpenFiles,
   canWrite,
   isSaving,
-  module,
+  onAgentHandoff,
   onOpenFile,
   onReviewPromise,
   promise,
   resultsGeneratedAt,
-  snapshot,
   writeState,
 }: {
   canOpenFiles: boolean;
   canWrite: boolean;
   isSaving: boolean;
-  module: HarnessModule;
+  onAgentHandoff?: (card: PtyCard) => void;
   onOpenFile: (file: string) => void;
   onReviewPromise: (
     promiseId: string,
@@ -2639,7 +2425,6 @@ function PromiseContext({
   ) => Promise<boolean>;
   promise: HarnessPromise;
   resultsGeneratedAt?: string;
-  snapshot: HarnessSnapshot;
   writeState: StudioWriteState;
 }) {
   const { locale, m } = useI18n();
@@ -2648,10 +2433,7 @@ function PromiseContext({
   // toolbar-stack column far off to the right.
   const reactFlow = useReactFlow();
   const [reviewNote, setReviewNote] = useState("");
-  const moduleNeighborhood = sortPromisesForReview(
-    snapshot.promises.filter((item) => item.moduleId === module.id && item.id !== promise.id),
-    locale,
-  ).slice(0, 4);
+  const canReviewPromise = promiseNeedsReviewAttention(promise);
 
   const submitReview = useCallback(
     async (action: WorkbenchReviewAction) => {
@@ -2664,15 +2446,15 @@ function PromiseContext({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <ScrollArea className="min-h-0 flex-1">
-        <div className="studio-context-body space-y-(--studio-panel-gap)">
-          <section className="studio-review-module-summary">
+        <div className="space-y-(--studio-panel-gap) p-(--studio-panel-padding)">
+          <section className="pb-(--studio-panel-gap-sm)">
             <div className="flex items-start justify-between gap-(--studio-panel-gap)">
               <div className="min-w-0">
                 <h3 className="text-xs font-medium text-muted-foreground">
-                  {m.graph_kind_module({}, { locale })}
+                  {m.graph_kind_promise({}, { locale })}
                 </h3>
-                <p className="mt-(--studio-panel-gap-xs) truncate text-sm font-medium">
-                  {localizeText(module.title, locale)}
+                <p className="mt-(--studio-panel-gap-xs) line-clamp-2 text-sm font-medium">
+                  {localizeText(promise.title, locale)}
                 </p>
               </div>
               <PriorityTag priority={promise.priority} />
@@ -2684,7 +2466,7 @@ function PromiseContext({
           </InfoSection>
 
           <InfoSection title={m.studio_review_scenario({}, { locale })}>
-            <div className="studio-review-scenario-table">
+            <div className="overflow-hidden">
               <ScenarioBlock title={m.promise_detail_given({}, { locale })} items={promise.given} />
               <ScenarioBlock title={m.promise_detail_when({}, { locale })} items={promise.when} />
               <ScenarioBlock title={m.promise_detail_then({}, { locale })} items={promise.then} />
@@ -2709,27 +2491,6 @@ function PromiseContext({
 
           <ChangedFieldsPlaceholder />
 
-          <InfoSection title={m.studio_review_neighborhood({}, { locale })}>
-            {moduleNeighborhood.length > 0 ? (
-              <div className="flex flex-wrap gap-(--studio-panel-gap-sm)">
-                {moduleNeighborhood.map((item) => (
-                  <Badge
-                    key={item.id}
-                    variant="outline"
-                    className="studio-review-neighbor-pill max-w-full truncate"
-                  >
-                    <span className="truncate">{localizeText(item.title, locale)}</span>
-                    <span className="text-muted-foreground">{item.priority}</span>
-                  </Badge>
-                ))}
-              </div>
-            ) : (
-              <p className="text-muted-foreground">
-                {m.studio_review_no_neighbors({}, { locale })}
-              </p>
-            )}
-          </InfoSection>
-
           <InfoSection title={m.studio_review_hints({}, { locale })}>
             <div className="space-y-(--studio-panel-gap-xs) text-muted-foreground">
               <p className="flex items-center gap-(--studio-panel-gap-sm)">
@@ -2747,39 +2508,48 @@ function PromiseContext({
         </div>
       </ScrollArea>
 
-      <section className="studio-review-actions space-y-(--studio-panel-gap-sm)">
-        <div className="grid grid-cols-3 gap-(--studio-panel-gap-sm)">
-          <Button
-            type="button"
-            disabled={!canWrite || isSaving}
-            onClick={() => submitReview("approved")}
-          >
-            {m.action_approve({}, { locale })}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={!canWrite || isSaving}
-            onClick={() => submitReview("changes_requested")}
-          >
-            {m.action_request_changes({}, { locale })}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={!canWrite || isSaving}
-            onClick={() => submitReview("rejected")}
-          >
-            {m.action_decline({}, { locale })}
-          </Button>
-        </div>
-        <Label htmlFor="studio-review-note">{m.review_notes({}, { locale })}</Label>
-        <Textarea
-          id="studio-review-note"
-          value={reviewNote}
-          placeholder={m.review_notes_placeholder({}, { locale })}
-          onChange={(event) => setReviewNote(event.currentTarget.value)}
-        />
+      <section className="space-y-(--studio-panel-gap-sm) bg-background p-(--studio-panel-padding)">
+        {canReviewPromise ? (
+          <>
+            <div className="flex flex-wrap gap-(--studio-panel-gap-sm)">
+              <Button
+                type="button"
+                size="sm"
+                className="flex-1"
+                disabled={!canWrite || isSaving}
+                onClick={() => submitReview("approved")}
+              >
+                {m.action_approve({}, { locale })}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={!canWrite || isSaving}
+                onClick={() => submitReview("changes_requested")}
+              >
+                {m.action_request_changes({}, { locale })}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={!canWrite || isSaving}
+                onClick={() => submitReview("rejected")}
+              >
+                {m.action_decline({}, { locale })}
+              </Button>
+            </div>
+            <Label htmlFor="studio-review-note">{m.review_notes({}, { locale })}</Label>
+            <Textarea
+              id="studio-review-note"
+              className="min-h-[4.25rem]"
+              value={reviewNote}
+              placeholder={m.review_notes_placeholder({}, { locale })}
+              onChange={(event) => setReviewNote(event.currentTarget.value)}
+            />
+          </>
+        ) : null}
         {/* "Hand to Agent" splits into one row per supported CLI; the picked
             tool propagates through the agent-cards store into ?agent=… so the
             daemon spawns the right binary. */}
@@ -2805,13 +2575,14 @@ function PromiseContext({
                   // edge to curve out of the promise's right side.
                   const promiseNode = reactFlow.getNode(`promise:${promise.id}`);
                   const anchor = promiseNode?.position;
-                  useAgentCardsStore.getState().addCard({
+                  const card = useAgentCardsStore.getState().addCard({
                     kind: "agent",
                     tool,
                     promiseId: promise.id,
                     initialPrompt: `# Assigned to promise: ${promise.id}\n# Use \`harness studio …\` to inspect and review.\n`,
                     position: anchor ? { x: anchor.x + 320, y: anchor.y } : undefined,
                   });
+                  onAgentHandoff?.(card);
                 }}
               >
                 <RiRobot2Line className="size-4" />
@@ -2829,7 +2600,7 @@ function ScenarioBlock({ items, title }: { items: LocalizedText[]; title: string
   const { locale } = useI18n();
 
   return (
-    <div className="border-b border-border p-(--studio-panel-gap-sm) last:border-b-0">
+    <div className="py-(--studio-panel-gap-xs)">
       <div className="text-xs font-medium">{title}</div>
       <TextList items={localizeTexts(items, locale)} />
     </div>
@@ -2841,15 +2612,15 @@ function ChangedFieldsPlaceholder() {
 
   return (
     <InfoSection title={m.studio_review_changed_fields({}, { locale })}>
-      <div className="studio-review-diff-table overflow-hidden border border-border">
-        <div className="grid grid-cols-3 border-b border-border text-xs font-medium">
+      <div className="overflow-hidden text-muted-foreground">
+        <div className="grid grid-cols-3 text-xs font-medium">
           <div className="p-(--studio-panel-gap-sm)">
             {m.studio_review_diff_field({}, { locale })}
           </div>
-          <div className="border-l border-border p-(--studio-panel-gap-sm)">
+          <div className="p-(--studio-panel-gap-sm)">
             {m.studio_review_diff_old({}, { locale })}
           </div>
-          <div className="border-l border-border p-(--studio-panel-gap-sm)">
+          <div className="p-(--studio-panel-gap-sm)">
             {m.studio_review_diff_new({}, { locale })}
           </div>
         </div>
@@ -3118,7 +2889,7 @@ const modulePriorityOrder: Record<ModulePriority, number> = {
 };
 const modulePriorityValues: ModulePriority[] = ["P0", "P1", "P2", "none"];
 
-function buildStudioSearchResults(
+export function buildStudioSearchResults(
   snapshot: HarnessSnapshot,
   locale: AppLocale,
   messages: MessageModule,
@@ -3381,26 +3152,6 @@ function createPriorityLayerNode(priority: ModulePriority, y: number): StudioNod
       title: priority,
     },
   };
-}
-
-function buildReviewInbox(promises: HarnessPromise[], locale: AppLocale) {
-  return sortPromisesForReview(
-    promises.filter((promise) => promiseNeedsInboxAttention(promise)),
-    locale,
-  );
-}
-
-function reviewInboxReason(promise: HarnessPromise, messages: MessageModule, locale: AppLocale) {
-  if (promise.lifecycle === "changed_requires_review") {
-    return messages.lifecycle_changed_requires_review({}, { locale });
-  }
-  if (promise.lifecycle === "proposed") {
-    return messages.lifecycle_proposed({}, { locale });
-  }
-  if (promise.review.state === "pending") {
-    return messages.review_state_pending({}, { locale });
-  }
-  return messages.promise_detail_review_status({}, { locale });
 }
 
 function moduleNeedsReviewAttention(module: HarnessModule, promises: HarnessPromise[]) {

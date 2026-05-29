@@ -1,4 +1,4 @@
-import { RiArrowRightLine, RiCheckboxCircleLine, RiErrorWarningLine } from "@remixicon/react";
+import { RiCheckboxCircleLine, RiErrorWarningLine } from "@remixicon/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
@@ -59,10 +59,6 @@ export function OverviewPage() {
               ) : null}
             </div>
             <div className="grid gap-2 sm:grid-cols-3 md:grid-cols-1">
-              <Button render={<Link to="/review" />}>
-                {m.action_start_review({}, { locale })}
-                <RiArrowRightLine />
-              </Button>
               <Button variant="outline" render={<Link to="/generate" />}>
                 {m.action_generate_promise({}, { locale })}
               </Button>

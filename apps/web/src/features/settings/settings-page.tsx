@@ -3,10 +3,18 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { FieldDescription, FieldGroup, FieldLegend, FieldSet } from "@/components/ui/field";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Item, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
@@ -20,6 +28,30 @@ import { harnessLocales, useI18n, type AppLocale } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
 import type { AppThemeMode, ThemeDefinition } from "@/lib/themes";
 import { cn } from "@/lib/utils";
+
+export function SettingsDialog({
+  isOpen,
+  onOpenChange,
+}: {
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { locale, m } = useI18n();
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{m.settings_title({}, { locale })}</DialogTitle>
+          <DialogDescription>{m.settings_description({}, { locale })}</DialogDescription>
+        </DialogHeader>
+        <ScrollArea className="h-(--studio-settings-scroll-height)">
+          <SettingsPanel />
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export function SettingsPanel() {
   const { locale, m, setLocale } = useI18n();

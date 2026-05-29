@@ -1,4 +1,5 @@
-import { createRoute, createRootRoute, createRouter } from "@tanstack/react-router";
+import { createRoute, createRootRoute, createRouter, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
 
 import { WorkbenchLayout } from "@/components/layout/workbench-layout";
 import { GeneratePage } from "@/features/generate/generate-page";
@@ -7,7 +8,6 @@ import { ModuleDetailPage } from "@/features/modules/module-detail-page";
 import { ModulesPage } from "@/features/modules/modules-page";
 import { PromiseDetailPage } from "@/features/promises/promise-detail-page";
 import { PromisesPage } from "@/features/promises/promises-page";
-import { ReviewPage } from "@/features/review/review-page";
 import { RunsPage } from "@/features/runs/runs-page";
 import { HarnessStudioPage } from "@/features/studio/harness-studio-page";
 
@@ -51,12 +51,6 @@ const promiseDetailRoute = createRoute({
   component: PromiseDetailRoute,
 });
 
-const reviewRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "review",
-  component: ReviewPage,
-});
-
 const generateRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "generate",
@@ -82,7 +76,6 @@ const routeTree = rootRoute.addChildren([
   moduleDetailRoute,
   promisesRoute,
   promiseDetailRoute,
-  reviewRoute,
   generateRoute,
   runsRoute,
   settingsRoute,
@@ -107,5 +100,12 @@ function PromiseDetailRoute() {
 }
 
 function SettingsRoute() {
-  return <HarnessStudioPage settingsOpenByDefault />;
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    window.sessionStorage.setItem("harness:open-settings", "1");
+    void navigate({ to: "/", replace: true });
+  }, [navigate]);
+
+  return null;
 }
