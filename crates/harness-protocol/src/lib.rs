@@ -118,19 +118,14 @@ pub enum PromiseBoundary {
     Adapter,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PromiseReviewState {
+    #[default]
     Pending,
     Approved,
     ChangesRequested,
     Rejected,
-}
-
-impl Default for PromiseReviewState {
-    fn default() -> Self {
-        Self::Pending
-    }
 }
 
 impl fmt::Display for PromiseReviewState {
