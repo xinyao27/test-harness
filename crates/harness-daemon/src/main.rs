@@ -6,7 +6,6 @@ use axum::middleware::{from_fn_with_state, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 use harness_core::{find_module_files, find_promise_files, MODULES_DIRECTORY, PROMISES_DIRECTORY};
 use harness_daemon::{
     build_studio_snapshot, empty_snapshot, known_projects, resolve_project_root, KnownProject,
@@ -15,6 +14,7 @@ use harness_protocol::{
     LocalizedText, ModuleRecord, PromiseLifecycle, PromiseRecord, PromiseReviewAction,
     PromiseReviewEvent, PromiseReviewState, PromisesFile, ProtocolVersion,
 };
+use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 use rand::rngs::OsRng;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
@@ -366,7 +366,8 @@ async fn agent_pty(
     let Some(token) = token else {
         return error_response(
             StatusCode::UNAUTHORIZED,
-            "agent pty endpoint requires a bearer token (Authorization header or ?token=).".to_string(),
+            "agent pty endpoint requires a bearer token (Authorization header or ?token=)."
+                .to_string(),
         );
     };
     let Some(origin) = request_origin_from_headers(&headers) else {
