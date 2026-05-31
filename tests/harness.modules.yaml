@@ -1,0 +1,189 @@
+apiVersion: 1
+modules:
+  - id: feature-registry
+    package: harness-project
+    title:
+      en: Feature Registry
+      zh-CN: Feature 注册表
+    purpose:
+      en: Parse Cucumber feature files and expose stable Package, Module, Feature, Rule, and Example records.
+      zh-CN: 解析 Cucumber feature 文件，并暴露稳定的 Package、Module、Feature、Rule 和 Example 记录。
+    covers:
+      - crates/harness-project/src/feature_registry.rs
+      - features/harness/crates/harness-project/feature-registry/cucumber-feature-registry.feature
+      - features/harness/crates/harness-project/feature-registry/cucumber-feature-registry.zh-CN.feature
+      - features/harness/crates/harness-project/feature-registry/multilingual-tag-constraints.feature
+      - features/harness/crates/harness-project/feature-registry/multilingual-tag-constraints.zh-CN.feature
+  - id: project-model
+    package: harness-project
+    title:
+      en: Project Model
+      zh-CN: 项目模型
+    purpose:
+      en: Keep the Harness review hierarchy explicit and independent from source folders.
+      zh-CN: 让 Harness 的 review 层级保持明确，并且不依赖源码目录本身。
+    covers:
+      - tests/harness.packages.yaml
+      - tests/harness.modules.yaml
+      - features/harness/crates/harness-project/project-model/project-model.feature
+  - id: behavior-lifecycle
+    package: harness-project
+    title:
+      en: Behavior Lifecycle
+      zh-CN: 行为生命周期
+    purpose:
+      en: Store Rule lifecycle, human review state, and drift history outside Cucumber feature files.
+      zh-CN: 在 Cucumber feature 文件之外存储 Rule 生命周期、人类 review 状态和 drift 历史。
+    covers:
+      - tests/harness.behavior.yaml
+      - tests/harness.review-log.yaml
+      - features/harness/crates/harness-project/behavior-lifecycle/behavior-lifecycle.feature
+  - id: behavior-report
+    package: harness-project
+    title:
+      en: Behavior Report
+      zh-CN: 行为报告
+    purpose:
+      en: Render behavior status and coverage through the Package, Module, Feature, Rule, and Example hierarchy.
+      zh-CN: 通过 Package、Module、Feature、Rule 和 Example 层级渲染行为状态和覆盖率。
+    covers:
+      - crates/harness-project/src/feature_report.rs
+      - features/harness/crates/harness-project/behavior-reporting/behavior-reporting.feature
+  - id: project-orchestration
+    package: harness-project
+    title:
+      en: Project Orchestration
+      zh-CN: Project 编排
+    purpose:
+      en: Coordinates Harness config, manifests, validation, results, and program entrypoints.
+      zh-CN: 编排 Harness config、manifests、validation、results 和 program entrypoints。
+    covers:
+      - crates/harness-project
+  - id: protocol-contract
+    package: harness-protocol
+    title:
+      en: Protocol Contract
+      zh-CN: 协议契约
+    purpose:
+      en: Defines versioned Harness artifact schemas, fixtures, and Rust protocol validators.
+      zh-CN: 定义版本化 Harness 工件 schema、fixtures 和 Rust protocol validators。
+    covers:
+      - crates/harness-protocol
+      - protocol
+  - id: cucumber-results
+    package: harness-runner
+    title:
+      en: Cucumber Results
+      zh-CN: Cucumber 结果
+    purpose:
+      en: Collect Cucumber bridge events and merge normalized Example results without using promise ids.
+      zh-CN: 收集 Cucumber bridge events，并在不使用 promise id 的前提下合并归一化 Example results。
+    covers:
+      - crates/harness-runner
+      - features/harness/crates/harness-runner/cucumber-results/cucumber-results.feature
+      - features/harness/crates/harness-runner/cucumber-results/cucumber-results.zh-CN.feature
+  - id: cucumber-filtering
+    package: harness-runner
+    title:
+      en: Cucumber Filtering
+      zh-CN: Cucumber Filtering
+    purpose:
+      en: Turns Harness hierarchy filter fields into Cucumber tag expressions and passes them to bridge commands.
+      zh-CN: 将 Harness 层级 filter fields 转换成 Cucumber tag expression，并传递给 bridge command。
+    covers:
+      - crates/harness-runner
+      - crates/harness-cli
+      - features/harness/crates/harness-runner/cucumber-filtering/cucumber-filtering.feature
+      - features/harness/crates/harness-runner/cucumber-filtering/cucumber-filtering.zh-CN.feature
+  - id: rust-cucumber-bridge
+    package: harness-cucumber-rs
+    title:
+      en: Rust cucumber-rs Bridge
+      zh-CN: Rust cucumber-rs Bridge
+    purpose:
+      en: Converts cucumber-rs Example execution into Harness bridge events.
+      zh-CN: 将 cucumber-rs Example execution 转成 Harness bridge events。
+    covers:
+      - bridges/rust/cucumber-rs
+      - features/harness/bridges/rust/cucumber-rs/rust-cucumber-bridge/rust-cucumber-bridge.feature
+      - features/harness/bridges/rust/cucumber-rs/rust-cucumber-bridge/rust-cucumber-bridge.zh-CN.feature
+  - id: typescript-cucumber-bridge
+    package: harness-cucumber-js
+    title:
+      en: TypeScript Cucumber.js Bridge
+      zh-CN: TypeScript Cucumber.js Bridge
+    purpose:
+      en: Defines the TypeScript bridge boundary for converting Cucumber.js Messages into Harness results.
+      zh-CN: 定义 TypeScript bridge 边界，用于将 Cucumber.js Messages 转成 Harness results。
+    covers:
+      - bridges/typescript/cucumber-js
+      - features/harness/bridges/typescript/cucumber-js/typescript-cucumber-bridge/typescript-cucumber-bridge.feature
+      - features/harness/bridges/typescript/cucumber-js/typescript-cucumber-bridge/typescript-cucumber-bridge.zh-CN.feature
+  - id: cli-runner
+    package: harness-cli
+    title:
+      en: CLI Runner
+      zh-CN: CLI Runner
+    purpose:
+      en: Runs Harness check, report, test, and Studio bridge commands against the new BDD model.
+      zh-CN: 基于新的 BDD 模型运行 Harness check、report、test 和 Studio bridge commands。
+    covers:
+      - crates/harness-cli
+      - features/harness/crates/harness-cli/cucumber-test-execution/cucumber-test-execution.feature
+      - features/harness/crates/harness-cli/cucumber-test-execution/cucumber-test-execution.zh-CN.feature
+  - id: daemon-studio-api
+    package: harness-daemon
+    title:
+      en: Daemon Studio API
+      zh-CN: Daemon Studio API
+    purpose:
+      en: Serves local Studio snapshots, project selection, test orchestration, file opening, pairing, and PTY sessions.
+      zh-CN: 提供本地 Studio snapshots、project selection、test orchestration、file opening、pairing 和 PTY sessions。
+    covers:
+      - crates/harness-daemon
+      - features/harness/crates/harness-daemon/studio-review-workflow/studio-review-workflow.feature
+      - features/harness/crates/harness-daemon/studio-review-workflow/studio-review-workflow.zh-CN.feature
+  - id: studio-web
+    package: harness-studio-web
+    title:
+      en: Studio Web
+      zh-CN: Studio Web
+    purpose:
+      en: Presents Harness behavior, results, agent cards, settings, and project navigation in the browser.
+      zh-CN: 在浏览器中呈现 Harness behavior、results、agent cards、settings 和 project navigation。
+    covers:
+      - apps/web
+      - features/harness/apps/web/studio-review-workbench/studio-review-workbench.feature
+      - features/harness/apps/web/studio-review-workbench/studio-review-workbench.zh-CN.feature
+  - id: i18n-catalog
+    package: harness-i18n
+    title:
+      en: I18n Catalog
+      zh-CN: I18n Catalog
+    purpose:
+      en: Generates and serves localized UI messages for Harness Studio.
+      zh-CN: 为 Harness Studio 生成并提供本地化 UI messages。
+    covers:
+      - packages/i18n
+  - id: agent-authoring
+    package: harness-skills
+    title:
+      en: Agent Authoring
+      zh-CN: Agent 编写
+    purpose:
+      en: Guide agents to edit Harness behavior artifacts before implementation code.
+      zh-CN: 指导 agent 在实现代码之前先编辑 Harness 行为工件。
+    covers:
+      - skills/harness-author-bdd/SKILL.md
+      - skills/harness-author-bdd/SKILL.zh-CN.md
+      - features/harness/skills/harness-author-bdd/bdd-authoring-skill.feature
+  - id: studio-theme-skill
+    package: harness-skills
+    title:
+      en: Studio Theme Skill
+      zh-CN: Studio Theme Skill
+    purpose:
+      en: Guides agents when changing Harness Studio theme and visual styling.
+      zh-CN: 指导 agents 修改 Harness Studio theme 和 visual styling。
+    covers:
+      - skills/harness-studio-theme

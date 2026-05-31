@@ -2,15 +2,12 @@
 //!
 //! Every Studio operation exposed via daemon HTTP has a matching CLI subcommand
 //! here; writes route through the daemon so backup/rollback/checker run exactly
-//! once, in one place. See the related promises:
-//!   harness.cli.studio_subcommands_mirror_daemon_api
-//!   harness.cli.inherits_paired_daemon_session_from_env
-//!   harness.cli.studio_output_is_machine_parseable
+//! once, in one place. The Cucumber rewrite keeps this surface read/run/open
+//! oriented until Feature/Rule lifecycle editing is redesigned.
 
 use std::collections::BTreeMap;
 use std::env;
-use std::fs;
-use std::io::{IsTerminal, Read, Write};
+use std::io::{IsTerminal, Write};
 
 const ENV_DAEMON_URL: &str = "HARNESS_DAEMON_URL";
 const ENV_DAEMON_TOKEN: &str = "HARNESS_DAEMON_TOKEN";
@@ -21,10 +18,6 @@ const USAGE: &str = "Usage: harness studio <subcommand> [flags]\n\
                      Subcommands:\n\
                        snapshot      [--project ID] [--json]\n\
                        projects      [--json]\n\
-                       save-module   --file PATH [--project ID] [--json]\n\
-                       save-promise  --module ID --file PATH [--project ID] [--json]\n\
-                       review        PROMISE_ID --action ACTION [--note NOTE] \\\n\
-                                                  [--reviewer NAME] [--project ID] [--json]\n\
                        run           [--project ID] [--json]\n\
                        open          FILE [--project ID]";
 
@@ -39,9 +32,6 @@ pub fn run(args: &[String], stdout: &mut dyn Write, stderr: &mut dyn Write) -> i
     match subcommand.as_str() {
         "snapshot" => cmd_snapshot(rest, stdout, stderr),
         "projects" => cmd_projects(rest, stdout, stderr),
-        "save-module" => cmd_save_module(rest, stdout, stderr),
-        "save-promise" => cmd_save_promise(rest, stdout, stderr),
-        "review" => cmd_review(rest, stdout, stderr),
         "run" => cmd_run(rest, stdout, stderr),
         "open" => cmd_open(rest, stdout, stderr),
         "--help" | "-h" | "help" => {
@@ -277,185 +267,6 @@ fn cmd_projects(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i3
     0
 }
 
-fn cmd_save_module(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
-    let parsed = match parse_flags(args, &["--file", "--project"], &["--json"]) {
-        Ok(p) => p,
-        Err(error) => return fail(err, error),
-    };
-    let Some(file) = parsed.flags.get("--file") else {
-        return fail(err, "--file PATH is required");
-    };
-    let module = match read_yaml_file(file) {
-        Ok(value) => value,
-        Err(error) => return fail(err, error),
-    };
-    let config = match load_daemon_config() {
-        Ok(c) => c,
-        Err(error) => return fail(err, error),
-    };
-    let mut payload = serde_json::Map::new();
-    payload.insert("module".to_string(), module);
-    if let Some(project) = parsed.flags.get("--project") {
-        payload.insert(
-            "projectId".to_string(),
-            serde_json::Value::from(project.clone()),
-        );
-    }
-    let body = match http_post(
-        &config,
-        "/api/studio/module",
-        serde_json::Value::Object(payload),
-    ) {
-        Ok(body) => body,
-        Err(error) => return fail(err, error),
-    };
-    let want_json = should_emit_json(parsed.bool_flags.contains_key("--json"), out_is_terminal());
-    if want_json {
-        emit_json(&body, out);
-    } else {
-        render_write_result_human(&body, out);
-    }
-    if body.get("saved") == Some(&serde_json::Value::Bool(true)) {
-        0
-    } else {
-        1
-    }
-}
-
-fn cmd_save_promise(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
-    let parsed = match parse_flags(args, &["--module", "--file", "--project"], &["--json"]) {
-        Ok(p) => p,
-        Err(error) => return fail(err, error),
-    };
-    let Some(module_id) = parsed.flags.get("--module") else {
-        return fail(err, "--module ID is required");
-    };
-    let Some(file) = parsed.flags.get("--file") else {
-        return fail(err, "--file PATH is required");
-    };
-    let promise = match read_yaml_file(file) {
-        Ok(value) => value,
-        Err(error) => return fail(err, error),
-    };
-    let config = match load_daemon_config() {
-        Ok(c) => c,
-        Err(error) => return fail(err, error),
-    };
-    let mut payload = serde_json::Map::new();
-    payload.insert(
-        "moduleId".to_string(),
-        serde_json::Value::from(module_id.clone()),
-    );
-    payload.insert("promise".to_string(), promise);
-    if let Some(project) = parsed.flags.get("--project") {
-        payload.insert(
-            "projectId".to_string(),
-            serde_json::Value::from(project.clone()),
-        );
-    }
-    let body = match http_post(
-        &config,
-        "/api/studio/promise",
-        serde_json::Value::Object(payload),
-    ) {
-        Ok(body) => body,
-        Err(error) => return fail(err, error),
-    };
-    let want_json = should_emit_json(parsed.bool_flags.contains_key("--json"), out_is_terminal());
-    if want_json {
-        emit_json(&body, out);
-    } else {
-        render_write_result_human(&body, out);
-    }
-    if body.get("saved") == Some(&serde_json::Value::Bool(true)) {
-        0
-    } else {
-        1
-    }
-}
-
-fn cmd_review(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
-    let parsed = match parse_flags(
-        args,
-        &["--action", "--note", "--reviewer", "--project"],
-        &["--json"],
-    ) {
-        Ok(p) => p,
-        Err(error) => return fail(err, error),
-    };
-    let Some(promise_id) = parsed.positionals.first() else {
-        return fail(
-            err,
-            "review requires a PROMISE_ID as the first positional argument",
-        );
-    };
-    let Some(action) = parsed.flags.get("--action") else {
-        return fail(
-            err,
-            "--action ACTION is required (approved | rejected | changes_requested)",
-        );
-    };
-    if !matches!(
-        action.as_str(),
-        "approved" | "rejected" | "changes_requested"
-    ) {
-        return fail(
-            err,
-            format!(
-                "unknown review action {action:?}; expected approved | rejected | changes_requested"
-            ),
-        );
-    }
-    let config = match load_daemon_config() {
-        Ok(c) => c,
-        Err(error) => return fail(err, error),
-    };
-    let reviewer = parsed
-        .flags
-        .get("--reviewer")
-        .cloned()
-        .or_else(|| env::var("USER").ok())
-        .unwrap_or_else(|| "agent".to_string());
-    let mut payload = serde_json::Map::new();
-    payload.insert(
-        "promiseId".to_string(),
-        serde_json::Value::from(promise_id.clone()),
-    );
-    payload.insert(
-        "action".to_string(),
-        serde_json::Value::from(action.clone()),
-    );
-    payload.insert("reviewer".to_string(), serde_json::Value::from(reviewer));
-    if let Some(note) = parsed.flags.get("--note") {
-        payload.insert("note".to_string(), serde_json::Value::from(note.clone()));
-    }
-    if let Some(project) = parsed.flags.get("--project") {
-        payload.insert(
-            "projectId".to_string(),
-            serde_json::Value::from(project.clone()),
-        );
-    }
-    let body = match http_post(
-        &config,
-        "/api/studio/promise-review",
-        serde_json::Value::Object(payload),
-    ) {
-        Ok(body) => body,
-        Err(error) => return fail(err, error),
-    };
-    let want_json = should_emit_json(parsed.bool_flags.contains_key("--json"), out_is_terminal());
-    if want_json {
-        emit_json(&body, out);
-    } else {
-        render_write_result_human(&body, out);
-    }
-    if body.get("saved") == Some(&serde_json::Value::Bool(true)) {
-        0
-    } else {
-        1
-    }
-}
-
 fn cmd_run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     let parsed = match parse_flags(args, &["--project"], &["--json"]) {
         Ok(p) => p,
@@ -548,12 +359,12 @@ fn render_snapshot_human(snapshot: &serde_json::Value, out: &mut dyn Write) {
         .and_then(|value| value.as_array())
         .map(|array| array.len())
         .unwrap_or(0);
-    let promises = snapshot
-        .get("promises")
+    let features = snapshot
+        .get("features")
         .and_then(|value| value.as_array())
         .map(|array| array.len())
         .unwrap_or(0);
-    let _ = writeln!(out, "Modules: {modules}    Promises: {promises}");
+    let _ = writeln!(out, "Modules: {modules}    Feature files: {features}");
     if let Some(generated_at) = snapshot
         .get("resultsGeneratedAt")
         .and_then(|value| value.as_str())
@@ -564,50 +375,25 @@ fn render_snapshot_human(snapshot: &serde_json::Value, out: &mut dyn Write) {
     }
     let _ = writeln!(out);
 
-    let mut pending: Vec<&serde_json::Value> = snapshot
-        .get("promises")
+    let pending: Vec<&serde_json::Value> = snapshot
+        .get("reviewDrafts")
         .and_then(|value| value.as_array())
-        .map(|array| {
-            array
-                .iter()
-                .filter(|promise| {
-                    promise
-                        .pointer("/review/state")
-                        .and_then(|state| state.as_str())
-                        == Some("pending")
-                })
-                .collect()
-        })
+        .map(|array| array.iter().collect())
         .unwrap_or_default();
-    pending.sort_by_key(|promise| {
-        let priority = promise
-            .get("priority")
-            .and_then(|value| value.as_str())
-            .unwrap_or("P2");
-        match priority {
-            "P0" => 0,
-            "P1" => 1,
-            _ => 2,
-        }
-    });
     if pending.is_empty() {
         let _ = writeln!(out, "Pending review: 0");
     } else {
         let _ = writeln!(out, "Pending review ({}):", pending.len());
-        for promise in pending.iter().take(20) {
-            let id = promise
+        for draft in pending.iter().take(20) {
+            let id = draft
                 .get("id")
                 .and_then(|value| value.as_str())
                 .unwrap_or("?");
-            let priority = promise
-                .get("priority")
-                .and_then(|value| value.as_str())
-                .unwrap_or("?");
-            let title = promise
+            let title = draft
                 .get("title")
                 .and_then(localized_text)
                 .unwrap_or_else(|| "(no title)".to_string());
-            let _ = writeln!(out, "  [{priority}] {id}\n       {title}");
+            let _ = writeln!(out, "  {id}\n       {title}");
         }
         if pending.len() > 20 {
             let _ = writeln!(out, "  ... and {} more", pending.len() - 20);
@@ -634,35 +420,6 @@ fn render_projects_human(value: &serde_json::Value, out: &mut dyn Write) {
             .and_then(|value| value.as_str())
             .unwrap_or("?");
         let _ = writeln!(out, "{id}\t{name}\t{path}");
-    }
-}
-
-fn render_write_result_human(body: &serde_json::Value, out: &mut dyn Write) {
-    let saved = body
-        .get("saved")
-        .and_then(|value| value.as_bool())
-        .unwrap_or(false);
-    let exit_code = body
-        .get("exitCode")
-        .and_then(|value| value.as_i64())
-        .unwrap_or(-1);
-    if saved {
-        let _ = writeln!(out, "saved (exit code {exit_code})");
-    } else {
-        let _ = writeln!(
-            out,
-            "NOT saved (exit code {exit_code}) — daemon rolled back"
-        );
-    }
-    if let Some(stdout) = body.get("stdout").and_then(|value| value.as_str()) {
-        if !stdout.is_empty() {
-            let _ = writeln!(out, "--- stdout ---\n{stdout}");
-        }
-    }
-    if let Some(stderr) = body.get("stderr").and_then(|value| value.as_str()) {
-        if !stderr.is_empty() {
-            let _ = writeln!(out, "--- stderr ---\n{stderr}");
-        }
     }
 }
 
@@ -707,131 +464,4 @@ fn localized_text(value: &serde_json::Value) -> Option<String> {
 
 fn out_is_terminal() -> bool {
     std::io::stdout().is_terminal()
-}
-
-fn read_yaml_file(path: &str) -> Result<serde_json::Value, String> {
-    // `-` reads from stdin so an agent can pipe a record in.
-    let raw = if path == "-" {
-        let mut buf = String::new();
-        std::io::stdin()
-            .read_to_string(&mut buf)
-            .map_err(|error| format!("failed to read stdin: {error}"))?;
-        buf
-    } else {
-        fs::read_to_string(path).map_err(|error| format!("failed to read {path}: {error}"))?
-    };
-    let value: serde_yaml::Value = serde_yaml::from_str(&raw)
-        .map_err(|error| format!("failed to parse YAML in {path}: {error}"))?;
-    // Round-trip via serde_json so the daemon (which expects JSON over HTTP) accepts it verbatim.
-    let json = serde_json::to_value(&value)
-        .map_err(|error| format!("failed to convert {path} to JSON: {error}"))?;
-    Ok(json)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::io::Cursor;
-
-    /// The canonical list of `studio` subcommands the CLI must expose — one per
-    /// Studio-related daemon endpoint. Anchored by the promise; any divergence
-    /// between the dispatch in `run()` and this list is the bug the promise
-    /// warns against.
-    const EXPECTED_STUDIO_SUBCOMMANDS: &[&str] = &[
-        "snapshot",
-        "projects",
-        "save-module",
-        "save-promise",
-        "review",
-        "run",
-        "open",
-    ];
-
-    #[test]
-    fn cli_studio_surface_mirrors_the_daemon_studio_endpoints() {
-        harness_adapter_rust::scenario_test!(
-            "harness.cli.studio_subcommands_mirror_daemon_api",
-            "harness studio … exposes one subcommand per Studio daemon endpoint",
-            {
-                // Every expected subcommand must appear in USAGE so a human or
-                // agent running `harness studio --help` sees the full surface.
-                for subcommand in EXPECTED_STUDIO_SUBCOMMANDS {
-                    assert!(
-                        USAGE.contains(subcommand),
-                        "USAGE missing subcommand `{subcommand}`:\n{USAGE}"
-                    );
-                }
-                // Dispatching with no args prints USAGE on stderr and returns a
-                // non-zero exit code so a caller (or agent) can detect misuse
-                // without parsing the message.
-                let mut stdout = Cursor::new(Vec::new());
-                let mut stderr = Cursor::new(Vec::new());
-                let exit = run(&[], &mut stdout, &mut stderr);
-                assert_eq!(exit, 2);
-                let stderr = String::from_utf8(stderr.into_inner()).unwrap();
-                assert!(stderr.contains("snapshot") && stderr.contains("review"));
-            }
-        );
-    }
-
-    #[test]
-    fn cli_writes_fail_clearly_when_env_is_missing() {
-        harness_adapter_rust::scenario_test!(
-            "harness.cli.inherits_paired_daemon_session_from_env",
-            "missing env var produces a clear message naming the variable and pointing to Studio Settings",
-            {
-                env::remove_var(ENV_DAEMON_URL);
-                env::remove_var(ENV_DAEMON_TOKEN);
-                env::remove_var(ENV_DAEMON_ORIGIN);
-                let error = load_daemon_config().expect_err("expected missing env error");
-                assert!(
-                    error.contains(ENV_DAEMON_URL),
-                    "error must name the missing env var: {error}"
-                );
-                assert!(
-                    error.to_lowercase().contains("studio"),
-                    "error must point to Studio Settings: {error}"
-                );
-            }
-        );
-    }
-
-    #[test]
-    fn cli_emits_json_when_piped_or_requested() {
-        harness_adapter_rust::scenario_test!(
-            "harness.cli.studio_output_is_machine_parseable",
-            "should_emit_json prefers JSON when --json is set or when stdout is not a TTY",
-            {
-                // --json forces JSON regardless of TTY.
-                assert!(should_emit_json(true, true));
-                assert!(should_emit_json(true, false));
-                // No --json: JSON only when stdout is NOT a TTY (i.e. piped /
-                // captured by an agent's Bash tool).
-                assert!(!should_emit_json(false, true));
-                assert!(should_emit_json(false, false));
-            }
-        );
-    }
-
-    #[test]
-    fn parse_flags_handles_positional_value_flag_and_bool() {
-        let args = vec![
-            "promise-id".to_string(),
-            "--action".to_string(),
-            "approved".to_string(),
-            "--json".to_string(),
-        ];
-        let parsed = parse_flags(&args, &["--action", "--note"], &["--json"]).unwrap();
-        assert_eq!(parsed.positionals, vec!["promise-id".to_string()]);
-        assert_eq!(parsed.flags.get("--action").unwrap(), "approved");
-        assert!(parsed.bool_flags.contains_key("--json"));
-    }
-
-    #[test]
-    fn parse_flags_supports_equals_form() {
-        let args = vec!["--project=current:foo".to_string(), "--json".to_string()];
-        let parsed = parse_flags(&args, &["--project"], &["--json"]).unwrap();
-        assert_eq!(parsed.flags.get("--project").unwrap(), "current:foo");
-        assert!(parsed.bool_flags.contains_key("--json"));
-    }
 }

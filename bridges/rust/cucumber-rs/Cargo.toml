@@ -1,0 +1,19 @@
+[package]
+name = "harness-cucumber-rs"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+cucumber.workspace = true
+harness-protocol = { path = "../../../crates/harness-protocol" }
+harness-runner = { path = "../../../crates/harness-runner" }
+
+[dev-dependencies]
+tempfile.workspace = true
+tokio.workspace = true
+
+[[test]]
+name = "rust_cucumber_bridge"
+harness = false

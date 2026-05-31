@@ -1,0 +1,15 @@
+apiVersion: 1
+modules:
+  - id: todo-api
+    package: todo-backend-rust-axum
+    title:
+      en: Todo API
+      zh-CN: Todo API
+    purpose:
+      en: Covers the in-memory Todo Backend API exposed by the Rust Axum implementation.
+      zh-CN: 覆盖 Rust Axum 实现暴露的内存 Todo Backend API。
+    covers:
+      - implementations/rust-axum/src/lib.rs
+      - implementations/rust-axum/tests/rust_axum_cucumber.rs
+      - features/implementations/rust-axum/todo-api.feature
+      - features/implementations/rust-axum/todo-api.zh-CN.feature

@@ -1,10 +1,8 @@
 import {
   isHarnessSnapshot,
-  type HarnessPromise,
   type HarnessSnapshot,
   type SnapshotSource,
 } from "@/data/harness-snapshot";
-import type { LocalizedText } from "@/lib/localized-text";
 
 export type WorkbenchProject = {
   id: string;
@@ -40,55 +38,24 @@ export type WorkbenchRunResult = {
   stdout: string;
 };
 
-export type WorkbenchWriteResult = {
-  exitCode: number;
-  saved: boolean;
-  stderr: string;
-  stdout: string;
-};
-
 export type WorkbenchOpenResult = {
   opened: boolean;
   path: string;
 };
 
-export type WorkbenchModuleRecord = {
-  apiVersion: 1;
-  covers: string[];
-  id: string;
-  promises: string[];
-  purpose: LocalizedText;
-  summary: LocalizedText;
-  title: LocalizedText;
-};
+export type RuleReviewAction =
+  | "approve"
+  | "requestChanges"
+  | "reject"
+  | "deprecate"
+  | "supersede";
 
-export type WorkbenchPromiseRecord = {
-  boundary: HarnessPromise["boundary"];
-  deprecatedBy?: string;
-  examples?: Array<Record<string, string>>;
-  failureMeaning: LocalizedText;
+export type RuleReviewResult = {
+  eventId: string;
   feature: string;
-  given: LocalizedText[];
-  id: string;
-  lifecycle: HarnessPromise["lifecycle"];
-  observes: string[];
-  priority: HarnessPromise["priority"];
-  purpose: LocalizedText;
-  review: HarnessPromise["review"];
-  supersedes?: string[];
-  then: LocalizedText[];
-  title: LocalizedText;
-  when: LocalizedText[];
-};
-
-export type WorkbenchReviewAction = "approved" | "changes_requested" | "rejected";
-
-export type WorkbenchPromiseReviewRequest = {
-  action: WorkbenchReviewAction;
-  note?: string;
-  promiseId: string;
-  projectId: string;
-  reviewer: string;
+  lifecycle: string;
+  reviewState: string;
+  rule: string;
 };
 
 type DaemonPairingComplete = {
@@ -165,8 +132,30 @@ export async function runWorkbenchTests(projectId: string): Promise<WorkbenchRun
   return body;
 }
 
-// Ask the daemon to open a project-relative file in the local editor. Returns true only when the
-// daemon confirms it opened a file inside the project root.
+export async function reviewWorkbenchRule(input: {
+  action: RuleReviewAction;
+  feature: string;
+  note?: string;
+  projectId: string;
+  rule: string;
+}): Promise<RuleReviewResult | null> {
+  const body = await postDaemonJsonBody(
+    "/api/studio/review-rule",
+    {
+      action: input.action,
+      feature: input.feature,
+      note: input.note,
+      projectId: input.projectId,
+      reviewer: "studio",
+      rule: input.rule,
+    },
+    { includeToken: true },
+  );
+  if (!isRuleReviewResult(body)) return null;
+
+  return body;
+}
+
 export async function openWorkbenchFile(projectId: string, file: string): Promise<boolean> {
   const body = await postDaemonJsonBody(
     "/api/studio/open",
@@ -177,17 +166,8 @@ export async function openWorkbenchFile(projectId: string, file: string): Promis
 }
 
 export type PtyKind = "terminal" | "agent";
-/**
- * Which agent CLI to launch when `kind=agent`. The daemon picks the actual
- * binary (e.g. `claude`, `codex`, `cursor-agent`) — we just say which tool.
- */
 export type AgentTool = "claude" | "codex" | "cursor";
 
-// Build the WebSocket URL a Pty card connects to. The `kind` tells the daemon
-// what to spawn — `agent` runs the configured agent CLI (picked by `tool`),
-// `terminal` runs the user's shell. Returns null when the browser hasn't
-// been paired yet (no token in localStorage) so the card can surface a
-// "pair first" message instead of opening a doomed WebSocket.
 export function getAgentPtyWebSocketUrl(
   kind: PtyKind = "agent",
   tool: AgentTool = "claude",
@@ -204,54 +184,14 @@ export function getAgentPtyWebSocketUrl(
   return url.toString();
 }
 
-export async function saveWorkbenchModule(
-  projectId: string,
-  module: WorkbenchModuleRecord,
-): Promise<WorkbenchWriteResult | null> {
-  const body = await postDaemonJsonBody(
-    "/api/studio/module",
-    { module, projectId },
-    { includeToken: true },
-  );
-  if (!isWorkbenchWriteResult(body)) return null;
-
-  return body;
-}
-
-export async function saveWorkbenchPromise(
-  projectId: string,
-  moduleId: string,
-  promise: WorkbenchPromiseRecord,
-): Promise<WorkbenchWriteResult | null> {
-  const body = await postDaemonJsonBody(
-    "/api/studio/promise",
-    { moduleId, projectId, promise },
-    { includeToken: true },
-  );
-  if (!isWorkbenchWriteResult(body)) return null;
-
-  return body;
-}
-
-export async function saveWorkbenchPromiseReview(
-  request: WorkbenchPromiseReviewRequest,
-): Promise<WorkbenchWriteResult | null> {
-  const body = await postDaemonJsonBody("/api/studio/promise-review", request, {
-    includeToken: true,
-  });
-  if (!isWorkbenchWriteResult(body)) return null;
-
-  return body;
-}
-
 export async function getWorkbenchModule(moduleId: string, projectId = "current:test-harness") {
   const snapshot = await getWorkbenchSnapshotForProject(projectId);
   return snapshot.modules.find((module) => module.id === moduleId);
 }
 
-export async function getWorkbenchPromise(promiseId: string, projectId = "current:test-harness") {
+export async function getWorkbenchFeature(featureTag: string, projectId = "current:test-harness") {
   const snapshot = await getWorkbenchSnapshotForProject(projectId);
-  return snapshot.promises.find((promise) => promise.id === promiseId);
+  return snapshot.features.find((feature) => feature.tag === featureTag);
 }
 
 async function getDaemonSnapshot(projectId: string): Promise<HarnessSnapshot | null> {
@@ -367,8 +307,6 @@ async function postDaemonJson(
   });
 }
 
-// POST to the daemon and parse the JSON body, returning null on any transport failure, non-OK
-// status, or invalid JSON — so callers never throw (which would leave UI write-state stuck).
 async function postDaemonJsonBody(
   path: string,
   body?: unknown,
@@ -437,16 +375,20 @@ function createEmptyProjectSnapshot(projectId: string): HarnessSnapshot {
       },
       description: {
         "zh-CN":
-          "这个 project 还没有可显示的 Harness snapshot。需要 daemon 读取它的 tests/ 目录后才能展示真实模块。",
-        en: "This project does not have a displayable Harness snapshot yet. The daemon must read its tests/ directory before real modules can appear.",
+          "这个 project 还没有可显示的 Harness snapshot。需要 daemon 读取它的 tests/ 目录后才能展示真实行为。",
+        en: "This project does not have a displayable Harness snapshot yet. The daemon must read its tests/ directory before behavior can appear.",
       },
-      promiseCount: 0,
+      packageCount: 0,
       moduleCount: 0,
+      featureCount: 0,
+      ruleCount: 0,
+      exampleCount: 0,
       warningCount: 0,
       errorCount: 0,
     },
+    packages: [],
     modules: [],
-    promises: [],
+    features: [],
     reviewDrafts: [],
   };
 }
@@ -488,21 +430,22 @@ function isWorkbenchRunResult(value: unknown): value is WorkbenchRunResult {
   );
 }
 
+function isRuleReviewResult(value: unknown): value is RuleReviewResult {
+  if (!value || typeof value !== "object") return false;
+
+  const body = value as Record<string, unknown>;
+  return (
+    typeof body.eventId === "string" &&
+    typeof body.feature === "string" &&
+    typeof body.lifecycle === "string" &&
+    typeof body.reviewState === "string" &&
+    typeof body.rule === "string"
+  );
+}
+
 function isWorkbenchOpenResult(value: unknown): value is WorkbenchOpenResult {
   if (!value || typeof value !== "object") return false;
 
   const body = value as Record<string, unknown>;
   return typeof body.opened === "boolean" && typeof body.path === "string";
-}
-
-function isWorkbenchWriteResult(value: unknown): value is WorkbenchWriteResult {
-  if (!value || typeof value !== "object") return false;
-
-  const body = value as Record<string, unknown>;
-  return (
-    typeof body.exitCode === "number" &&
-    typeof body.saved === "boolean" &&
-    typeof body.stderr === "string" &&
-    typeof body.stdout === "string"
-  );
 }

@@ -1,93 +1,141 @@
-use harness_core::{
-    get_promise_run_status, load_module_records, load_promise_records, load_test_results_file,
-    validate_module_records, validate_promise_records, HarnessError,
+use harness_project::{
+    check_feature_harness, get_example_run_status, load_behavior_file, load_review_log_file,
+    ExampleRecord, ExampleRunStatus, FeatureRecord, HarnessError, RuleRecord, BEHAVIOR_PATH,
+    REVIEW_LOG_PATH,
 };
 use harness_protocol::{
-    LocalizedText, ModuleRecord, PromiseBoundary, PromiseLifecycle, PromisePriority, PromiseRecord,
-    PromiseRunStatus, TestResult, TestResultStatus, ValidationSeverity,
+    BehaviorFile, BehaviorLifecycle, BehaviorReview, ExampleResult, LocalizedText, ModuleRecord,
+    PackageRecord, ResultsFile, ReviewLogAcknowledgement, ReviewLogAction, ReviewLogEvent,
+    ReviewState, ValidationSeverity,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
+use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StudioProject {
     pub name: LocalizedText,
     pub description: LocalizedText,
-    pub promise_count: usize,
+    pub package_count: usize,
     pub module_count: usize,
+    pub feature_count: usize,
+    pub rule_count: usize,
+    pub example_count: usize,
     pub warning_count: usize,
     pub error_count: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct StudioPackage {
+    pub id: String,
+    pub title: LocalizedText,
+    pub path: String,
+    pub purpose: LocalizedText,
+    pub module_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct StudioModule {
     pub id: String,
+    pub package: String,
     pub title: LocalizedText,
-    pub summary: LocalizedText,
     pub purpose: LocalizedText,
-    pub priority: String,
-    pub promise_ids: Vec<String>,
     pub covers: Vec<String>,
-    pub related_module_ids: Vec<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub package: Option<String>,
+    pub feature_tags: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct StudioPromiseReview {
-    pub state: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub decided_by: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub decided_at: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub note: Option<String>,
-    pub events: Vec<StudioPromiseReviewEvent>,
+pub struct StudioFeature {
+    pub tag: String,
+    pub name: String,
+    pub path: String,
+    pub line: usize,
+    pub locale: String,
+    pub package: String,
+    pub module: String,
+    pub rules: Vec<StudioRule>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct StudioPromiseReviewEvent {
-    pub action: String,
-    pub by: String,
+pub struct StudioRule {
+    pub tag: String,
+    pub name: String,
+    pub line: usize,
+    pub lifecycle: BehaviorLifecycle,
+    pub review_state: ReviewState,
+    pub owner: String,
+    pub review_events: Vec<StudioReviewEvent>,
+    pub examples: Vec<StudioExample>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StudioReviewEvent {
+    pub id: String,
     pub at: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    pub by: String,
+    pub action: ReviewLogAction,
+    pub summary: LocalizedText,
+    pub acknowledgement_state: ReviewState,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StudioRuleReviewInput {
+    pub action: StudioRuleReviewAction,
+    pub feature: String,
+    #[serde(default)]
     pub note: Option<String>,
+    #[serde(default)]
+    pub reviewer: Option<String>,
+    pub rule: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum StudioRuleReviewAction {
+    Approve,
+    RequestChanges,
+    Reject,
+    Deprecate,
+    Supersede,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct StudioPromiseEvidence {
-    pub test_name: String,
+pub struct StudioRuleReviewOutcome {
+    pub feature: String,
+    pub rule: String,
+    pub lifecycle: BehaviorLifecycle,
+    pub review_state: ReviewState,
+    pub event_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StudioExample {
+    pub tag: String,
+    pub name: String,
+    pub line: usize,
+    pub run_status: String,
+    pub evidence: Vec<StudioExampleEvidence>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StudioExampleEvidence {
     pub file: String,
-    pub status: TestResultStatus,
+    pub locale: String,
+    pub status: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub failure_message: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct StudioPromise {
-    pub id: String,
-    pub module_id: String,
-    pub feature: String,
-    pub title: LocalizedText,
-    pub purpose: LocalizedText,
-    pub priority: PromisePriority,
-    pub boundary: PromiseBoundary,
-    pub lifecycle: PromiseLifecycle,
-    pub run_status: PromiseRunStatus,
-    pub given: Vec<LocalizedText>,
-    pub when: Vec<LocalizedText>,
-    pub then: Vec<LocalizedText>,
-    pub observes: Vec<String>,
-    pub evidence: Vec<StudioPromiseEvidence>,
-    pub failure_meaning: LocalizedText,
-    pub review: StudioPromiseReview,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -96,7 +144,6 @@ pub struct StudioReviewDraft {
     pub id: String,
     pub title: LocalizedText,
     pub module_ids: Vec<String>,
-    pub priority: PromisePriority,
     pub state: String,
     pub reason: LocalizedText,
 }
@@ -105,8 +152,9 @@ pub struct StudioReviewDraft {
 #[serde(rename_all = "camelCase")]
 pub struct StudioSnapshot {
     pub project: StudioProject,
+    pub packages: Vec<StudioPackage>,
     pub modules: Vec<StudioModule>,
-    pub promises: Vec<StudioPromise>,
+    pub features: Vec<StudioFeature>,
     pub review_drafts: Vec<StudioReviewDraft>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub results_generated_at: Option<String>,
@@ -166,9 +214,7 @@ pub fn resolve_project_root(
 }
 
 fn resolve_directory_project_root(path: &str) -> Option<PathBuf> {
-    let root = PathBuf::from(path);
-    let root = root.canonicalize().ok()?;
-
+    let root = PathBuf::from(path).canonicalize().ok()?;
     if root.join("tests/harness.yaml").exists() {
         Some(root)
     } else {
@@ -185,13 +231,17 @@ pub fn empty_snapshot(project_name: impl Into<String>) -> StudioSnapshot {
                 "This project does not have a displayable Harness snapshot yet.",
                 "这个 project 还没有可显示的 Harness snapshot。",
             ),
-            promise_count: 0,
+            package_count: 0,
             module_count: 0,
+            feature_count: 0,
+            rule_count: 0,
+            example_count: 0,
             warning_count: 0,
             error_count: 0,
         },
+        packages: Vec::new(),
         modules: Vec::new(),
-        promises: Vec::new(),
+        features: Vec::new(),
         review_drafts: Vec::new(),
         results_generated_at: None,
     }
@@ -199,241 +249,407 @@ pub fn empty_snapshot(project_name: impl Into<String>) -> StudioSnapshot {
 
 pub fn build_studio_snapshot(root: impl AsRef<Path>) -> Result<StudioSnapshot, HarnessError> {
     let root = root.as_ref();
-    let modules = load_module_records(root)?;
-    let promises = load_promise_records(root)?;
-    let results_file = load_test_results_file(root)?;
-    let results_generated_at = results_file.as_ref().map(|file| file.generated_at.clone());
-    let results = results_file.map_or_else(Vec::new, |file| file.results);
-    let issues = validate_module_records(&modules)
-        .into_iter()
-        .chain(validate_promise_records(&promises))
-        .collect::<Vec<_>>();
-    let warning_count = issues
+    let check = check_feature_harness(root)?;
+    let warning_count = check
+        .issues
         .iter()
         .filter(|issue| issue.severity == ValidationSeverity::Warning)
         .count();
-    let error_count = issues
+    let error_count = check
+        .issues
         .iter()
         .filter(|issue| issue.severity == ValidationSeverity::Error)
         .count();
-    let promise_module_ids = promise_module_ids(&modules);
-    let promise_records_by_id = promises
+    let results_generated_at = check.results.as_ref().map(|file| file.generated_at.clone());
+
+    let packages = check
+        .packages
         .iter()
-        .map(|promise| (promise.id.as_str(), promise))
-        .collect::<BTreeMap<_, _>>();
-    let studio_modules = modules
-        .iter()
-        .map(|module| to_studio_module(root, module, &promise_records_by_id, &promises, &modules))
+        .map(to_studio_package)
         .collect::<Vec<_>>();
-    let studio_promises = promises
+    let modules = check
+        .modules
         .iter()
-        .map(|promise| StudioPromise {
-            id: promise.id.clone(),
-            module_id: promise_module_ids
-                .get(promise.id.as_str())
-                .cloned()
-                .unwrap_or_else(|| "unassigned".to_string()),
-            feature: promise.feature.clone(),
-            title: promise.title.clone(),
-            purpose: promise.purpose.clone(),
-            priority: promise.priority.clone(),
-            boundary: promise.boundary.clone(),
-            lifecycle: promise.lifecycle.clone(),
-            run_status: get_promise_run_status(&promise.id, &results),
-            given: promise.given.clone(),
-            when: promise.when.clone(),
-            then: promise.then_steps.clone(),
-            observes: promise.observes.clone(),
-            evidence: promise_evidence(&promise.id, &results),
-            failure_meaning: promise.failure_meaning.clone(),
-            review: StudioPromiseReview {
-                state: promise.review.state.to_string(),
-                decided_by: promise.review.decided_by.clone(),
-                decided_at: promise.review.decided_at.clone(),
-                note: promise.review.note.clone(),
-                events: promise
-                    .review
-                    .events
-                    .iter()
-                    .map(|event| StudioPromiseReviewEvent {
-                        action: event.action.to_string(),
-                        by: event.by.clone(),
-                        at: event.at.clone(),
-                        note: event.note.clone(),
-                    })
-                    .collect(),
-            },
+        .map(|module| to_studio_module(module, &check.features))
+        .collect::<Vec<_>>();
+    let features = check
+        .features
+        .iter()
+        .map(|feature| {
+            to_studio_feature(
+                feature,
+                &check.behavior,
+                &check.review_log.events,
+                check.results.as_ref(),
+            )
         })
         .collect::<Vec<_>>();
 
-    let name = root
-        .file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or("Harness project");
     Ok(StudioSnapshot {
         project: StudioProject {
-            name: localized(name, name),
+            name: localized(&project_name(root), &format!("{} 项目", project_name(root))),
             description: localized(
-                "Read from the selected Harness project.",
-                "从当前选中的 Harness project 读取。",
+                "BDD Harness behavior model generated from Cucumber feature files.",
+                "基于 Cucumber feature 文件生成的 BDD Harness 行为模型。",
             ),
-            promise_count: studio_promises.len(),
-            module_count: studio_modules.len(),
+            package_count: packages.len(),
+            module_count: modules.len(),
+            feature_count: unique_feature_count(&check.features),
+            rule_count: unique_rule_count(&check.features),
+            example_count: unique_example_count(&check.features),
             warning_count,
             error_count,
         },
-        modules: studio_modules,
-        promises: studio_promises,
-        review_drafts: Vec::new(),
+        packages,
+        modules,
+        features,
+        review_drafts: review_drafts(&check.behavior, &check.modules),
         results_generated_at,
     })
 }
 
-/// Collect the test results bound to a promise (matched by promise id) into the
-/// evidence Studio shows in the review panel. A promise with no matching result
-/// yields an empty list — distinct from a promise whose tests all passed.
-fn promise_evidence(promise_id: &str, results: &[TestResult]) -> Vec<StudioPromiseEvidence> {
+fn to_studio_package(package: &PackageRecord) -> StudioPackage {
+    StudioPackage {
+        id: package.id.clone(),
+        title: package.title.clone(),
+        path: package.path.clone(),
+        purpose: package.purpose.clone(),
+        module_ids: package.modules.clone(),
+    }
+}
+
+fn to_studio_module(module: &ModuleRecord, features: &[FeatureRecord]) -> StudioModule {
+    let feature_tags = features
+        .iter()
+        .filter(|feature| feature.module_id.as_deref() == Some(module.id.as_str()))
+        .filter_map(|feature| feature.feature_id.as_ref())
+        .map(|id| tag("@feature:", id))
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect();
+    StudioModule {
+        id: module.id.clone(),
+        package: module.package.clone(),
+        title: module.title.clone(),
+        purpose: module.purpose.clone(),
+        covers: module.covers.clone(),
+        feature_tags,
+    }
+}
+
+fn to_studio_feature(
+    feature: &FeatureRecord,
+    behavior: &BehaviorFile,
+    review_events: &[ReviewLogEvent],
+    results: Option<&ResultsFile>,
+) -> StudioFeature {
+    StudioFeature {
+        tag: feature
+            .feature_id
+            .as_ref()
+            .map(|id| tag("@feature:", id))
+            .unwrap_or_else(|| feature.path.clone()),
+        name: feature.name.clone(),
+        path: feature.path.clone(),
+        line: feature.line,
+        locale: feature.locale_id.clone().unwrap_or_default(),
+        package: feature.package_id.clone().unwrap_or_default(),
+        module: feature.module_id.clone().unwrap_or_default(),
+        rules: feature
+            .rules
+            .iter()
+            .map(|rule| to_studio_rule(feature, rule, behavior, review_events, results))
+            .collect(),
+    }
+}
+
+fn to_studio_rule(
+    feature: &FeatureRecord,
+    rule: &RuleRecord,
+    behavior: &BehaviorFile,
+    review_events: &[ReviewLogEvent],
+    results: Option<&ResultsFile>,
+) -> StudioRule {
+    let feature_tag = feature
+        .feature_id
+        .as_ref()
+        .map(|id| tag("@feature:", id))
+        .unwrap_or_default();
+    let rule_tag = rule
+        .rule_id
+        .as_ref()
+        .map(|id| tag("@rule:", id))
+        .unwrap_or_else(|| format!("{}:{}", feature.path, rule.line));
+    let behavior_record = behavior
+        .rules
+        .iter()
+        .find(|record| record.feature == feature_tag && record.rule == rule_tag);
+    StudioRule {
+        tag: rule_tag.clone(),
+        name: rule.name.clone(),
+        line: rule.line,
+        lifecycle: behavior_record
+            .map(|record| record.lifecycle.clone())
+            .unwrap_or(BehaviorLifecycle::Draft),
+        review_state: behavior_record
+            .map(|record| record.review.state.clone())
+            .unwrap_or(ReviewState::Pending),
+        owner: behavior_record
+            .map(|record| record.owner.clone())
+            .unwrap_or_default(),
+        review_events: review_events_for_rule(review_events, &rule_tag),
+        examples: rule
+            .examples
+            .iter()
+            .map(|example| to_studio_example(&feature_tag, &rule_tag, example, results))
+            .collect(),
+    }
+}
+
+pub fn review_rule(
+    root: impl AsRef<Path>,
+    input: StudioRuleReviewInput,
+) -> Result<StudioRuleReviewOutcome, String> {
+    let root = root.as_ref();
+    let mut behavior = load_behavior_file(root).map_err(|error| error.to_string())?;
+    let mut review_log = load_review_log_file(root).map_err(|error| error.to_string())?;
+    let reviewer = input
+        .reviewer
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or("studio")
+        .to_string();
+    let timestamp = timestamp_string();
+    let note = input
+        .note
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(|value| LocalizedText::Text(value.to_string()));
+    let (lifecycle, review_state, log_action) = review_transition(&input.action);
+
+    let Some(record) = behavior
+        .rules
+        .iter_mut()
+        .find(|record| record.feature == input.feature && record.rule == input.rule)
+    else {
+        return Err(format!(
+            "Rule {} under feature {} was not found in {BEHAVIOR_PATH}.",
+            input.rule, input.feature
+        ));
+    };
+
+    record.lifecycle = lifecycle.clone();
+    record.review = BehaviorReview {
+        at: Some(timestamp.clone()),
+        by: Some(reviewer.clone()),
+        note: note.clone(),
+        state: review_state.clone(),
+    };
+
+    let event_id = format!(
+        "review-log.{}.{}",
+        timestamp_millis(),
+        slug(&format!("{:?}-{}", input.action, input.rule))
+    );
+    review_log.events.push(ReviewLogEvent {
+        acknowledgement: ReviewLogAcknowledgement {
+            at: Some(timestamp.clone()),
+            by: Some(reviewer.clone()),
+            note,
+            state: review_state.clone(),
+        },
+        action: log_action,
+        affected_rules: vec![input.rule.clone()],
+        at: timestamp,
+        by: reviewer,
+        id: event_id.clone(),
+        summary: review_summary(&input.action, &input.rule),
+    });
+
+    write_yaml(root.join(BEHAVIOR_PATH), &behavior)?;
+    write_yaml(root.join(REVIEW_LOG_PATH), &review_log)?;
+
+    Ok(StudioRuleReviewOutcome {
+        event_id,
+        feature: input.feature,
+        lifecycle,
+        review_state,
+        rule: input.rule,
+    })
+}
+
+fn to_studio_example(
+    feature_tag: &str,
+    rule_tag: &str,
+    example: &ExampleRecord,
+    results: Option<&ResultsFile>,
+) -> StudioExample {
+    let example_tag = example
+        .example_id
+        .as_ref()
+        .map(|id| tag("@example:", id))
+        .unwrap_or_else(|| format!("line:{}", example.line));
+    let result_items = results
+        .map(|file| matching_results(feature_tag, rule_tag, &example_tag, &file.results))
+        .unwrap_or_default();
+    StudioExample {
+        tag: example_tag.clone(),
+        name: example.name.clone(),
+        line: example.line,
+        run_status: example_run_status(get_example_run_status(
+            feature_tag,
+            rule_tag,
+            &example_tag,
+            results.map(|file| file.results.as_slice()).unwrap_or(&[]),
+        )),
+        evidence: result_items
+            .iter()
+            .map(|result| StudioExampleEvidence {
+                file: result.file.clone(),
+                locale: result.locale.clone(),
+                status: result.status.to_string(),
+                failure_message: result.failure_message.clone(),
+            })
+            .collect(),
+    }
+}
+
+fn matching_results<'a>(
+    feature: &str,
+    rule: &str,
+    example: &str,
+    results: &'a [ExampleResult],
+) -> Vec<&'a ExampleResult> {
     results
         .iter()
-        .filter(|result| result.promise_id == promise_id)
-        .map(|result| StudioPromiseEvidence {
-            test_name: result.test_name.clone(),
-            file: result.file.clone(),
-            status: result.status.clone(),
-            failure_message: result.failure_message.clone(),
+        .filter(|result| {
+            result.feature == feature && result.rule == rule && result.example == example
         })
         .collect()
 }
 
-fn to_studio_module(
-    root: &Path,
-    module: &ModuleRecord,
-    promises_by_id: &BTreeMap<&str, &PromiseRecord>,
-    all_promises: &[PromiseRecord],
-    all_modules: &[ModuleRecord],
-) -> StudioModule {
-    StudioModule {
-        id: module.id.clone(),
-        title: module.title.clone(),
-        summary: module.summary.clone(),
-        purpose: module.purpose.clone(),
-        priority: module_priority(module, promises_by_id),
-        promise_ids: module.promises.clone(),
-        covers: module.covers.clone(),
-        related_module_ids: related_module_ids(module, all_promises, all_modules),
-        package: derive_package(root, &module.covers),
-    }
-}
-
-/// Derive the monorepo package a module belongs to from its covered paths: the
-/// nearest ancestor directory (under `root`, excluding the repo root itself) that
-/// is a workspace member, i.e. contains a `Cargo.toml` or `package.json`. Returns
-/// `None` for modules whose covers live outside any member (repo-level files).
-fn derive_package(root: &Path, covers: &[String]) -> Option<String> {
-    covers
+fn review_events_for_rule(events: &[ReviewLogEvent], rule_tag: &str) -> Vec<StudioReviewEvent> {
+    events
         .iter()
-        .find_map(|cover| package_for_cover(root, cover))
+        .filter(|event| event.affected_rules.iter().any(|rule| rule == rule_tag))
+        .map(|event| StudioReviewEvent {
+            acknowledgement_state: event.acknowledgement.state.clone(),
+            action: event.action.clone(),
+            at: event.at.clone(),
+            by: event.by.clone(),
+            id: event.id.clone(),
+            summary: event.summary.clone(),
+        })
+        .collect()
 }
 
-fn package_for_cover(root: &Path, cover: &str) -> Option<String> {
-    let literal = cover.split(['*', '?', '[']).next().unwrap_or(cover);
-    // Never let a cover escape the project root via "." / ".." segments.
-    if literal
-        .split(['/', '\\'])
-        .any(|segment| segment == "." || segment == "..")
-    {
-        return None;
-    }
-    let mut dir = root.join(literal);
-
-    while dir.as_path() != root && dir.starts_with(root) {
-        if dir.is_dir() && (dir.join("Cargo.toml").is_file() || dir.join("package.json").is_file())
-        {
-            // Use the path relative to root as a unique package id so members that share a
-            // leaf name (e.g. crates/client and packages/client) do not collapse together.
-            return dir
-                .strip_prefix(root)
-                .ok()
-                .and_then(|relative| relative.to_str())
-                .map(|relative| relative.replace('\\', "/"));
-        }
-        match dir.parent() {
-            Some(parent) => dir = parent.to_path_buf(),
-            None => break,
-        }
-    }
-
-    None
-}
-
-fn module_priority(
-    module: &ModuleRecord,
-    promises_by_id: &BTreeMap<&str, &PromiseRecord>,
-) -> String {
-    module
-        .promises
-        .iter()
-        .filter_map(|promise_id| promises_by_id.get(promise_id.as_str()))
-        .map(|promise| &promise.priority)
-        .min_by_key(|priority| priority_rank(priority))
-        .map_or_else(|| "none".to_string(), ToString::to_string)
-}
-
-fn priority_rank(priority: &PromisePriority) -> u8 {
-    match priority {
-        PromisePriority::P0 => 0,
-        PromisePriority::P1 => 1,
-        PromisePriority::P2 => 2,
+fn review_transition(
+    action: &StudioRuleReviewAction,
+) -> (BehaviorLifecycle, ReviewState, ReviewLogAction) {
+    match action {
+        StudioRuleReviewAction::Approve => (
+            BehaviorLifecycle::Accepted,
+            ReviewState::Approved,
+            ReviewLogAction::Approved,
+        ),
+        StudioRuleReviewAction::RequestChanges => (
+            BehaviorLifecycle::Proposed,
+            ReviewState::ChangesRequested,
+            ReviewLogAction::ChangesRequested,
+        ),
+        StudioRuleReviewAction::Reject => (
+            BehaviorLifecycle::Proposed,
+            ReviewState::Rejected,
+            ReviewLogAction::Rejected,
+        ),
+        StudioRuleReviewAction::Deprecate => (
+            BehaviorLifecycle::Deprecated,
+            ReviewState::Approved,
+            ReviewLogAction::Deprecated,
+        ),
+        StudioRuleReviewAction::Supersede => (
+            BehaviorLifecycle::Superseded,
+            ReviewState::Approved,
+            ReviewLogAction::Superseded,
+        ),
     }
 }
 
-fn promise_module_ids(modules: &[ModuleRecord]) -> BTreeMap<&str, String> {
-    let mut ids = BTreeMap::new();
-    for module in modules {
-        for promise_id in &module.promises {
-            ids.entry(promise_id.as_str())
-                .or_insert_with(|| module.id.clone());
-        }
-    }
-    ids
+fn review_summary(action: &StudioRuleReviewAction, rule: &str) -> LocalizedText {
+    let action_text = match action {
+        StudioRuleReviewAction::Approve => ("Approved", "批准"),
+        StudioRuleReviewAction::RequestChanges => ("Requested changes on", "请求修改"),
+        StudioRuleReviewAction::Reject => ("Rejected", "拒绝"),
+        StudioRuleReviewAction::Deprecate => ("Deprecated", "废弃"),
+        StudioRuleReviewAction::Supersede => ("Superseded", "替换"),
+    };
+    localized(
+        &format!("{} {rule} from Studio.", action_text.0),
+        &format!("在 Studio 中{} {rule}。", action_text.1),
+    )
 }
 
-fn related_module_ids(
-    module: &ModuleRecord,
-    promises: &[PromiseRecord],
-    modules: &[ModuleRecord],
-) -> Vec<String> {
-    let owned_promise_ids = module
-        .promises
-        .iter()
-        .map(String::as_str)
-        .collect::<BTreeSet<_>>();
-    let mut related = BTreeSet::new();
-    for promise in promises
-        .iter()
-        .filter(|promise| owned_promise_ids.contains(promise.id.as_str()))
-    {
-        for observed in &promise.observes {
-            for other in modules.iter().filter(|other| other.id != module.id) {
-                if other
-                    .covers
-                    .iter()
-                    .any(|pattern| matches_cover_glob(observed, pattern))
-                {
-                    related.insert(other.id.clone());
-                }
-            }
+fn write_yaml(path: PathBuf, value: &impl Serialize) -> Result<(), String> {
+    let raw = serde_yaml::to_string(value).map_err(|error| error.to_string())?;
+    fs::write(&path, raw).map_err(|error| format!("Failed to write {}: {error}", path.display()))
+}
+
+fn timestamp_string() -> String {
+    format!("unix-ms:{}", timestamp_millis())
+}
+
+fn timestamp_millis() -> u128 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_millis())
+        .unwrap_or(0)
+}
+
+fn slug(value: &str) -> String {
+    let mut output = String::new();
+    let mut previous_dash = false;
+    for character in value.chars().flat_map(char::to_lowercase) {
+        if character.is_ascii_alphanumeric() {
+            output.push(character);
+            previous_dash = false;
+        } else if !previous_dash {
+            output.push('-');
+            previous_dash = true;
         }
     }
-    related.into_iter().collect()
+    output.trim_matches('-').to_string()
 }
 
-fn matches_cover_glob(path: &str, pattern: &str) -> bool {
-    if let Some(prefix) = pattern.strip_suffix("/**") {
-        path == prefix || path.starts_with(&format!("{prefix}/"))
-    } else {
-        path == pattern
-    }
+fn review_drafts(behavior: &BehaviorFile, modules: &[ModuleRecord]) -> Vec<StudioReviewDraft> {
+    let module_ids = modules
+        .iter()
+        .map(|module| module.id.clone())
+        .collect::<Vec<_>>();
+    behavior
+        .rules
+        .iter()
+        .filter(|record| {
+            record.lifecycle == BehaviorLifecycle::Proposed
+                || record.review.state == ReviewState::Pending
+                || record.review.state == ReviewState::ChangesRequested
+        })
+        .map(|record| StudioReviewDraft {
+            id: record.rule.clone(),
+            title: LocalizedText::Text(record.rule.clone()),
+            module_ids: if record.owner.is_empty() {
+                module_ids.clone()
+            } else {
+                vec![record.owner.clone()]
+            },
+            state: record.review.state.to_string(),
+            reason: localized(
+                "Rule needs human lifecycle review.",
+                "Rule 需要人类进行生命周期 review。",
+            ),
+        })
+        .collect()
 }
 
 fn localized(en: &str, zh_cn: &str) -> LocalizedText {
@@ -443,300 +659,66 @@ fn localized(en: &str, zh_cn: &str) -> LocalizedText {
     ]))
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use harness_core::write_test_results_file;
-    use harness_protocol::{ProtocolVersion, TestResult, TestResultStatus, TestResultsFile};
-    use std::fs;
-    use tempfile::tempdir;
+fn project_name(root: &Path) -> String {
+    root.file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("Harness Project")
+        .to_string()
+}
 
-    #[test]
-    fn directory_project_ids_resolve_only_harness_project_roots() {
-        harness_adapter_rust::scenario_test!(
-            "harness.daemon.local_api_accepts_only_loopback_and_allowed_origins",
-            "directory project roots must be explicit Harness projects",
-            {
-                let workspace = tempdir().unwrap();
-                let project = tempdir().unwrap();
-                fs::create_dir_all(project.path().join("tests")).unwrap();
-                fs::write(project.path().join("tests/harness.yaml"), "apiVersion: 1\n").unwrap();
-                let project_root = project.path().canonicalize().unwrap();
-                let project_id = format!("directory:{}", project_root.display());
+fn tag(prefix: &str, id: &str) -> String {
+    format!("{prefix}{id}")
+}
 
-                assert_eq!(
-                    resolve_project_root(workspace.path(), Some(&project_id)),
-                    Some(project_root)
-                );
-
-                let non_harness_project = tempdir().unwrap();
-                let non_harness_id = format!("directory:{}", non_harness_project.path().display());
-
-                assert_eq!(
-                    resolve_project_root(workspace.path(), Some(&non_harness_id)),
-                    None
-                );
-            }
-        );
+fn example_run_status(status: ExampleRunStatus) -> String {
+    match status {
+        ExampleRunStatus::Unknown => "unknown",
+        ExampleRunStatus::Passing => "passing",
+        ExampleRunStatus::Failing => "failing",
+        ExampleRunStatus::Skipped => "skipped",
     }
+    .to_string()
+}
 
-    #[test]
-    fn snapshot_reads_modules_promises_and_results_from_project_files() {
-        harness_adapter_rust::scenario_test!(
-            "harness.daemon.snapshot_reads_canonical_project_files",
-            "daemon snapshots are derived from canonical Harness files",
-            {
-                let temp = tempdir().unwrap();
-                fs::create_dir_all(temp.path().join("tests/modules")).unwrap();
-                fs::create_dir_all(temp.path().join("tests/promises/core")).unwrap();
-                fs::write(
-                    temp.path().join("tests/modules/core.module.yaml"),
-                    r#"apiVersion: 1
-id: core
-title:
-  en: Core
-  zh-CN: Core
-summary: Loads project files.
-purpose: Keep the daemon snapshot grounded in canonical files.
-promises:
-  - harness.core.reads_files
-covers:
-  - crates/core/**
-"#,
-                )
-                .unwrap();
-                fs::write(
-                    temp.path().join("tests/promises/core/core.promises.yaml"),
-                    r#"apiVersion: 1
-promises:
-  - id: harness.core.reads_files
-    feature: Daemon / Snapshot
-    title: Reads files
-    purpose: Protect daemon-backed snapshots.
-    priority: P0
-    boundary: integration
-    lifecycle: accepted
-    given: [A Harness project exists]
-    when: [The daemon reads the project]
-    then: [A Studio snapshot is produced]
-    observes: [crates/core/lib.rs]
-    failureMeaning: Studio would show stale data.
-    review:
-      state: approved
-      decidedBy: xinyao
-      decidedAt: "2026-05-26"
-      events:
-        - action: approved
-          by: xinyao
-          at: "2026-05-26"
-"#,
-                )
-                .unwrap();
-                write_test_results_file(
-                    temp.path(),
-                    &TestResultsFile {
-                        api_version: ProtocolVersion,
-                        generated_at: "2026-05-26T00:00:00Z".to_string(),
-                        results: vec![TestResult {
-                            failure_message: None,
-                            file: "crates/core/lib.rs".to_string(),
-                            labels: Default::default(),
-                            promise_id: "harness.core.reads_files".to_string(),
-                            status: TestResultStatus::Passing,
-                            test_name: "core evidence".to_string(),
-                        }],
-                    },
-                )
-                .unwrap();
+fn unique_feature_count(features: &[FeatureRecord]) -> usize {
+    features
+        .iter()
+        .filter_map(|feature| feature.feature_id.clone())
+        .collect::<BTreeSet<_>>()
+        .len()
+}
 
-                let snapshot = build_studio_snapshot(temp.path()).unwrap();
-
-                assert_eq!(snapshot.project.module_count, 1);
-                assert_eq!(snapshot.project.promise_count, 1);
-                assert_eq!(snapshot.modules[0].id, "core");
-                assert_eq!(snapshot.modules[0].priority, "P0");
-                assert_eq!(snapshot.promises[0].module_id, "core");
-                assert_eq!(snapshot.promises[0].run_status, PromiseRunStatus::Passing);
-                assert_eq!(snapshot.promises[0].review.state, "approved");
-                assert_eq!(
-                    snapshot.results_generated_at.as_deref(),
-                    Some("2026-05-26T00:00:00Z")
-                );
-                assert_eq!(snapshot.promises[0].evidence.len(), 1);
-                assert_eq!(snapshot.promises[0].evidence[0].test_name, "core evidence");
-                assert_eq!(snapshot.promises[0].evidence[0].file, "crates/core/lib.rs");
-                assert_eq!(
-                    snapshot.promises[0].evidence[0].status,
-                    TestResultStatus::Passing
-                );
+fn unique_rule_count(features: &[FeatureRecord]) -> usize {
+    let mut ids = BTreeSet::new();
+    for feature in features {
+        let Some(feature_id) = &feature.feature_id else {
+            continue;
+        };
+        for rule in &feature.rules {
+            if let Some(rule_id) = &rule.rule_id {
+                ids.insert((feature_id.clone(), rule_id.clone()));
             }
-        );
+        }
     }
+    ids.len()
+}
 
-    #[test]
-    fn snapshot_promise_evidence_separates_failing_tested_from_untested() {
-        harness_adapter_rust::scenario_test!(
-            "harness.daemon.snapshot_carries_promise_evidence",
-            "promises carry their bound test evidence, and untested promises stay empty",
-            {
-                let temp = tempdir().unwrap();
-                fs::create_dir_all(temp.path().join("tests/modules")).unwrap();
-                fs::create_dir_all(temp.path().join("tests/promises/core")).unwrap();
-                fs::write(
-                    temp.path().join("tests/modules/core.module.yaml"),
-                    r#"apiVersion: 1
-id: core
-title: Core
-summary: Loads project files.
-purpose: Keep evidence grounded in canonical files.
-promises:
-  - harness.core.tested
-  - harness.core.untested
-covers:
-  - crates/core/**
-"#,
-                )
-                .unwrap();
-                fs::write(
-                    temp.path().join("tests/promises/core/core.promises.yaml"),
-                    r#"apiVersion: 1
-promises:
-  - id: harness.core.tested
-    feature: Core
-    title: Tested promise
-    purpose: Has a failing test.
-    priority: P0
-    boundary: integration
-    lifecycle: accepted
-    given: [A project]
-    when: [It runs]
-    then: [A result is produced]
-    observes: [crates/core/lib.rs]
-    failureMeaning: Evidence would be lost.
-    review:
-      state: pending
-      events: []
-  - id: harness.core.untested
-    feature: Core
-    title: Untested promise
-    purpose: Has no test yet.
-    priority: P1
-    boundary: integration
-    lifecycle: proposed
-    given: [A project]
-    when: [It runs]
-    then: [Nothing proves it yet]
-    observes: [crates/core/other.rs]
-    failureMeaning: A gap would be hidden.
-    review:
-      state: pending
-      events: []
-"#,
-                )
-                .unwrap();
-                write_test_results_file(
-                    temp.path(),
-                    &TestResultsFile {
-                        api_version: ProtocolVersion,
-                        generated_at: "2026-05-27T08:00:00Z".to_string(),
-                        results: vec![TestResult {
-                            failure_message: Some("expected 200, got 500".to_string()),
-                            file: "crates/core/lib.rs".to_string(),
-                            labels: Default::default(),
-                            promise_id: "harness.core.tested".to_string(),
-                            status: TestResultStatus::Failing,
-                            test_name: "core fails".to_string(),
-                        }],
-                    },
-                )
-                .unwrap();
-
-                let snapshot = build_studio_snapshot(temp.path()).unwrap();
-                let tested = snapshot
-                    .promises
-                    .iter()
-                    .find(|promise| promise.id == "harness.core.tested")
-                    .unwrap();
-                let untested = snapshot
-                    .promises
-                    .iter()
-                    .find(|promise| promise.id == "harness.core.untested")
-                    .unwrap();
-
-                // A tested promise carries its bound evidence, including the failure message.
-                assert_eq!(tested.run_status, PromiseRunStatus::Failing);
-                assert_eq!(tested.evidence.len(), 1);
-                assert_eq!(tested.evidence[0].status, TestResultStatus::Failing);
-                assert_eq!(
-                    tested.evidence[0].failure_message.as_deref(),
-                    Some("expected 200, got 500")
-                );
-                // An untested promise has empty evidence and an unknown run status — a
-                // visible gap, not a silent pass.
-                assert_eq!(untested.run_status, PromiseRunStatus::Unknown);
-                assert!(untested.evidence.is_empty());
+fn unique_example_count(features: &[FeatureRecord]) -> usize {
+    let mut ids = BTreeSet::new();
+    for feature in features {
+        let Some(feature_id) = &feature.feature_id else {
+            continue;
+        };
+        for rule in &feature.rules {
+            let Some(rule_id) = &rule.rule_id else {
+                continue;
+            };
+            for example in &rule.examples {
+                if let Some(example_id) = &example.example_id {
+                    ids.insert((feature_id.clone(), rule_id.clone(), example_id.clone()));
+                }
             }
-        );
+        }
     }
-
-    #[test]
-    fn snapshot_json_matches_studio_field_names() {
-        harness_adapter_rust::scenario_test!(
-            "harness.daemon.http_snapshot_matches_studio_contract",
-            "daemon snapshots serialize with Studio-compatible field names",
-            {
-                let snapshot = empty_snapshot("example");
-                let value = serde_json::to_value(snapshot).unwrap();
-
-                assert!(value.get("project").is_some());
-                assert!(value.get("modules").is_some());
-                assert!(value.get("promises").is_some());
-                assert!(value.get("reviewDrafts").is_some());
-                assert!(value["project"].get("promiseCount").is_some());
-                assert!(value["project"].get("moduleCount").is_some());
-            }
-        );
-    }
-
-    #[test]
-    fn derives_module_package_from_workspace_members() {
-        harness_adapter_rust::scenario_test!(
-            "harness.daemon.snapshot_derives_module_package",
-            "modules map to the workspace member that owns their covered paths",
-            {
-                let temp = tempdir().unwrap();
-                let root = temp.path();
-                fs::create_dir_all(root.join("crates/foo/src")).unwrap();
-                fs::write(
-                    root.join("crates/foo/Cargo.toml"),
-                    "[package]\nname = \"foo\"\n",
-                )
-                .unwrap();
-                fs::create_dir_all(root.join("apps/bar")).unwrap();
-                fs::write(root.join("apps/bar/package.json"), "{\"name\":\"bar\"}\n").unwrap();
-                fs::create_dir_all(root.join("protocol/v1")).unwrap();
-
-                // A glob cover inside a crate resolves to the member's root-relative path
-                // (unique, so members that share a leaf name do not collapse).
-                assert_eq!(
-                    derive_package(root, &["crates/foo/**".to_string()]),
-                    Some("crates/foo".to_string())
-                );
-                // A file cover deeper inside the member walks up to the member directory.
-                assert_eq!(
-                    derive_package(root, &["crates/foo/src/lib.rs".to_string()]),
-                    Some("crates/foo".to_string())
-                );
-                // A JS workspace member is detected via package.json.
-                assert_eq!(
-                    derive_package(root, &["apps/bar/**".to_string()]),
-                    Some("apps/bar".to_string())
-                );
-                // Repo-level paths outside any workspace member have no package.
-                assert_eq!(derive_package(root, &["protocol/v1/**".to_string()]), None);
-                // A cover with ".." must not escape the project root.
-                assert_eq!(derive_package(root, &["../sibling/**".to_string()]), None);
-            }
-        );
-    }
+    ids.len()
 }

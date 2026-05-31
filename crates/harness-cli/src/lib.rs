@@ -1,8 +1,11 @@
-use harness_core::{
-    build_seed_report, check_seed_harness, load_harness_config, load_test_results_file,
-    render_seed_report_markdown, render_seed_report_summary, HarnessError, SeedReportOptions,
-    TestResult, ValidationIssue, ValidationSeverity, HARNESS_RESULTS_PATH, HARNESS_ROOT_ENV_VAR,
+use harness_project::{
+    build_feature_report, check_feature_harness, load_harness_config, load_results_file,
+    render_feature_report_markdown, render_feature_report_summary, ExampleResult, HarnessError,
+    ValidationIssue, ValidationSeverity, HARNESS_RESULTS_PATH, HARNESS_ROOT_ENV_VAR,
 };
+use harness_protocol::HarnessRunnerSelection;
+use harness_runner::selection_environment;
+use std::collections::BTreeMap;
 use std::env;
 use std::fs;
 use std::io::{self, Write};
@@ -14,8 +17,11 @@ pub mod studio;
 const USAGE: &str =
     "Usage: harness <check|test|report|verify|studio> [--lang <language>] [--summary]\n\
      \n\
+     harness test may also receive --package, --module, --feature, --rule,\n\
+     --example, and --locale to select a Cucumber behavior slice.\n\
+     \n\
      Run `harness studio --help` for the daemon-backed subcommands (snapshot,\n\
-     projects, save-module, save-promise, review, run, open).";
+     projects, run, open).";
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CliRunResult {
@@ -31,11 +37,19 @@ pub struct ConfiguredTestOutput {
     pub stdout: Vec<u8>,
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ConfiguredTestInvocation {
+    pub args: Vec<String>,
+    pub command: String,
+    pub env: BTreeMap<String, String>,
+}
+
 #[derive(Debug, Clone, Default)]
 struct ParsedArgs {
     command: Option<String>,
     error: Option<String>,
     language: Option<String>,
+    selection: HarnessRunnerSelection,
     summary: bool,
 }
 
@@ -45,13 +59,33 @@ struct Streams<'a> {
 }
 
 type ConfiguredTestRunner<'a> =
-    dyn FnMut(&Path, &str, &[String]) -> io::Result<ConfiguredTestOutput> + 'a;
+    dyn FnMut(&Path, &ConfiguredTestInvocation) -> io::Result<ConfiguredTestOutput> + 'a;
 
 fn parse_args(args: &[String]) -> ParsedArgs {
     let mut parsed = ParsedArgs::default();
     let mut index = 0;
     while index < args.len() {
         let arg = &args[index];
+        if let Some((flag, value)) = arg.split_once('=') {
+            if set_selection_flag(&mut parsed.selection, flag, value) {
+                if value.is_empty() {
+                    parsed.error = Some(format!("{flag} requires a value."));
+                    return parsed;
+                }
+                index += 1;
+                continue;
+            }
+        }
+        if set_selection_flag(&mut parsed.selection, arg, "") {
+            let value = args.get(index + 1);
+            if value.is_none_or(|value| value.starts_with('-')) {
+                parsed.error = Some(format!("{arg} requires a value."));
+                return parsed;
+            }
+            set_selection_flag(&mut parsed.selection, arg, value.unwrap());
+            index += 2;
+            continue;
+        }
         if arg == "--lang" {
             let value = args.get(index + 1);
             if value.is_none_or(|value| value.starts_with('-')) {
@@ -84,6 +118,19 @@ fn parse_args(args: &[String]) -> ParsedArgs {
     parsed
 }
 
+fn set_selection_flag(selection: &mut HarnessRunnerSelection, flag: &str, value: &str) -> bool {
+    match flag {
+        "--package" => selection.package = Some(value.to_string()),
+        "--module" => selection.module = Some(value.to_string()),
+        "--feature" => selection.feature = Some(value.to_string()),
+        "--rule" => selection.rule = Some(value.to_string()),
+        "--example" => selection.example = Some(value.to_string()),
+        "--locale" => selection.locale = Some(value.to_string()),
+        _ => return false,
+    }
+    true
+}
+
 fn errors_count(issues: &[ValidationIssue]) -> usize {
     issues
         .iter()
@@ -100,9 +147,9 @@ fn warnings_count(issues: &[ValidationIssue]) -> usize {
 
 fn render_issue(issue: &ValidationIssue) -> String {
     let subject = issue
-        .promise_id
+        .subject
         .as_ref()
-        .map(|promise_id| format!(" ({promise_id})"))
+        .map(|subject| format!(" ({:?}:{})", subject.kind, subject.id))
         .unwrap_or_default();
     format!(
         "[{}] {}{}: {}",
@@ -110,10 +157,11 @@ fn render_issue(issue: &ValidationIssue) -> String {
     )
 }
 
-fn render_check_summary(issues: &[ValidationIssue]) -> String {
+fn render_check_summary(features_count: usize, issues: &[ValidationIssue]) -> String {
     let mut lines = vec![
         "Seed Harness Check".to_string(),
         String::new(),
+        format!("Features: {features_count}"),
         format!("Errors: {}", errors_count(issues)),
         format!("Warnings: {}", warnings_count(issues)),
     ];
@@ -134,9 +182,9 @@ fn format_failure(error: &HarnessError) -> String {
 }
 
 fn run_check(cwd: &Path, streams: &mut Streams<'_>) -> i32 {
-    match check_seed_harness(cwd) {
+    match check_feature_harness(cwd) {
         Ok(result) => {
-            (streams.stdout)(&render_check_summary(&result.issues));
+            (streams.stdout)(&render_check_summary(result.features.len(), &result.issues));
             if errors_count(&result.issues) > 0 {
                 1
             } else {
@@ -153,16 +201,16 @@ fn run_check(cwd: &Path, streams: &mut Streams<'_>) -> i32 {
 fn run_report(
     cwd: &Path,
     streams: &mut Streams<'_>,
-    language: Option<String>,
+    _language: Option<String>,
     summary: bool,
-    results: Option<Vec<TestResult>>,
+    _results: Option<Vec<ExampleResult>>,
 ) -> i32 {
-    match build_seed_report(cwd, SeedReportOptions { language, results }) {
+    match build_feature_report(cwd) {
         Ok(report) => {
             let rendered = if summary {
-                render_seed_report_summary(&report)
+                render_feature_report_summary(&report)
             } else {
-                render_seed_report_markdown(&report)
+                render_feature_report_markdown(&report)
             };
             (streams.stdout)(rendered.trim_end());
             if report.summary.errors > 0 {
@@ -180,13 +228,13 @@ fn run_report(
 
 fn spawn_configured_test_runner(
     cwd: &Path,
-    command: &str,
-    args: &[String],
+    invocation: &ConfiguredTestInvocation,
 ) -> io::Result<ConfiguredTestOutput> {
-    let output = Command::new(command)
-        .args(args)
+    let output = Command::new(&invocation.command)
+        .args(&invocation.args)
         .current_dir(cwd)
         .env(HARNESS_ROOT_ENV_VAR, cwd)
+        .envs(&invocation.env)
         .output()?;
     Ok(ConfiguredTestOutput {
         exit_code: output.status.code().unwrap_or(1),
@@ -198,6 +246,7 @@ fn spawn_configured_test_runner(
 fn run_configured_test_runner(
     cwd: &Path,
     streams: &mut Streams<'_>,
+    selection: HarnessRunnerSelection,
     runner: &mut ConfiguredTestRunner<'_>,
 ) -> i32 {
     let config = match load_harness_config(cwd) {
@@ -208,7 +257,15 @@ fn run_configured_test_runner(
         }
     };
 
-    let output = match runner(cwd, &config.test.runner.command, &config.test.runner.args) {
+    let selection =
+        merge_runner_selection(config.test.runner.selection.unwrap_or_default(), selection);
+    let invocation = ConfiguredTestInvocation {
+        args: config.test.runner.args,
+        command: config.test.runner.command,
+        env: selection_environment(&selection),
+    };
+
+    let output = match runner(cwd, &invocation) {
         Ok(output) => output,
         Err(error) => {
             (streams.stderr)(&error.to_string());
@@ -219,6 +276,31 @@ fn run_configured_test_runner(
     forward_output(&output.stdout, &mut streams.stdout);
     forward_output(&output.stderr, &mut streams.stderr);
     output.exit_code
+}
+
+fn merge_runner_selection(
+    mut base: HarnessRunnerSelection,
+    override_selection: HarnessRunnerSelection,
+) -> HarnessRunnerSelection {
+    if override_selection.package.is_some() {
+        base.package = override_selection.package;
+    }
+    if override_selection.module.is_some() {
+        base.module = override_selection.module;
+    }
+    if override_selection.feature.is_some() {
+        base.feature = override_selection.feature;
+    }
+    if override_selection.rule.is_some() {
+        base.rule = override_selection.rule;
+    }
+    if override_selection.example.is_some() {
+        base.example = override_selection.example;
+    }
+    if override_selection.locale.is_some() {
+        base.locale = override_selection.locale;
+    }
+    base
 }
 
 fn forward_output(output: &[u8], write: &mut Box<dyn FnMut(&str) + '_>) {
@@ -233,7 +315,7 @@ fn forward_output(output: &[u8], write: &mut Box<dyn FnMut(&str) + '_>) {
 }
 
 enum ResultsFileCheck {
-    Found(Vec<TestResult>),
+    Found(Vec<ExampleResult>),
     Invalid,
     Missing,
 }
@@ -243,7 +325,7 @@ fn require_results_file(
     streams: &mut Streams<'_>,
     log_missing: bool,
 ) -> ResultsFileCheck {
-    match load_test_results_file(cwd) {
+    match load_results_file(cwd) {
         Ok(Some(file)) => ResultsFileCheck::Found(file.results),
         Ok(None) => {
             if log_missing {
@@ -276,6 +358,7 @@ fn run_test(
     cwd: &Path,
     streams: &mut Streams<'_>,
     language: Option<String>,
+    selection: HarnessRunnerSelection,
     summary: bool,
     runner: &mut ConfiguredTestRunner<'_>,
 ) -> i32 {
@@ -283,7 +366,7 @@ fn run_test(
         return 1;
     }
 
-    let test_exit_code = run_configured_test_runner(cwd, streams, runner);
+    let test_exit_code = run_configured_test_runner(cwd, streams, selection, runner);
     if test_exit_code != 0 {
         (streams.stderr)(&format!(
             "Test command failed with exit code {test_exit_code}."
@@ -337,7 +420,14 @@ fn run_with_streams(
         Some("report") | Some("verify") => {
             run_report(cwd, streams, parsed.language, parsed.summary, None)
         }
-        Some("test") => run_test(cwd, streams, parsed.language, parsed.summary, runner),
+        Some("test") => run_test(
+            cwd,
+            streams,
+            parsed.language,
+            parsed.selection,
+            parsed.summary,
+            runner,
+        ),
         Some(_) => {
             (streams.stdout)(USAGE);
             1
@@ -356,7 +446,7 @@ pub fn run_cli_collect(args: &[String], cwd: impl AsRef<Path>) -> CliRunResult {
 pub fn run_cli_collect_with_runner(
     args: &[String],
     cwd: impl AsRef<Path>,
-    mut runner: impl FnMut(&Path, &str, &[String]) -> io::Result<ConfiguredTestOutput>,
+    mut runner: impl FnMut(&Path, &ConfiguredTestInvocation) -> io::Result<ConfiguredTestOutput>,
 ) -> CliRunResult {
     let mut stdout = Vec::<String>::new();
     let mut stderr = Vec::<String>::new();
@@ -387,208 +477,4 @@ pub fn run_cli_main() -> i32 {
         }),
     };
     run_with_streams(&args, &cwd, &mut streams, &mut runner)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::fs;
-    use tempfile::tempdir;
-
-    const VALID_HARNESS_CONFIG: &str = r#"apiVersion: 1
-test:
-  runner:
-    command: "true"
-    args: []
-"#;
-
-    const VALID_PROMISE_YAML: &str = r#"apiVersion: 1
-promises:
-  - id: harness.promise_registry.load_canonical_yaml_promises
-    feature: Seed Harness / Promise Registry
-    title:
-      en: Accepted promises are loaded from canonical YAML files
-      zh-CN: 已接受的承诺会从 canonical YAML 文件中加载
-    purpose:
-      en: Protect the seed Harness's reviewed behavior promises.
-      zh-CN: 保护 seed Harness 能读取自己已批准的行为承诺。
-    priority: P0
-    boundary: unit
-    lifecycle: accepted
-    given:
-      - en: A promise file exists under the tests/promises root
-        zh-CN: tests/promises/ 目录下存在一个 promise 文件
-    when:
-      - en: The seed Harness loads promise records
-        zh-CN: seed Harness 加载 promise records
-    then:
-      - en: The promise is decoded into a PromiseRecord
-        zh-CN: 该 promise 会被解码成 PromiseRecord
-    observes:
-      - tests/promises/**/*.promises.yaml
-    failureMeaning:
-      en: The Harness cannot trust its own reviewed behavior promises.
-      zh-CN: Harness 无法信任自己已经 review 过的行为承诺。
-    review:
-      state: approved
-      decidedBy: xinyao
-      decidedAt: "2026-05-24"
-      events:
-        - action: approved
-          by: xinyao
-          at: "2026-05-24"
-"#;
-
-    fn write_minimal_workspace(root: &Path) {
-        fs::create_dir_all(root.join("tests")).unwrap();
-        fs::write(root.join("tests/harness.yaml"), VALID_HARNESS_CONFIG).unwrap();
-        fs::create_dir_all(root.join("tests/promises/promise-registry")).unwrap();
-        fs::write(
-            root.join("tests/promises/promise-registry/promise-registry.promises.yaml"),
-            VALID_PROMISE_YAML,
-        )
-        .unwrap();
-    }
-
-    fn repo_root() -> PathBuf {
-        Path::new(env!("CARGO_MANIFEST_DIR"))
-            .parent()
-            .and_then(Path::parent)
-            .unwrap()
-            .to_path_buf()
-    }
-
-    #[test]
-    fn check_succeeds_for_valid_promises() {
-        let temp = tempdir().unwrap();
-        write_minimal_workspace(temp.path());
-
-        let result = run_cli_collect(&["check".to_string()], temp.path());
-        assert_eq!(result.exit_code, 0, "{result:#?}");
-        assert!(result.stdout.contains("Seed Harness Check"));
-        assert!(result.stdout.contains("Errors: 0"));
-    }
-
-    #[test]
-    fn verify_renders_readable_report() {
-        let temp = tempdir().unwrap();
-        write_minimal_workspace(temp.path());
-
-        let result = run_cli_collect(&["verify".to_string()], temp.path());
-        assert_eq!(result.exit_code, 0, "{result:#?}");
-        assert!(result.stdout.contains("Seed Harness Report"));
-        assert!(result
-            .stdout
-            .contains("Feature: Seed Harness / Promise Registry"));
-        assert!(result.stdout.contains("Run Status: unknown"));
-    }
-
-    #[test]
-    fn invalid_lang_argument_fails_with_usage() {
-        let temp = tempdir().unwrap();
-        write_minimal_workspace(temp.path());
-
-        let result = run_cli_collect(&["verify".to_string(), "--lang".to_string()], temp.path());
-        assert_eq!(result.exit_code, 1);
-        assert!(result.stderr.contains("--lang requires a language value."));
-        assert!(result.stderr.contains("Usage: harness"));
-    }
-
-    #[test]
-    fn cli_contract_commands_are_enforced() {
-        let contract = fs::read_to_string(repo_root().join("protocol/v1/cli.yaml")).unwrap();
-        for command in ["check", "report", "verify", "test"] {
-            assert!(
-                contract.contains(&format!("  {command}:")),
-                "protocol CLI contract should declare {command}"
-            );
-        }
-        assert!(contract.contains("success: 0"));
-        assert!(contract.contains("failure: 1"));
-
-        let temp = tempdir().unwrap();
-        write_minimal_workspace(temp.path());
-
-        let success = run_cli_collect(&["check".to_string()], temp.path());
-        assert_eq!(success.exit_code, 0, "{success:#?}");
-
-        let failure = run_cli_collect(&["unknown".to_string()], temp.path());
-        assert_eq!(failure.exit_code, 1, "{failure:#?}");
-        assert!(failure.stdout.contains("Usage: harness"));
-    }
-
-    #[test]
-    fn test_command_reads_runner_config() {
-        let temp = tempdir().unwrap();
-        write_minimal_workspace(temp.path());
-        let mut received_command = None::<String>;
-        let mut received_args = None::<Vec<String>>;
-        let mut stdout = Vec::<String>::new();
-        let mut stderr = Vec::<String>::new();
-
-        let exit_code = {
-            let mut streams = Streams {
-                stderr: Box::new(|message| stderr.push(message.to_string())),
-                stdout: Box::new(|message| stdout.push(message.to_string())),
-            };
-            run_configured_test_runner(temp.path(), &mut streams, &mut |_, command, args| {
-                received_command = Some(command.to_string());
-                received_args = Some(args.to_vec());
-                Ok(ConfiguredTestOutput {
-                    exit_code: 0,
-                    stderr: Vec::new(),
-                    stdout: b"configured runner\n".to_vec(),
-                })
-            })
-        };
-
-        assert_eq!(exit_code, 0);
-        assert_eq!(received_command.as_deref(), Some("true"));
-        assert_eq!(received_args.unwrap(), Vec::<String>::new());
-        assert_eq!(stdout, vec!["configured runner".to_string()]);
-        assert!(stderr.is_empty());
-    }
-
-    #[test]
-    fn test_command_orchestrates_adapter_and_report_results() {
-        let temp = tempdir().unwrap();
-        write_minimal_workspace(temp.path());
-        let mut called = false;
-
-        let result = run_cli_collect_with_runner(
-            &["test".to_string(), "--summary".to_string()],
-            temp.path(),
-            |cwd, command, args| {
-                called = true;
-                assert_eq!(cwd, temp.path());
-                assert_eq!(command, "true");
-                assert!(args.is_empty());
-
-                let results = harness_core::create_test_results_file(
-                    vec![TestResult {
-                        file: "crates/harness-cli/src/lib.rs".to_string(),
-                        labels: Default::default(),
-                        promise_id: "harness.promise_registry.load_canonical_yaml_promises"
-                            .to_string(),
-                        status: harness_core::TestResultStatus::Passing,
-                        test_name: "passes through injected runner".to_string(),
-                        failure_message: None,
-                    }],
-                    "2026-05-25T00:00:00.000Z",
-                );
-                harness_core::write_test_results_file(cwd, &results).unwrap();
-
-                Ok(ConfiguredTestOutput {
-                    exit_code: 0,
-                    stderr: Vec::new(),
-                    stdout: b"runner ok\n".to_vec(),
-                })
-            },
-        );
-
-        assert!(called);
-        assert_eq!(result.exit_code, 0, "{result:#?}");
-        assert!(result.stdout.contains("runner ok"));
-        assert!(result.stdout.contains("passing"));
-    }
 }

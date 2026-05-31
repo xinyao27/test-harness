@@ -1,7 +1,0 @@
-apiVersion: 1
-generatedAt: "2026-05-24T00:00:00.000Z"
-results:
-  - file: crates/harness-core/src/lib.rs
-    promiseId: harness.fixture.valid_basic_promise
-    status: done
-    testName: invalid status result

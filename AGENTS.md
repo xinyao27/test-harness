@@ -2,42 +2,255 @@
 
 ## Project Overview
 
-This project is a foundation for a **promise-driven Test Harness**.
+This project is a foundation for a **Cucumber/Gherkin-based Test Harness**.
 
-Its goal is not simply to run tests or increase coverage. The goal is to make tests and test metadata become a readable model of a software system, so humans can understand, review, and manage system behavior without reading every implementation detail.
+Its goal is not simply to run tests or increase coverage. The goal is to make behavior descriptions, lifecycle metadata, and test evidence become a readable model of a software system, so humans can understand, review, and manage system behavior without reading every implementation detail.
 
-The Harness should be **protocol-first and language-agnostic**. Canonical promises and result files are stable YAML artifacts with `apiVersion: 1`. The current repository provides a TypeScript reference implementation and a Vitest adapter; future implementations, including a Rust rewrite, should be judged by whether they satisfy the same protocol promises and fixtures.
+The latest Harness model uses Cucumber's `Feature / Rule / Example / Given / When / Then` vocabulary as the behavior-description layer, then adds Harness-owned governance around it:
 
-In this project, a test represents a **promise**: a human-readable behavior commitment that describes what a feature must guarantee, why that guarantee matters, what boundary it belongs to, and what observable evidence proves that it still works.
+```text
+Package
+  Module
+    Feature
+      Rule
+        Example
+          Given / When / Then
+```
 
-The intended workflow is:
+`Feature`, `Rule`, `Example`, and steps are written as `.feature` files and parsed with the Cucumber/Gherkin ecosystem. `Package`, `Module`, lifecycle, review state, review history, locale policy, result normalization, and coverage are Harness responsibilities.
 
-1. A human and an Agent discuss a new feature.
-2. They identify the promises behind that feature.
-3. The Agent drafts promise metadata and test intent before writing implementation code.
-4. The human reviews and approves the promise.
-5. The Agent writes tests and implementation logic until the application satisfies the approved promise.
-6. The Harness runs the application and automated tests, collects evidence, and maps results back to promise ids.
-7. Future changes update, split, merge, or deprecate promises through the same review flow.
+Feature files should follow the code tree so coverage spreads across packages, crates, skills, and other boundaries. The directory layout makes missing coverage easy to spot, while tags and YAML keep the identity and coverage counts trustworthy.
 
-The central design principle is that humans should mainly review **promises**, not implementation code. If the approved promises are precise and the implementation satisfies them, the system can evolve with less line-by-line code review.
+The central design principle is that humans should mainly review **behavior rules and examples**, not implementation code. If the reviewed behavior model is precise and the implementation satisfies it with executable evidence, the system can evolve with less line-by-line code review.
 
-The project must become self-bootstrapping. Build a small seed Harness first, then use promises about this Harness project itself to drive the rest of the implementation.
+The project must become self-bootstrapping. Build a small seed Harness first, then use Harness behavior specs about this Harness project itself to drive the rest of the implementation.
+
+## Current Rewrite Stage
+
+This repository is currently in a semantic rewrite from the old promise-driven model to the Cucumber BDD model.
+
+All new or touched Harness artifacts should follow the new model. Do not extend, polish, or preserve old promise-oriented workflows while implementing new behavior.
+
+Use these canonical artifacts for new work:
+
+```text
+tests/harness.yaml
+tests/harness.packages.yaml
+tests/harness.modules.yaml
+tests/harness.locales.yaml
+features/**/*.feature
+tests/harness.behavior.yaml
+tests/harness.review-log.yaml
+tests/harness.results.yaml
+```
+
+Old `.promises.yaml` files, `promiseId` bindings, promise report schemas, and promise-oriented UI concepts are legacy reference material only. Convert or delete them as the new Harness slices land.
+
+After the rewrite is fully complete, all remaining Promise-era references should be removed so the repository reads as if the Promise model never existed.
+
+## Compatibility Decision
+
+Do **not** write compatibility code for old Harness shapes.
+
+Unless the user explicitly asks for compatibility, new code must not support:
+
+- `.promises.yaml` as a canonical behavior source
+- `PromiseRecord` or `BehaviorPromise` as public protocol concepts
+- `promiseId` as the canonical result or test binding
+- `scenarioTest(promiseId, ...)` as the canonical bridge API
+- old promise-oriented report schemas or fixtures
+- old Promise pages in Studio
+- hidden migration modes that accept both old and new formats
+
+Old code and fixtures may be read as source material during direct rewrite work. They should not become a second supported protocol.
+
+## Behavior Identity
+
+Stable identity lives in tags, not natural-language titles.
+
+Required tags:
+
+```gherkin
+@package:harness-project
+@module:feature-registry
+@feature:harness.feature-registry.scan-cucumber-features
+@locale:en
+Feature: Cucumber feature registry
+
+  @rule:harness.feature-registry.hierarchy-tags
+  Rule: Feature files declare Harness hierarchy tags
+
+    @example:valid-feature-maps-to-hierarchy
+    Example: A valid feature file maps to Harness hierarchy records
+```
+
+Rules:
+
+- `@package:<id>` must point to a package manifest entry.
+- `@module:<id>` must point to a module manifest entry.
+- `@feature:<stable-id>` identifies the behavior feature.
+- `@rule:<stable-id>` identifies the reviewable behavior rule.
+- `@example:<stable-id>` identifies executable example evidence.
+- `@locale:<code>` identifies the language of this `.feature` file.
+- Example result identity is `featureTag + ruleTag + exampleTag`.
+- Locale, file path, and line number are useful metadata, but not stable identity.
+
+## Multilingual Policy
+
+The Harness must support multilingual review.
+
+For `.feature` files, use one file per review language because the whole Gherkin document is natural language:
+
+```text
+features/harness/crates/harness-project/feature-registry/cucumber-feature-registry.feature
+features/harness/crates/harness-project/feature-registry/cucumber-feature-registry.zh-CN.feature
+```
+
+Localized `.feature` files for the same behavior reuse the same `@package`, `@module`, `@feature`, `@rule`, and `@example` tags. They differ by `@locale` and human-readable names or step body text.
+
+Keep Gherkin structural keywords in English for every locale: `Feature`, `Rule`, `Example`, `Given`, `When`, `Then`, `And`, and `But`. Do not add `# language: zh-CN` just to switch keywords. Use `@locale:<code>` for language identity, and do not translate tags, ids, lifecycle values, review states, or result identifiers.
+
+Harness-owned YAML files do **not** get duplicated per locale. Human-facing YAML fields use `LocalizedText`:
+
+```yaml
+apiVersion: 1
+modules:
+  - id: feature-registry
+    title:
+      en: Feature registry
+      zh-CN: Feature 注册表
+    description:
+      en: Loads Cucumber feature files into the Harness project model.
+      zh-CN: 将 Cucumber feature 文件加载为 Harness 项目模型。
+    package: harness-project
+```
+
+A plain string is treated as default English. A language map such as `{ en, zh-CN }` carries translations. Stable machine fields such as `id`, `tag`, `package`, `module`, `lifecycle`, `review.state`, result identifiers, and file paths are never localized.
+
+`tests/harness.locales.yaml` defines the locale policy:
+
+```yaml
+apiVersion: 1
+sourceLocale: zh-CN
+requiredLocales:
+  - zh-CN
+  - en
+executionLocale: zh-CN
+```
+
+`harness check` should verify required locale coverage and structural parity: the same Feature, Rule, Example, and step order/intent must exist across required locales while Gherkin keywords remain English.
+
+## Lifecycle And Review
+
+Lifecycle is human governance, not run status.
+
+A Rule can be `accepted` and currently failing, or `draft` and already passing. Persisted lifecycle and computed run status must stay separate.
+
+Allowed lifecycle values:
+
+- `draft`
+- `proposed`
+- `accepted`
+- `deprecated`
+- `superseded`
+
+Allowed review states:
+
+- `pending`
+- `approved`
+- `changes_requested`
+- `rejected`
+
+Store Rule lifecycle and review state outside `.feature` files, in `tests/harness.behavior.yaml`. Store accepted behavior changes, weakening, split, merge, deprecation, or supersession in `tests/harness.review-log.yaml`.
+
+Agents can create `draft` or `proposed` Rules. Agents can mark a Rule `accepted` only when the human explicitly approves it in the current conversation or review surface.
+
+`.feature` approval is a hard gate. Do not write step definitions, executable tests, or implementation logic for a `.feature` until every touched Rule in that `.feature` is `accepted` and review state `approved`, or until the current review surface gives explicit human approval.
+
+Do not weaken, remove, or blur accepted high-priority behavior without explicit human approval and review-log history.
+
+## Cucumber Ecosystem Policy
+
+Reuse the Cucumber ecosystem wherever it already solves the problem.
+
+Prefer:
+
+- Gherkin syntax and official parsing instead of a custom `.feature` parser
+- the Rust `gherkin` crate for core-side `.feature` scanning and validation
+- the Rust `cucumber` crate ([cucumber-rs](https://cucumber-rs.github.io/cucumber/current/introduction.html)) as the first Rust execution engine behind a Harness bridge
+- Cucumber runner behavior for matching steps to step definitions
+- Cucumber Messages or supported formatter output as the raw execution event source
+- Cucumber tag expressions for selecting packages, modules, features, rules, examples, locales, or review slices
+- Cucumber hooks for setup and environment preparation
+- Cucumber's undefined, pending, skipped, failed, and passed semantics for Example status
+
+Do not fork Gherkin syntax, invent a parallel step runner, or build a custom parser unless the Cucumber ecosystem cannot provide the needed data.
+
+Rust execution policy:
+
+- Let cucumber-rs run `.feature` Examples and own its terminal/debugging output.
+- Let `harness` own governance commands such as `check`, `test`, `report`, lifecycle, locale, coverage, and evidence aggregation.
+- Implement `harness test` as a thin orchestration layer over Cucumber execution, not as a replacement terminal runner.
+- Express Harness execution selection as package/module/feature/rule/example/locale fields, then render those fields into `HARNESS_CUCUMBER_TAG_EXPRESSION` for language bridges and Cucumber engines.
+- Rust bridges map `HARNESS_CUCUMBER_TAG_EXPRESSION` to cucumber-rs native `CUCUMBER_FILTER_TAGS`, `--tags`, or `TagOperation`.
+- TypeScript bridges map `HARNESS_CUCUMBER_TAG_EXPRESSION` to Cucumber.js native `tags`, CLI `--tags`, or run configuration `sources.tagExpression`.
+- Bridge entrypoints must apply the Harness tag expression before invoking real Cucumber execution such as cucumber-rs `World::run` or Cucumber.js `runCucumber`; helper-only mappings are not enough.
+- Prefer cucumber-rs JSON/JUnit writers or a small custom Writer for machine evidence, then normalize into `tests/harness.results.yaml`.
+- Use cucumber-rs CLI composition only when Harness-specific options must live beside Cucumber options.
+
+## Long-Term Crate And Bridge Layout
+
+Keep Harness core code separate from language-specific Cucumber bridges.
+
+Core Harness crates live under `crates/`:
+
+```text
+crates/
+  harness-protocol/
+  harness-project/
+  harness-runner/
+  harness-cli/
+  harness-daemon/
+```
+
+Language bridges live under `bridges/`:
+
+```text
+bridges/
+  rust/
+    cucumber-rs/
+  typescript/
+    cucumber-js/
+```
+
+The intended boundary is:
+
+- `harness-protocol` owns stable cross-language schemas and result contracts.
+- `harness-project` owns project loading, `.feature` scanning, manifests, lifecycle, review logs, validation, coverage, and Studio snapshots.
+- `harness-runner` owns orchestration across packages, modules, features, rules, examples, locales, and language bridges.
+- `harness-cli` is a thin command-line surface over project and runner behavior.
+- `harness-daemon` is the Studio/local API surface over project and runner behavior.
+- `bridges/rust/cucumber-rs` converts cucumber-rs typed events into Harness protocol results.
+- `bridges/typescript/cucumber-js` converts Cucumber.js Messages or formatter events into Harness protocol results.
+
+Do not reintroduce old generic adapter crates or framework-specific Harness adapters such as Vitest/Jest/Rust-unit-test adapters as canonical evidence producers. New Harness behavior must be proven by corresponding Cucumber `.feature` files and Cucumber execution through a language bridge. Vitest, Jest, Cargo tests, Playwright, or other tools may be implementation details inside Cucumber step definitions, but they must not become separate outer test entrypoints for Harness behavior.
 
 ## What This Project Is Building
 
-The project is expected to evolve into a small but structured toolkit with these parts:
+The project should evolve into a small but structured toolkit with these parts:
 
-- **Seed Harness**: the smallest self-hosting loop for storing this project's promises, collecting adapter results by promise id, and reporting readable promise status.
-- **Agent Skill**: guidance for Agents writing Harness-friendly tests.
-- **Promise Registry**: persistent metadata for promises, review state, lifecycle status, and change history.
-- **Protocol Schemas**: versioned YAML contracts for promise files, result files, reports, and CLI behavior.
-- **Vitest Adapter**: `scenarioTest(...)` and reporter support for turning Vitest test outcomes into Harness result YAML.
-- **Quality Checker**: static checks for readable test structure, stable metadata, Chinese test purpose, boundary, priority, and observable assertions.
-- **Application Test Orchestration**: run or connect to an application, execute the configured adapter, and collect evidence.
-- **Result Collector**: convert adapter output into unified YAML keyed by promise id.
-- **Analyzer**: build feature maps, promise review maps, risk maps, and failure impact summaries.
-- **UX**: eventually expose feature discussion, promise review, run history, failures, and behavior maps as a human-facing workflow.
+- **Feature Registry**: scans localized `.feature` files, extracts stable tags, and builds the behavior model.
+- **Package/Module Registry**: stores architecture grouping above Cucumber `Feature`.
+- **Locale Registry**: stores source locale, required locales, and execution locale.
+- **Behavior Lifecycle Registry**: stores Rule lifecycle and review state.
+- **Review Log**: stores append-only human approval and behavior drift history.
+- **Protocol Schemas**: versioned YAML contracts for Harness-owned artifacts with `apiVersion: 1`.
+- **Harness Runner**: orchestrates Cucumber execution across package, module, feature, rule, example, and locale slices.
+- **Language Bridges**: convert language-specific Cucumber outputs into Harness results, such as cucumber-rs typed events or Cucumber.js Messages.
+- **Result Collector**: writes unified YAML such as `tests/harness.results.yaml`.
+- **Analyzer**: builds Package, Module, Feature, Rule, Example, lifecycle, locale, risk, and failure-impact summaries.
+- **Studio UX**: eventually exposes package overview, module detail, feature review, locale switching, rule lifecycle, example evidence, run history, failures, and behavior coverage.
+- **Agent Skill**: teaches Agents to author Harness-friendly Cucumber behavior, manifests, lifecycle records, review-log entries, and executable evidence.
 
 ## Documentation Rules
 
@@ -58,29 +271,20 @@ When updating documentation, keep the English and Chinese versions aligned.
 
 ## Agent Working Notes
 
-- Treat promises as first-class project artifacts.
-- Treat modules as the primary reviewable layer of project architecture. A module is a reviewable architecture boundary, not a loose tag, folder mirror, or UI grouping. Agent-authored modules must start from the project's architecture and ownership model.
-- Group modules under **Packages** — the outermost grouping, equal to a monorepo package (a workspace member such as a crate, app, or package), derived from the repo's workspace definition plus each module's `covers` paths. Packages are **optional**: a single-package repo has none, and the project shows modules directly. A Package is organizational only: it owns no promises, has no review state, and has no actions; modules remain the reviewable boundary inside it. The directory/folder grouping that a module must not be lives here, at the Package level.
-- Treat `.promises.yaml` files as the canonical source of reviewed behavior promise meaning. `scenario(...)` in tests should bind to a promise id, not redefine the promise.
+- Treat behavior Rules and Examples as first-class project artifacts.
+- Treat Modules as reviewable architecture boundaries, not loose tags, folder mirrors, or UI groupings.
+- Group Modules under Packages. A Package is organizational; Modules remain the reviewable architecture boundary inside it.
+- Treat `.feature` files as the canonical source of reviewed behavior description.
+- Treat `tests/harness.behavior.yaml` as the canonical source of lifecycle and review state.
+- Treat `tests/harness.review-log.yaml` as the canonical source of accepted behavior change history.
 - Treat `protocol/v1/` as the cross-language contract. TypeScript Effect Schemas should match the protocol; they should not become the only source of truth.
-- This project is currently in a 0-to-1 development phase. Do not add compatibility layers for old protocol shapes, old YAML formats, old UI behavior, or legacy implementation details unless the user explicitly asks for compatibility. Prefer clean canonical designs, direct migrations of seed artifacts, and simpler code over preserving outdated behavior.
-- Prefer YAML for Harness-owned artifacts, including result files such as `.harness/results.yaml`. Use JSON only when an external tool or protocol makes it necessary.
+- Prefer YAML for Harness-owned artifacts, including result files such as `tests/harness.results.yaml`. Use JSON only when an external tool or protocol makes it necessary.
 - Persist `apiVersion: 1` in Harness-owned protocol YAML artifacts.
-- Natural-language promise fields use `LocalizedText`: a plain string is treated as default English, while a language map such as `{ en, zh-CN }` can provide optional translations. Prefer bilingual `en` and `zh-CN` text for seed self-promises, but do not localize stable machine fields such as `id`, `priority`, `boundary`, `lifecycle`, `review`, or `observes`.
-- Split persisted lifecycle from computed run status. A promise can be `accepted` and currently `failing` at the same time.
-- Avoid bare `Promise` in code because it conflicts with JavaScript `Promise`; prefer `BehaviorPromise`, `PromiseRecord`, and `promiseId`.
-- When defining data contracts or public shapes, prefer Effect Schema over TypeScript interfaces so runtime validation and static types stay aligned. Use plain interfaces only when a schema would add no value or is technically impractical.
-- Preserve promise id history. Renaming a promise means creating a new id and deprecating or superseding the old id.
-- Prefer self-bootstrapping steps. The first implementation should validate this Harness project itself before trying to support external projects broadly.
-- When adding a Harness capability, write or update promises for that capability first.
-- Treat promise drift as a first-class review object. If a promise becomes weaker, narrower, less observable, or lower priority, preserve the old text, new text, initiator, reason, timestamp, and human acknowledgement state.
-- Do not assume a passing adapter test still proves a promise. Track N:M promise-to-test evidence mappings, capture assertion fingerprints, and preserve evidence deltas when tests are generated or edited.
-- For the seed Harness, use PR-based review metadata and allow checker warnings until the checker itself is accepted.
-- Keep adapter details under adapter-specific code and promises, such as `tests/promises/adapters/vitest/`.
-- Prefer `vitest run` for the current Vitest adapter and CI execution so test commands exit deterministically.
-- Use Vitest reporters, projects, annotations, browser mode, and Node API when working specifically on the Vitest adapter.
-- Do not weaken, remove, or blur high-priority promises without explicit human approval.
+- Prefer self-bootstrapping steps. The first implementation should validate this Harness project itself before supporting external projects broadly.
+- When adding a Harness capability, write or update `.feature` behavior, manifest entries, lifecycle records, and review-log records first.
+- Wait for explicit human approval of the touched `.feature` Rules before writing step definitions, executable tests, or implementation logic.
+- Do not assume a passing test still proves a Rule. Track example evidence and preserve evidence deltas when tests are generated or edited.
 - Prefer changes that improve human readability and reviewability.
-- Keep implementation details subordinate to the approved behavior commitments.
-- Preserve lifecycle and review history whenever possible.
-- When adding examples, make them concrete enough that a human can understand the behavior without reading implementation code.
+- Keep implementation details subordinate to the reviewed behavior commitments.
+- When adding Examples, make them concrete enough that a human can understand the behavior without reading implementation code.
+- Before handoff, run the relevant Harness checks when available, especially `harness check` or `cargo run -p harness-cli -- check`.

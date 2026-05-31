@@ -1,0 +1,13 @@
+apiVersion: 1
+packages:
+  - id: harness-project
+    title:
+      en: Harness Project
+      zh-CN: Harness 项目
+    path: crates/harness-project
+    purpose:
+      en: Owns feature scanning and behavior reporting.
+      zh-CN: 负责 feature 扫描和行为报告。
+    modules:
+      - feature-registry
+      - behavior-report

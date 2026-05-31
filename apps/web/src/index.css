@@ -548,10 +548,10 @@
     transition-property: background-color, border-color, color;
   }
 
-  /* Promise nodes are far more numerous than modules, so they render denser and
+  /* Rule nodes are far more numerous than modules, so they render denser and
      shorter — combined meta line, tighter padding, no tall min-height — to fit
      more per screen. */
-  .studio-node-card--promise {
+  .studio-node-card--rule {
     min-height: 0;
     padding: var(--studio-panel-gap-sm);
     border-radius: var(--radius-md);
@@ -559,12 +559,12 @@
 
   /* Pty card — a canvas-level node hosting a live terminal session (kind =
      terminal or agent). Fixed default size; React Flow positions it just like
-     module / promise nodes. Body must not eat canvas pan/zoom events on the
+     module / rule nodes. Body must not eat canvas pan/zoom events on the
      terminal itself (.nodrag.nowheel on the inner div) so xterm can scroll
      internally without dragging the card around. */
   /* Pty card visual style — collab-public's `.canvas-tile` shape, but
      using the Studio's own radius / token system so the card matches
-     module and promise nodes elsewhere on the canvas instead of looking
+     module and rule nodes elsewhere on the canvas instead of looking
      like an alien square. */
   .studio-pty-card {
     /* Width/height come from the React Flow node wrapper (driven by
@@ -578,7 +578,7 @@
     background: var(--card);
     color: var(--card-foreground);
     border: 1px solid var(--border);
-    /* Same radius the module / promise cards use, so all canvas tiles
+    /* Same radius the module / rule cards use, so all canvas tiles
        share one rounded silhouette across the studio. */
     border-radius: var(--studio-node-radius);
     box-shadow: none;

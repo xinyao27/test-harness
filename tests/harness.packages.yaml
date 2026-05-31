@@ -1,0 +1,108 @@
+apiVersion: 1
+packages:
+  - id: harness-project
+    title:
+      en: Harness Project
+      zh-CN: Harness 项目
+    path: crates/harness-project
+    purpose:
+      en: Owns project scanning, validation, reporting, lifecycle aggregation, and behavior coverage.
+      zh-CN: 负责项目扫描、校验、报告、生命周期聚合和行为覆盖率。
+    modules:
+      - feature-registry
+      - project-model
+      - behavior-lifecycle
+      - behavior-report
+      - project-orchestration
+  - id: harness-protocol
+    title:
+      en: Harness Protocol
+      zh-CN: Harness 协议
+    path: crates/harness-protocol
+    purpose:
+      en: Owns protocol schemas, fixtures, and Rust validation contracts for Harness artifacts.
+      zh-CN: 负责 Harness 工件的协议 schema、fixtures 和 Rust 校验契约。
+    modules:
+      - protocol-contract
+  - id: harness-runner
+    title:
+      en: Harness Runner
+      zh-CN: Harness Runner
+    path: crates/harness-runner
+    purpose:
+      en: Owns Cucumber bridge orchestration, run-scoped event collection, and normalized result merging.
+      zh-CN: 负责 Cucumber bridge 编排、按 run 隔离的事件收集和归一化结果合并。
+    modules:
+      - cucumber-results
+      - cucumber-filtering
+  - id: harness-cucumber-rs
+    title:
+      en: Harness cucumber-rs Bridge
+      zh-CN: Harness cucumber-rs Bridge
+    path: bridges/rust/cucumber-rs
+    purpose:
+      en: Converts cucumber-rs execution evidence into Harness protocol results.
+      zh-CN: 将 cucumber-rs execution evidence 转换成 Harness protocol results。
+    modules:
+      - rust-cucumber-bridge
+  - id: harness-cucumber-js
+    title:
+      en: Harness Cucumber.js Bridge
+      zh-CN: Harness Cucumber.js Bridge
+    path: bridges/typescript/cucumber-js
+    purpose:
+      en: Converts Cucumber.js Messages or formatter events into Harness protocol results.
+      zh-CN: 将 Cucumber.js Messages 或 formatter events 转换成 Harness protocol results。
+    modules:
+      - typescript-cucumber-bridge
+  - id: harness-cli
+    title:
+      en: Harness CLI
+      zh-CN: Harness CLI
+    path: crates/harness-cli
+    purpose:
+      en: Owns command-line check, report, test, and Studio bridge behavior.
+      zh-CN: 负责命令行 check、report、test 和 Studio bridge 行为。
+    modules:
+      - cli-runner
+  - id: harness-daemon
+    title:
+      en: Harness Daemon
+      zh-CN: Harness Daemon
+    path: crates/harness-daemon
+    purpose:
+      en: Owns local daemon APIs for Studio snapshots, test runs, file opening, pairing, and PTY sessions.
+      zh-CN: 负责 Studio snapshot、test run、打开文件、配对和 PTY session 的本地 daemon API。
+    modules:
+      - daemon-studio-api
+  - id: harness-studio-web
+    title:
+      en: Harness Studio Web
+      zh-CN: Harness Studio Web
+    path: apps/web
+    purpose:
+      en: Owns the browser Studio application and its local data client.
+      zh-CN: 负责浏览器 Studio 应用和本地数据 client。
+    modules:
+      - studio-web
+  - id: harness-i18n
+    title:
+      en: Harness I18n
+      zh-CN: Harness I18n
+    path: packages/i18n
+    purpose:
+      en: Owns generated UI message catalogs and locale helpers.
+      zh-CN: 负责生成的 UI message catalogs 和 locale helpers。
+    modules:
+      - i18n-catalog
+  - id: harness-skills
+    title:
+      en: Harness Agent Skills
+      zh-CN: Harness Agent 技能
+    path: skills
+    purpose:
+      en: Owns agent workflows for authoring Harness behavior through the BDD lifecycle.
+      zh-CN: 负责让 agent 通过 BDD 生命周期编写 Harness 行为的工作流。
+    modules:
+      - agent-authoring
+      - studio-theme-skill

@@ -1,11 +1,9 @@
 packages:
   - apps/*
+  - bridges/typescript/*
   - packages/*
-  - examples/todo-backend/browser-tests
   - examples/todo-backend/client/*
-  - examples/todo-backend/contract-tests
   - examples/todo-backend/implementations/*
-  - examples/todo-backend/showcase-tests
 
 catalogMode: prefer
 
@@ -17,8 +15,9 @@ catalog:
   react: ^19.2.6
   react-dom: ^19.2.6
   vite: npm:@voidzero-dev/vite-plus-core@latest
-  vitest: npm:@voidzero-dev/vite-plus-test@^0.1.22
   vite-plus: latest
+  "@cucumber/cucumber": ^12.9.0
+  "@cucumber/messages": ^32.3.1
   taze: latest
   tsx: ^4.21.0
   tailwindcss: ^4.3.0
@@ -59,20 +58,13 @@ catalog:
   "@xterm/addon-fit": ^0.11.0
   "@xterm/addon-unicode11": ^0.9.0
   "@xterm/addon-webgl": ^0.19.0
-  jsdom: ^29.1.1
-  "@testing-library/react": ^16.3.2
-  "@testing-library/jest-dom": ^6.9.1
-  "@testing-library/user-event": ^14.6.1
 overrides:
   vite: "catalog:"
-  vitest: "catalog:"
 peerDependencyRules:
   allowAny:
     - vite
-    - vitest
   allowedVersions:
     vite: "*"
-    vitest: "*"
 allowBuilds:
   esbuild: false
   msgpackr-extract: false

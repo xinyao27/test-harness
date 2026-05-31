@@ -7,7 +7,7 @@
  * and then publishes the computed `{ x, y }` positions through a
  * setter. The caller merges those positions into its `nodes` memo so
  * the user-driven pty cards keep their store-owned coordinates while
- * the architecture / promise nodes get auto-arranged.
+ * the architecture / behavior nodes get auto-arranged.
  *
  * Reference upstream:
  *   https://github.com/xyflow/web/blob/main/apps/example-apps/react/
@@ -21,7 +21,7 @@ import { useEffect, useRef } from "react";
 const elk = new ELK();
 
 // elkjs `layered` algorithm tuned for the Studio's project → modules →
-// promises shape. The full option reference lives at
+// behavior hierarchy shape. The full option reference lives at
 // https://www.eclipse.org/elk/reference/algorithms/org-eclipse-elk-layered.html
 const LAYOUT_OPTIONS = {
   "elk.algorithm": "layered",
@@ -33,7 +33,7 @@ const LAYOUT_OPTIONS = {
   // Vertical spacing between siblings within a layer.
   "elk.spacing.nodeNode": "40",
   // SIMPLE keeps siblings on stable rows when the input order is meaningful
-  // (it is — we sort promises by review priority before handing them in).
+  // (it is — callers sort reviewable behavior before handing it in).
   "elk.layered.nodePlacement.strategy": "SIMPLE",
 } as const;
 
@@ -120,7 +120,7 @@ export function useStudioElkLayout(opts: {
       onLayoutRef.current(positions);
       // We deliberately do NOT call `fitView` here. The studio page
       // owns viewport behaviour (initial fit-overview + smooth pan to
-      // selected promise/module) and competing with it from inside
+      // selected behavior/module) and competing with it from inside
       // ELK would yank the camera around mid-pan / mid-zoom whenever
       // a derived node array publishes new positions.
     })();

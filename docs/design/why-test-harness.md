@@ -32,13 +32,17 @@ Package
 apiVersion: 1
 packages:
   - id: mobile-client
-    title: WeChat mobile client
+    title:
+      en: WeChat mobile client
+      zh-CN: 微信移动客户端
     modules:
       - chat-composer
       - message-timeline
 
   - id: messaging-server
-    title: Messaging server
+    title:
+      en: Messaging server
+      zh-CN: 消息服务后端
     modules:
       - message-delivery
       - media-transfer
@@ -49,21 +53,33 @@ packages:
 apiVersion: 1
 modules:
   - id: chat-composer
-    title: Chat composer
+    title:
+      en: Chat composer
+      zh-CN: 聊天输入区
     package: mobile-client
     features:
       - tag: "@feature:voice-message.send"
-        title: Send voice message
+        title:
+          en: Send voice message
+          zh-CN: 发送语音条
 
   - id: media-transfer
-    title: Media transfer
+    title:
+      en: Media transfer
+      zh-CN: 媒体传输
     package: messaging-server
     features:
       - tag: "@feature:voice-message.chunk-upload"
-        title: Upload voice chunks
+        title:
+          en: Upload voice chunks
+          zh-CN: 语音分片上传
       - tag: "@feature:voice-message.chunk-merge"
-        title: Merge voice chunks
+        title:
+          en: Merge voice chunks
+          zh-CN: 语音分片合并
 ```
+
+Harness-owned YAML files also support multiple languages, but they do not need one file per locale. Natural-language fields use `LocalizedText`: either a plain string treated as default English, or a language map such as `{ en, zh-CN }`. Stable machine fields such as `id`, `tag`, `package`, `module`, `lifecycle`, `review.state`, and result identifiers are never localized.
 
 Then a Cucumber feature file can carry the same identity through tags:
 
@@ -71,8 +87,66 @@ Then a Cucumber feature file can carry the same identity through tags:
 @package:mobile-client
 @module:chat-composer
 @feature:voice-message.send
+@locale:en
 Feature: Send voice message
 ```
+
+## Multilingual Feature Files
+
+The Harness frontend should eventually let reviewers switch language while reading the same behavior model. For that to work, each reviewed language gets its own `.feature` file, but stable tags stay identical.
+
+```text
+features/mobile-client/chat-composer/voice-message.send.en.feature
+features/mobile-client/chat-composer/voice-message.send.zh-CN.feature
+```
+
+English:
+
+```gherkin
+@package:mobile-client
+@module:chat-composer
+@feature:voice-message.send
+@locale:en
+Feature: Send voice message
+
+  @rule:voice-message.progressive-upload
+  Rule: Recording transfers audio chunks before release
+
+    @example:chunks-upload-before-release
+    Example: Chunks start uploading while the sender is still recording
+      Given Alice is recording a voice message to Bob
+      When Alice has recorded for more than one second
+      Then at least one audio chunk has uploaded or is uploading
+```
+
+Chinese:
+
+```gherkin
+@package:mobile-client
+@module:chat-composer
+@feature:voice-message.send
+@locale:zh-CN
+Feature: 发送语音条
+
+  @rule:voice-message.progressive-upload
+  Rule: 录音过程中提前传输语音分片
+
+    @example:chunks-upload-before-release
+    Example: 用户仍在录音时，分片已经开始上传
+      Given Alice 正在给 Bob 录制语音消息
+      When Alice 已经录制超过 1 秒
+      Then 至少一个语音分片已经上传成功或正在上传
+```
+
+The natural-language title and step body text can be translated. Gherkin structural keywords stay English in every locale. The behavior identity must not be translated:
+
+- `@package`, `@module`, `@feature`, `@rule`, and `@example` are stable machine identity.
+- `@locale:<code>` tells Harness which localized description file is being read.
+- `Feature`, `Rule`, `Example`, `Given`, `When`, `Then`, `And`, and `But` remain English even in localized files.
+- Harness YAML text fields use `LocalizedText` maps, while YAML ids, tags, lifecycle, review state, and evidence identifiers remain language-neutral.
+- Example result identity is `featureTag + ruleTag + exampleTag`; file path, line number, and locale are metadata.
+- Locale configuration lives in a Harness-owned file such as `tests/harness.locales.yaml`, with `sourceLocale`, `requiredLocales`, and `executionLocale`.
+- `harness check` should verify that all required locales have the same Feature, Rule, Example, and step-shape structure.
 
 ## Binding To Test Code
 
@@ -89,7 +163,7 @@ Feature: Send voice message
 
 ```ts
 import { Given, Then, When } from "@cucumber/cucumber";
-import { expect } from "vitest";
+import assert from "node:assert/strict";
 
 Given("Alice is recording a voice message", async function () {
   this.session = await startVoiceRecording();
@@ -100,11 +174,13 @@ When("Alice releases the recording button", async function () {
 });
 
 Then("the client sends a voice_recording_finalized event", function () {
-  expect(this.event.type).toBe("voice_recording_finalized");
+  assert.equal(this.event.type, "voice_recording_finalized");
 });
 ```
 
 If a step has no matching definition, the example is undefined. If a step definition throws or an assertion fails, the example fails. If all matched steps complete successfully, the example passes.
+
+For Harness-owned behavior, the executable proof should start from the matching Cucumber Example. Other tools can be used inside step definitions, but they should not become a separate test layer that proves Harness behavior without a `.feature` file.
 
 ## Human Lifecycle
 
@@ -141,7 +217,7 @@ events:
 
 The loop also needs a Harness-aware Agent skill. Its job is to teach Agents how to create and change Harness files without breaking the behavior model.
 
-When a new request arrives, the Agent should first update behavior artifacts, then implementation:
+When a new request arrives, the Agent should first update behavior artifacts and wait for human approval, then implementation:
 
 ```text
 user request
@@ -149,6 +225,7 @@ user request
   -> draft Feature / Rule / Example
   -> update manifests and stable tags
   -> write lifecycle and review-log entries
+  -> human reviews and approves the touched .feature behavior
   -> write step definitions with real assertions
   -> implement code
   -> run Cucumber and report behavior coverage
@@ -158,20 +235,26 @@ The skill should enforce a few rules:
 
 - Agents can create `draft` or `proposed` rules.
 - Agents can mark rules `accepted` only when the human explicitly approves them.
+- Agents must not write step definitions, executable tests, or implementation logic for a `.feature` until every touched Rule in that `.feature` is `accepted` and `approved`, or explicitly approved in the current review surface.
 - Accepted rules cannot be weakened, moved, deprecated, or deleted without a review-log event.
-- Every Feature and Rule needs a stable tag such as `@feature:voice-message.send` or `@rule:voice-message.progressive-upload`.
+- Every Feature, Rule, and Example needs a stable tag such as `@feature:voice-message.send`, `@rule:voice-message.progressive-upload`, or `@example:chunks-upload-before-release`.
+- Localized `.feature` files reuse the same stable tags and differ only by `@locale` and human-readable names or step body text.
+- Gherkin structural keywords remain English across locales so parsing and review shape do not depend on dialect switching.
+- Harness-owned YAML manifests store translatable labels as `LocalizedText`, not as duplicated per-locale manifest files.
 - Every `Then` step should observe real system behavior, not pass with placeholder assertions.
 - Final output should summarize behavior changes, lifecycle state, run status, undefined steps, and items needing human review.
 
 ## Closure Pieces
 
-These five capabilities turn a collection of BDD files into a Test Harness:
+These capabilities turn a collection of BDD files into a Test Harness:
 
 1. Manifest and tag consistency checks between packages, modules, features, and `.feature` files.
 2. Stable Rule identity through tags such as `@rule:voice-message.progressive-upload`.
 3. Result aggregation from Cucumber examples up to Rule, Feature, Module, and Package.
 4. Lifecycle and review-log protection for accepted behavior changes.
 5. Behavior coverage reports: declared features, described rules, automated examples, executed examples, and passing behavior.
+6. Locale parity checks so English and Chinese descriptions stay equivalent instead of drifting into different behavior.
+7. Localized YAML metadata for packages, modules, features, and human-facing review notes.
 
 ## Example: Sending A Voice Message
 
@@ -180,18 +263,26 @@ A weak implementation might record audio locally, wait until the user releases t
 The intended behavior is closer to this:
 
 ```gherkin
+@package:mobile-client
+@module:chat-composer
+@feature:voice-message.send
+@locale:en
 Feature: Send voice message
 
+  @rule:voice-message.progressive-upload
   Rule: Recording transfers audio chunks before release
 
+    @example:chunks-upload-before-release
     Example: Chunks start uploading while the sender is still recording
       Given Alice is recording a voice message to Bob
       When Alice has recorded for more than one second
       Then at least one audio chunk has uploaded or is uploading
       But the client has not uploaded a full audio file
 
+  @rule:voice-message.release-finalizes-state
   Rule: Releasing the button only finalizes message state
 
+    @example:release-sends-finalized-event
     Example: Release sends a finalized event instead of a full upload
       Given Alice is recording a voice message
       And audio chunks have already started transferring

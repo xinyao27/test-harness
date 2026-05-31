@@ -1,0 +1,13 @@
+apiVersion: 1
+modules:
+  - id: feature-registry
+    package: harness-project
+    title:
+      en: Feature Registry
+      zh-CN: Feature 注册表
+    purpose:
+      en: Parses Cucumber feature files into behavior records.
+      zh-CN: 将 Cucumber feature 文件解析成行为记录。
+    covers:
+      - crates/harness-project/src/feature_registry.rs
+      - features/harness/crates/harness-project/feature-registry/cucumber-feature-registry.feature

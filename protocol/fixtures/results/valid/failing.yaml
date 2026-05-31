@@ -1,0 +1,22 @@
+apiVersion: 1
+generatedAt: "2026-05-31T00:00:00.000Z"
+results:
+  - feature: "@feature:harness.results.cucumber-example-results"
+    rule: "@rule:harness.results.step-status-summary"
+    example: "@example:failed-then-step-records-status-summary"
+    locale: en
+    name: A failed Then step points reviewers at the behavioral failure
+    file: features/harness/crates/harness-runner/cucumber-results/cucumber-results.feature
+    status: failing
+    steps:
+      - keyword: Given
+        text: Cucumber Example contains Given, When, and Then steps
+        status: passing
+      - keyword: When
+        text: a step fails during execution
+        status: passing
+      - keyword: Then
+        text: Harness result records the failure
+        status: failing
+        failureMessage: expected status passing
+    failureMessage: expected status passing

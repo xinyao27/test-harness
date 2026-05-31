@@ -8,9 +8,8 @@ import type { AgentTool } from "@/lib/api";
  * - `agent`: the daemon spawns the agent CLI picked by `tool` (Claude Code /
  *   Codex / Cursor CLI).
  *
- * `promiseId` is set when the card was spawned via "Hand to Agent" on a
- * promise's review panel; the canvas then renders an edge from the card to
- * that promise so a reviewer can see at a glance who is working on what.
+ * `ruleTag` is set when the card was spawned from a Rule review surface; the
+ * canvas can then render an edge from the card to that Rule.
  */
 export type PtyCardKind = "terminal" | "agent";
 
@@ -23,8 +22,8 @@ export interface PtyCard {
    * shell.
    */
   tool: AgentTool | null;
-  /** Null for cards spawned from the toolbar; set when spawned from a promise review. */
-  promiseId: string | null;
+  /** Null for cards spawned from the toolbar; set when spawned from a Rule review. */
+  ruleTag: string | null;
   /** Canvas position; can be updated when the user drags the card. */
   position: { x: number; y: number };
   /** Canvas size; can be updated when the user drags a resize handle. */
@@ -49,12 +48,12 @@ interface AgentCardsState {
     kind: PtyCardKind;
     /** Required for `kind: "agent"`; ignored otherwise. */
     tool?: AgentTool;
-    promiseId?: string | null;
+    ruleTag?: string | null;
     initialPrompt?: string | null;
     /**
      * Optional explicit spawn position. If omitted, the card lands at the
      * default stack column at `SPAWN_BASE_X`. Use this when spawning from a
-     * promise review to anchor the card next to its originating promise.
+     * Rule review to anchor the card next to its originating Rule.
      */
     position?: { x: number; y: number };
   }) => PtyCard;
@@ -64,19 +63,16 @@ interface AgentCardsState {
 }
 
 /**
- * Where new cards spawn — comfortably to the right of the promise column,
+ * Where new cards spawn — comfortably to the right of the behavior column,
  * with enough breathing room that the dashed "正在处理" link can curve out
- * of the promise's right edge without the card visually overlapping it.
- *
- * Promise nodes sit at x=960 with width ~264 (`--studio-node-width` 16.5rem),
- * ending around x=1224; the gap below puts the card at least 100px clear.
+ * of the selected Rule without the card visually overlapping it.
  */
 const SPAWN_BASE_X = 1360;
 const SPAWN_BASE_Y = 0;
 const SPAWN_STEP_Y = 360;
 // Default pty card dimensions. The user can drag the corner / edge handles
 // to resize at any time; the new size persists in the store so re-renders
-// (module switches, promise selection) don't snap back to the default.
+// (module switches, Rule selection) don't snap back to the default.
 const DEFAULT_WIDTH = 480;
 const DEFAULT_HEIGHT = 320;
 
@@ -93,7 +89,7 @@ export const useAgentCardsStore = create<AgentCardsState>((set) => ({
   cards: [],
   pendingFocusId: null,
   consumeFocus: () => set({ pendingFocusId: null }),
-  addCard: ({ kind, tool, promiseId = null, initialPrompt = null, position }) => {
+  addCard: ({ kind, tool, ruleTag = null, initialPrompt = null, position }) => {
     // `kind="terminal"` ignores the tool — the daemon always opens the shell.
     // For `kind="agent"`, default to Claude when the caller doesn't pick one
     // so legacy entry points (currently none after the picker refactor, but
@@ -103,7 +99,7 @@ export const useAgentCardsStore = create<AgentCardsState>((set) => ({
       id: nextId(),
       kind,
       tool: resolvedTool,
-      promiseId,
+      ruleTag,
       initialPrompt,
       createdAt: Date.now(),
       // Placeholder; real position filled in by the setter below so we can
@@ -114,7 +110,7 @@ export const useAgentCardsStore = create<AgentCardsState>((set) => ({
     set((state) => {
       if (position) {
         // Caller (e.g. "Hand to Agent") provided an anchor — usually a few
-        // hundred px to the right of the originating promise. Use it
+        // hundred px to the right of the originating Rule. Use it
         // verbatim so the card lands where the user is looking.
         card.position = position;
       } else {

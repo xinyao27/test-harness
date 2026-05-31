@@ -28,7 +28,6 @@
     "check": "vp check --fix",
     "lint": "vp lint --fix",
     "fmt": "vp fmt",
-    "test": "vp test",
     "preview": "vp preview",
     "up": "taze major -Ir",
     "prepare": "vp config"
@@ -72,21 +71,15 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "catalog:",
-    "@test-harness/adapter-vitest": "workspace:*",
-    "@testing-library/jest-dom": "catalog:",
-    "@testing-library/react": "catalog:",
-    "@testing-library/user-event": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "catalog:",
-    "jsdom": "catalog:",
     "tailwindcss": "catalog:",
     "taze": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
-    "vite-plus": "catalog:",
-    "vitest": "catalog:"
+    "vite-plus": "catalog:"
   },
   "packageManager": "pnpm@11.2.2"
 }

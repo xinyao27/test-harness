@@ -1,6 +1,10 @@
 apiVersion: 1
 test:
   runner:
-    command: node
+    command: cargo
     args:
-      - tools/run-todo-backend-suite.mjs
+      - test
+      - -p
+      - todo-backend-rust-axum
+      - --test
+      - rust_axum_cucumber

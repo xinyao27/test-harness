@@ -1,0 +1,14 @@
+apiVersion: "1"
+generatedAt: "2026-05-31T00:00:00.000Z"
+results:
+  - feature: "@feature:harness.results.cucumber-example-results"
+    rule: "@rule:harness.results.identity-without-promise-id"
+    example: "@example:passing-example-uses-cucumber-identity"
+    locale: en
+    name: Invalid apiVersion
+    file: protocol/fixtures/results/invalid/string-api-version.yaml
+    status: passing
+    steps:
+      - keyword: Given
+        text: apiVersion is a string
+        status: passing

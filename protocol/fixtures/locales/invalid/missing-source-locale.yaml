@@ -1,0 +1,5 @@
+apiVersion: 1
+requiredLocales:
+  - zh-CN
+  - en
+executionLocale: zh-CN

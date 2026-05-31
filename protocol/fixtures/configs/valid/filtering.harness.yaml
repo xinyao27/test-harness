@@ -1,0 +1,13 @@
+apiVersion: 1
+test:
+  runner:
+    command: harness-runner
+    args:
+      - run
+    selection:
+      package: harness-runner
+      module: cucumber-filtering
+      feature: harness.runner.cucumber-filtering
+      rule: harness.runner.filter-fields-to-tag-expression
+      example: filter-fields-render-tag-expression
+      locale: zh-CN

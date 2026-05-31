@@ -1,0 +1,6 @@
+apiVersion: 1
+sourceLocale: chinese
+requiredLocales:
+  - chinese
+  - en
+executionLocale: en

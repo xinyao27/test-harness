@@ -1,0 +1,11 @@
+apiVersion: 1
+events:
+  - id: review-log.2026-05-31.protocol-rewrite
+    at: "2026-05-31"
+    by: codex
+    action: changed_requires_review
+    summary: Rewrote protocol fixtures.
+    affectedRules:
+      - "@rule:harness.results.identity-without-promise-id"
+    acknowledgement:
+      state: pending

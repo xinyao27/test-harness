@@ -1,0 +1,7 @@
+apiVersion: 1
+packages:
+  - id: harness-project
+    title: Harness Project
+    path: crates/harness-project
+    purpose: Owns feature scanning and behavior reporting.
+    modules: []

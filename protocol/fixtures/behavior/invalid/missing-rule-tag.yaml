@@ -1,0 +1,7 @@
+apiVersion: 1
+rules:
+  - feature: "@feature:harness.feature-registry.scan-cucumber-features"
+    lifecycle: proposed
+    review:
+      state: pending
+    owner: feature-registry

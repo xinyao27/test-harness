@@ -1,0 +1,129 @@
+apiVersion: 1
+events:
+  - id: review-log.2026-05-30.bootstrap-bdd-harness-spec
+    at: "2026-05-30"
+    by: codex
+    action: proposed
+    summary:
+      en: Drafted the first BDD self-harness behavior model from the Cucumber rewrite plan.
+      zh-CN: 基于 Cucumber 重写计划，起草第一版 BDD 自举行为模型。
+    affectedRules:
+      - "@rule:harness.feature-registry.hierarchy-tags"
+      - "@rule:harness.feature-registry.locale-and-example-tags"
+      - "@rule:harness.feature-registry.localized-tags-share-identity"
+      - "@rule:harness.feature-registry.localized-structure-parity"
+      - "@rule:harness.feature-registry.english-gherkin-keywords"
+      - "@rule:harness.project-model.package-module-feature-rule-example"
+      - "@rule:harness.project-model.manifest-tags-match-feature-files"
+      - "@rule:harness.project-model.tags-are-language-neutral"
+      - "@rule:harness.lifecycle.stored-outside-feature-files"
+      - "@rule:harness.lifecycle.acceptance-requires-human-review"
+      - "@rule:harness.lifecycle.accepted-change-appends-review-log"
+      - "@rule:harness.results.identity-without-promise-id"
+      - "@rule:harness.results.step-status-summary"
+      - "@rule:harness.results.aggregate-through-hierarchy"
+      - "@rule:harness.report.shows-package-module-feature-rule-example"
+      - "@rule:harness.report.separates-lifecycle-from-run-status"
+      - "@rule:harness.report.highlights-coverage-gaps"
+      - "@rule:harness.agent-skill.behavior-before-code"
+      - "@rule:harness.agent-skill.no-promise-workflow"
+      - "@rule:harness.agent-skill.handoff-at-behavior-level"
+    acknowledgement:
+      state: pending
+  - id: review-log.2026-05-31.runtime-cucumber-rs-evidence
+    at: "2026-05-31"
+    by: codex
+    action: proposed
+    summary:
+      en: Proposed an earlier temporary runner-level cucumber-rs evidence bridge before the dedicated bridges directory was chosen.
+      zh-CN: 在确定 dedicated bridges 目录之前，曾提议用临时 runner-level cucumber-rs evidence bridge。
+    affectedRules:
+      - "@rule:harness.results.cucumber-rs-records-example-events"
+      - "@rule:harness.results.runner-run-merges-cucumber-rs-evidence"
+    acknowledgement:
+      state: pending
+  - id: review-log.2026-05-31.studio-review-and-cucumber-test
+    at: "2026-05-31"
+    by: codex
+    action: proposed
+    summary:
+      en: Proposed the full Studio review workflow and Cucumber-focused harness test execution path.
+      zh-CN: 提议完整 Studio review 工作流和面向 Cucumber 的 harness test 执行路径。
+    affectedRules:
+      - "@rule:harness.studio.review-action-updates-lifecycle"
+      - "@rule:harness.studio.review-action-appends-history"
+      - "@rule:harness.studio.review-actions-are-visible"
+      - "@rule:harness.studio.review-history-is-visible"
+      - "@rule:harness.cli.test-selects-cucumber-identity"
+      - "@rule:harness.cli.test-collects-cucumber-evidence"
+    acknowledgement:
+      state: pending
+  - id: review-log.2026-05-31.core-crates-and-language-bridges
+    at: "2026-05-31"
+    by: codex
+    action: proposed
+    summary:
+      en: Proposed the long-term split between core Harness crates and language-specific Cucumber bridges.
+      zh-CN: 提议长期采用 Harness 项目 crates 与特定语言 Cucumber bridges 分离的结构。
+    affectedRules:
+      - "@rule:harness.agent-skill.language-bridges-not-framework-adapters"
+    acknowledgement:
+      state: pending
+  - id: review-log.2026-05-31.cucumber-filtering
+    at: "2026-05-31"
+    by: codex
+    action: proposed
+    summary:
+      en: Proposed Cucumber filtering as Harness hierarchy fields rendered into Cucumber tag expressions.
+      zh-CN: 提议将 Cucumber filtering 定义为 Harness 层级字段，并渲染成 Cucumber tag expression。
+    affectedRules:
+      - "@rule:harness.runner.filter-fields-to-tag-expression"
+      - "@rule:harness.runner.filter-expression-reaches-bridge-command"
+    acknowledgement:
+      state: pending
+  - id: review-log.2026-05-31.bridge-native-tag-filters
+    at: "2026-05-31"
+    by: codex
+    action: proposed
+    summary:
+      en: Proposed native tag-filter mapping for cucumber-rs and Cucumber.js bridges.
+      zh-CN: 提议 cucumber-rs 和 Cucumber.js bridges 使用原生 tag filter 映射。
+    affectedRules:
+      - "@rule:harness.results.cucumber-rs-uses-harness-filter"
+      - "@rule:harness.results.cucumber-js-uses-harness-filter"
+    acknowledgement:
+      state: pending
+  - id: review-log.2026-05-31.bridge-executable-filter-entrypoints
+    at: "2026-05-31"
+    by: codex
+    action: proposed
+    summary:
+      en: Proposed proving Harness tag filters at executable cucumber-rs and Cucumber.js entrypoints, not only as helper mappings.
+      zh-CN: 提议在可执行的 cucumber-rs 和 Cucumber.js entrypoint 上证明 Harness tag filter，而不只是 helper 映射。
+    affectedRules:
+      - "@rule:harness.results.cucumber-rs-uses-harness-filter"
+      - "@rule:harness.results.cucumber-js-uses-harness-filter"
+    acknowledgement:
+      state: pending
+  - id: review-log.2026-05-31.cucumber-js-message-results
+    at: "2026-05-31"
+    by: codex
+    action: proposed
+    summary:
+      en: Proposed converting Cucumber.js Messages into Harness Example results keyed by stable tags.
+      zh-CN: 提议将 Cucumber.js Messages 转换成由稳定 tags 标识的 Harness Example results。
+    affectedRules:
+      - "@rule:harness.results.cucumber-js-records-example-results"
+    acknowledgement:
+      state: pending
+  - id: review-log.2026-05-31.cucumber-examples-as-test-entrypoints
+    at: "2026-05-31"
+    by: codex
+    action: proposed
+    summary:
+      en: Proposed making corresponding Cucumber Examples the required outer test entrypoint for new Harness behavior.
+      zh-CN: 提议新的 Harness 行为必须以对应的 Cucumber Example 作为外层测试入口。
+    affectedRules:
+      - "@rule:harness.agent-skill.cucumber-examples-are-test-entrypoints"
+    acknowledgement:
+      state: pending

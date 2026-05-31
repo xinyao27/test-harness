@@ -1,0 +1,12 @@
+apiVersion: 1
+packages:
+  - id: todo-backend-rust-axum
+    title:
+      en: Todo Backend Rust Axum
+      zh-CN: Todo Backend Rust Axum
+    path: implementations/rust-axum
+    purpose:
+      en: Proves the Todo Backend example can execute Cucumber behavior against a real Rust implementation.
+      zh-CN: 证明 Todo Backend 示例可以用 Cucumber 行为驱动真实 Rust 实现。
+    modules:
+      - todo-api

@@ -2,116 +2,125 @@
 
 import type { LocalizedText } from "@/lib/localized-text";
 
-export type PromiseLifecycle =
-  | "proposed"
-  | "accepted"
-  | "implemented"
-  | "changed_requires_review"
-  | "deprecated";
-
-export type PromisePriority = "P0" | "P1" | "P2";
-export type ModulePriority = PromisePriority | "none";
-export type PromiseBoundary = "unit" | "integration" | "browser" | "e2e" | "adapter";
-export type RunStatus = "unknown" | "passing" | "failing" | "skipped" | "missing_evidence";
-export type EvidenceStatus = "passing" | "failing" | "skipped";
+export type BehaviorLifecycle = "draft" | "proposed" | "accepted" | "deprecated" | "superseded";
 export type ReviewState = "pending" | "approved" | "rejected" | "changes_requested";
-export type ReviewAction = "approved" | "rejected" | "changes_requested";
+export type RunStatus = "unknown" | "passing" | "failing" | "skipped";
+export type EvidenceStatus = "passing" | "failing" | "skipped";
+export type SnapshotSource = "daemon" | "static" | "empty";
+export type ReviewLogAction =
+  | "approved"
+  | "changes_requested"
+  | "deprecated"
+  | "proposed"
+  | "rejected"
+  | "superseded";
 
-/** One bound test result that proves (or fails to prove) a promise. */
-export interface PromiseEvidence {
-  testName: string;
-  file: string;
-  status: EvidenceStatus;
-  failureMessage?: string;
+export interface HarnessProject {
+  name: LocalizedText;
+  description: LocalizedText;
+  packageCount: number;
+  moduleCount: number;
+  featureCount: number;
+  ruleCount: number;
+  exampleCount: number;
+  warningCount: number;
+  errorCount: number;
+}
+
+export interface HarnessPackage {
+  id: string;
+  title: LocalizedText;
+  path: string;
+  purpose: LocalizedText;
+  moduleIds: string[];
 }
 
 export interface HarnessModule {
   id: string;
+  package: string;
   title: LocalizedText;
-  summary: LocalizedText;
   purpose: LocalizedText;
-  priority: ModulePriority;
-  promiseIds: string[];
   covers: string[];
-  relatedModuleIds: string[];
-  /** Monorepo package (workspace member) this module belongs to; absent for single-package repos. */
-  package?: string;
+  featureTags: string[];
 }
 
-export interface HarnessPromise {
+export interface HarnessFeature {
+  tag: string;
+  name: string;
+  path: string;
+  line: number;
+  locale: string;
+  package: string;
+  module: string;
+  rules: HarnessRule[];
+}
+
+export interface HarnessRule {
+  tag: string;
+  name: string;
+  line: number;
+  lifecycle: BehaviorLifecycle;
+  reviewState: ReviewState;
+  owner: string;
+  reviewEvents: HarnessReviewEvent[];
+  examples: HarnessExample[];
+}
+
+export interface HarnessReviewEvent {
   id: string;
-  moduleId: string;
-  feature: string;
-  title: LocalizedText;
-  purpose: LocalizedText;
-  priority: PromisePriority;
-  boundary: PromiseBoundary;
-  lifecycle: PromiseLifecycle;
+  at: string;
+  by: string;
+  action: ReviewLogAction;
+  summary: LocalizedText;
+  acknowledgementState: ReviewState;
+}
+
+export interface HarnessExample {
+  tag: string;
+  name: string;
+  line: number;
   runStatus: RunStatus;
-  given: LocalizedText[];
-  when: LocalizedText[];
-  then: LocalizedText[];
-  observes: string[];
-  /** Bound test results that prove this promise; empty when nothing has been run for it. */
-  evidence: PromiseEvidence[];
-  failureMeaning: LocalizedText;
-  review: {
-    state: ReviewState;
-    decidedBy?: string;
-    decidedAt?: string;
-    note?: string;
-    events: Array<{
-      action: ReviewAction;
-      at: string;
-      by: string;
-      note?: string;
-    }>;
-  };
+  evidence: HarnessExampleEvidence[];
+}
+
+export interface HarnessExampleEvidence {
+  file: string;
+  locale: string;
+  status: EvidenceStatus;
+  failureMessage?: string;
 }
 
 export interface ReviewDraft {
   id: string;
   title: LocalizedText;
   moduleIds: string[];
-  priority: PromisePriority;
   state: ReviewState;
   reason: LocalizedText;
 }
 
-export type SnapshotSource = "daemon" | "static" | "empty";
-
 export interface HarnessSnapshot {
   source?: SnapshotSource;
-  project: {
-    name: LocalizedText;
-    description: LocalizedText;
-    promiseCount: number;
-    moduleCount: number;
-    warningCount: number;
-    errorCount: number;
-  };
+  project: HarnessProject;
+  packages: HarnessPackage[];
   modules: HarnessModule[];
-  promises: HarnessPromise[];
+  features: HarnessFeature[];
   reviewDrafts: ReviewDraft[];
-  /** When the project's test results were last generated; absent if it has never run. */
   resultsGeneratedAt?: string;
 }
 
-const promisePriorities = ["P0", "P1", "P2"] as const;
-const modulePriorities = ["P0", "P1", "P2", "none"] as const;
-const promiseBoundaries = ["unit", "integration", "browser", "e2e", "adapter"] as const;
-const promiseLifecycles = [
-  "proposed",
-  "accepted",
-  "implemented",
-  "changed_requires_review",
-  "deprecated",
-] as const;
-const runStatuses = ["unknown", "passing", "failing", "skipped", "missing_evidence"] as const;
+const behaviorLifecycles = ["draft", "proposed", "accepted", "deprecated", "superseded"] as const;
+const runStatuses = ["unknown", "passing", "failing", "skipped"] as const;
 const evidenceStatuses = ["passing", "failing", "skipped"] as const;
 const reviewStates = ["pending", "approved", "rejected", "changes_requested"] as const;
-const reviewActions = ["approved", "rejected", "changes_requested"] as const;
 const snapshotSources = ["daemon", "static", "empty"] as const;
+const reviewLogActions = [
+  "approved",
+  "changes_requested",
+  "deprecated",
+  "proposed",
+  "rejected",
+  "superseded",
+] as const;
 
 export function isHarnessSnapshot(value: unknown): value is HarnessSnapshot {
   if (!isRecord(value)) return false;
@@ -119,22 +128,37 @@ export function isHarnessSnapshot(value: unknown): value is HarnessSnapshot {
 
   return (
     isProject(value.project) &&
+    isArrayOf(value.packages, isHarnessPackage) &&
     isArrayOf(value.modules, isHarnessModule) &&
-    isArrayOf(value.promises, isHarnessPromise) &&
+    isArrayOf(value.features, isHarnessFeature) &&
     isArrayOf(value.reviewDrafts, isReviewDraft) &&
     optionalString(value.resultsGeneratedAt)
   );
 }
 
-function isProject(value: unknown): value is HarnessSnapshot["project"] {
+function isProject(value: unknown): value is HarnessProject {
   return (
     isRecord(value) &&
     isLocalizedText(value.name) &&
     isLocalizedText(value.description) &&
-    typeof value.promiseCount === "number" &&
+    typeof value.packageCount === "number" &&
     typeof value.moduleCount === "number" &&
+    typeof value.featureCount === "number" &&
+    typeof value.ruleCount === "number" &&
+    typeof value.exampleCount === "number" &&
     typeof value.warningCount === "number" &&
     typeof value.errorCount === "number"
+  );
+}
+
+function isHarnessPackage(value: unknown): value is HarnessPackage {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    isLocalizedText(value.title) &&
+    typeof value.path === "string" &&
+    isLocalizedText(value.purpose) &&
+    isArrayOf(value.moduleIds, isString)
   );
 }
 
@@ -142,44 +166,70 @@ function isHarnessModule(value: unknown): value is HarnessModule {
   return (
     isRecord(value) &&
     typeof value.id === "string" &&
+    typeof value.package === "string" &&
     isLocalizedText(value.title) &&
-    isLocalizedText(value.summary) &&
     isLocalizedText(value.purpose) &&
-    isOneOf(value.priority, modulePriorities) &&
-    isArrayOf(value.promiseIds, isString) &&
     isArrayOf(value.covers, isString) &&
-    isArrayOf(value.relatedModuleIds, isString) &&
-    optionalString(value.package)
+    isArrayOf(value.featureTags, isString)
   );
 }
 
-function isHarnessPromise(value: unknown): value is HarnessPromise {
+function isHarnessFeature(value: unknown): value is HarnessFeature {
+  return (
+    isRecord(value) &&
+    typeof value.tag === "string" &&
+    typeof value.name === "string" &&
+    typeof value.path === "string" &&
+    typeof value.line === "number" &&
+    typeof value.locale === "string" &&
+    typeof value.package === "string" &&
+    typeof value.module === "string" &&
+    isArrayOf(value.rules, isHarnessRule)
+  );
+}
+
+function isHarnessRule(value: unknown): value is HarnessRule {
+  return (
+    isRecord(value) &&
+    typeof value.tag === "string" &&
+    typeof value.name === "string" &&
+    typeof value.line === "number" &&
+    isOneOf(value.lifecycle, behaviorLifecycles) &&
+    isOneOf(value.reviewState, reviewStates) &&
+    typeof value.owner === "string" &&
+    isArrayOf(value.reviewEvents, isHarnessReviewEvent) &&
+    isArrayOf(value.examples, isHarnessExample)
+  );
+}
+
+function isHarnessReviewEvent(value: unknown): value is HarnessReviewEvent {
   return (
     isRecord(value) &&
     typeof value.id === "string" &&
-    typeof value.moduleId === "string" &&
-    typeof value.feature === "string" &&
-    isLocalizedText(value.title) &&
-    isLocalizedText(value.purpose) &&
-    isOneOf(value.priority, promisePriorities) &&
-    isOneOf(value.boundary, promiseBoundaries) &&
-    isOneOf(value.lifecycle, promiseLifecycles) &&
-    isOneOf(value.runStatus, runStatuses) &&
-    isArrayOf(value.given, isLocalizedText) &&
-    isArrayOf(value.when, isLocalizedText) &&
-    isArrayOf(value.then, isLocalizedText) &&
-    isArrayOf(value.observes, isString) &&
-    isArrayOf(value.evidence, isPromiseEvidence) &&
-    isLocalizedText(value.failureMeaning) &&
-    isReview(value.review)
+    typeof value.at === "string" &&
+    typeof value.by === "string" &&
+    isOneOf(value.action, reviewLogActions) &&
+    isLocalizedText(value.summary) &&
+    isOneOf(value.acknowledgementState, reviewStates)
   );
 }
 
-function isPromiseEvidence(value: unknown): value is PromiseEvidence {
+function isHarnessExample(value: unknown): value is HarnessExample {
   return (
     isRecord(value) &&
-    typeof value.testName === "string" &&
+    typeof value.tag === "string" &&
+    typeof value.name === "string" &&
+    typeof value.line === "number" &&
+    isOneOf(value.runStatus, runStatuses) &&
+    isArrayOf(value.evidence, isHarnessExampleEvidence)
+  );
+}
+
+function isHarnessExampleEvidence(value: unknown): value is HarnessExampleEvidence {
+  return (
+    isRecord(value) &&
     typeof value.file === "string" &&
+    typeof value.locale === "string" &&
     isOneOf(value.status, evidenceStatuses) &&
     optionalString(value.failureMessage)
   );
@@ -191,30 +241,8 @@ function isReviewDraft(value: unknown): value is ReviewDraft {
     typeof value.id === "string" &&
     isLocalizedText(value.title) &&
     isArrayOf(value.moduleIds, isString) &&
-    isOneOf(value.priority, promisePriorities) &&
     isOneOf(value.state, reviewStates) &&
     isLocalizedText(value.reason)
-  );
-}
-
-function isReview(value: unknown): value is HarnessPromise["review"] {
-  return (
-    isRecord(value) &&
-    isOneOf(value.state, reviewStates) &&
-    optionalString(value.decidedBy) &&
-    optionalString(value.decidedAt) &&
-    optionalString(value.note) &&
-    isArrayOf(value.events, isReviewEvent)
-  );
-}
-
-function isReviewEvent(value: unknown): value is HarnessPromise["review"]["events"][number] {
-  return (
-    isRecord(value) &&
-    isOneOf(value.action, reviewActions) &&
-    typeof value.by === "string" &&
-    typeof value.at === "string" &&
-    optionalString(value.note)
   );
 }
 

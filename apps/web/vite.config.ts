@@ -21,15 +21,6 @@ export default defineConfig({
     sortPackageJson: true,
     sortTailwindcss: {},
   },
-  test: {
-    passWithNoTests: true,
-    environment: "jsdom",
-    setupFiles: ["./src/test-setup.ts"],
-    globals: true,
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
-  },
   server: {
     host: "127.0.0.1",
     port: 47627,

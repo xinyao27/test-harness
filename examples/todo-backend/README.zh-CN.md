@@ -1,127 +1,59 @@
 # Todo-Backend 示例
 
-这个 example 使用经典 TodoMVC React UI，作为 Todo-Backend-compatible API 的真实客户端。
+这个 example 正在重写到新的 Cucumber-based Harness 模型上。
 
-客户端源码已经 vendored 到仓库里，并重构成一个小型 Vite app。它不会保留原 TodoMVC 的 webpack、ESLint、生成的 `dist/` 或 lockfile 设置。
+第一条已经迁移的链路是 Rust Axum Todo Backend。它的行为由多语言 Cucumber feature 文件描述，并由 cucumber-rs 直接针对真实的内存 Axum 应用执行。
 
-## Client
-
-```bash
-pnpm example:todo-client
-```
-
-客户端运行在：
+## Feature 文件
 
 ```text
-http://127.0.0.1:3100/
+features/implementations/rust-axum/todo-api.feature
+features/implementations/rust-axum/todo-api.zh-CN.feature
 ```
 
-客户端从 `VITE_TODO_BACKEND_URL` 读取 todos，默认地址是：
+两个语言版本复用同一组稳定 tags：
 
 ```text
-http://127.0.0.1:3101/todos
+@package:todo-backend-rust-axum
+@module:todo-api
+@feature:todo-backend.rust-axum.todo-api
+@rule:todo-backend.rust-axum.todo-lifecycle
+@example:create-list-patch-clear
 ```
 
-在这个 URL 启动一个 Todo-Backend-compatible server，然后打开命令打印出的 Vite URL。
+英文和中文描述是给人 review 的文本。tags 才是 Harness 用来连接 Package、Module、Feature、Rule、Example、lifecycle 和执行证据的稳定身份。
 
-## Backends
-
-单独运行 TypeScript implementation：
-
-```bash
-pnpm example:todo:serve:typescript
-```
-
-它会在这个地址提供 Todo-Backend API：
-
-```text
-http://127.0.0.1:3101/todos
-```
-
-运行它的 native Vitest coverage：
-
-```bash
-pnpm example:todo:test:typescript:native
-```
-
-单独运行 Rust Axum implementation：
-
-```bash
-pnpm example:todo:serve:rust
-```
-
-它会在这个地址提供同一套 API：
-
-```text
-http://127.0.0.1:3102/todos
-```
-
-## Harness Run
-
-运行完整 showcase：TypeScript contract/native tests、Rust contract/native tests、同一个 TodoMVC client 分别连接两个 backend 的 browser E2E，以及 report、matrix、spec coverage、feature coverage 的 showcase 自检。命令会收集 adapter events、写入 `matrix.yaml`、合并到 `.harness/results.yaml`，并渲染 Harness summary：
+## 运行 Cucumber 示例
 
 ```bash
 pnpm example:todo:test
 ```
 
-开发迭代时也可以只跑某个切片：
+也可以直接运行 Rust test：
 
 ```bash
-pnpm example:todo:test:typescript
-pnpm example:todo:test:rust
-pnpm example:todo:test:browser:typescript
-pnpm example:todo:test:browser:rust
-pnpm example:todo:matrix
+cargo test -p todo-backend-rust-axum --test rust_axum_cucumber
 ```
 
-showcase 自检会在完整的 `pnpm example:todo:test` 命令里运行，因为它们验证的是当前 active run 的 adapter events。
+Cucumber runner 会加载两个语言版本的 feature 文件，并验证 Rust Axum 实现里的 create、list、patch、clear 完整流程。
 
-渲染最近一次 Todo-Backend Harness report：
+`harness test` 已经可以调用配置好的 runner，但把 Cucumber Example 结果归一化写入 `tests/harness.results.yaml` 仍然是下一步 harness-runner 工作。
 
-```bash
-pnpm example:todo:report
-pnpm example:todo:report:full
-```
-
-summary report 更紧凑；full report 会包含 Given/When/Then、evidence references，以及本地化后的 promise text。
-
-## Spec Coverage
-
-这个 example 把官方 Todo-Backend JavaScript spec 作为第一阶段覆盖基准：
+## Harness 元数据
 
 ```text
-https://github.com/TodoBackend/todo-backend-js-spec/blob/master/js/specs.js
+tests/harness.locales.yaml
+tests/harness.packages.yaml
+tests/harness.modules.yaml
+tests/harness.behavior.yaml
+tests/harness.review-log.yaml
 ```
 
-traceability map 位于：
+这些文件描述 example 的 review 语言、package/module 归属、rule lifecycle 和 review 历史。它们故意和 `.feature` 文件分开，避免把人的 lifecycle 状态塞进 Cucumber 语法里。
 
-```text
-examples/todo-backend/tests/spec-map.yaml
-```
+## 当前重写边界
 
-运行 coverage check：
-
-```bash
-pnpm example:todo-spec-map:check
-```
-
-这个检查会确认每条官方 spec case 都被列出、每条 case 都映射到至少一个 Harness promise，并且每个被映射的 promise id 都真实存在于 example promise files 中。
-
-## Harness Feature Coverage
-
-Todo-Backend showcase 也用于覆盖完整 TestHarness feature set。feature map 位于：
-
-```text
-examples/todo-backend/tests/harness-feature-map.yaml
-```
-
-运行两个 coverage checks：
-
-```bash
-pnpm example:todo:check
-```
-
-这个检查会确认每个 canonical Harness module，以及这些 modules 拥有的每个 promise，都在 Todo-Backend showcase 中拥有明确应用路径。
+TypeScript implementation 和 TodoMVC client 仍然是有用的 example application code，但重写前的 Vitest/browser test harness 已经不再是 canonical path。新的 example 行为应该先写成 Cucumber feature，再绑定到可执行的 Cucumber evidence。
 
 ## Attribution
 

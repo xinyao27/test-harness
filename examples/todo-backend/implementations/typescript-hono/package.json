@@ -4,19 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx src/server.ts",
-    "test": "TODO_BACKEND_NATIVE_TESTS=1 vp test run --config vitest.config.ts"
+    "dev": "tsx src/server.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.14.4",
     "hono": "^4.10.7"
   },
   "devDependencies": {
-    "@test-harness/adapter-vitest": "workspace:*",
     "@types/node": "catalog:",
     "tsx": "^4.20.6",
-    "typescript": "catalog:",
-    "vite-plus": "catalog:",
-    "vitest": "catalog:"
+    "typescript": "catalog:"
   }
 }

@@ -1,0 +1,7 @@
+apiVersion: 1
+modules:
+  - id: feature-registry
+    title: Feature Registry
+    purpose: Parses Cucumber feature files into behavior records.
+    covers:
+      - crates/harness-project/src/feature_registry.rs

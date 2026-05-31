@@ -1,127 +1,59 @@
-# Todo-Backend Examples
+# Todo-Backend Example
 
-This example uses the classic TodoMVC React UI as a real client for Todo-Backend-compatible APIs.
+This example is being rewritten onto the new Cucumber-based Harness model.
 
-The client is vendored as source and rebuilt as a small Vite app. It intentionally does not keep the original TodoMVC webpack, ESLint, generated `dist/`, or lockfile setup.
+The first migrated slice is the Rust Axum Todo Backend. Its behavior is described by localized Cucumber feature files and executed by cucumber-rs against the real in-memory Axum application.
 
-## Client
-
-```bash
-pnpm example:todo-client
-```
-
-The client runs at:
+## Feature Files
 
 ```text
-http://127.0.0.1:3100/
+features/implementations/rust-axum/todo-api.feature
+features/implementations/rust-axum/todo-api.zh-CN.feature
 ```
 
-The client reads todos from `VITE_TODO_BACKEND_URL`, defaulting to:
+Both locale files reuse the same stable tags:
 
 ```text
-http://127.0.0.1:3101/todos
+@package:todo-backend-rust-axum
+@module:todo-api
+@feature:todo-backend.rust-axum.todo-api
+@rule:todo-backend.rust-axum.todo-lifecycle
+@example:create-list-patch-clear
 ```
 
-Start a Todo-Backend-compatible server at that URL, then open the Vite URL printed by the command.
+The English and Chinese descriptions are review text. The tags are the stable identity Harness uses to connect Package, Module, Feature, Rule, Example, lifecycle, and execution evidence.
 
-## Backends
-
-Run the TypeScript implementation by itself:
-
-```bash
-pnpm example:todo:serve:typescript
-```
-
-It serves the Todo-Backend API at:
-
-```text
-http://127.0.0.1:3101/todos
-```
-
-Run its native Vitest coverage:
-
-```bash
-pnpm example:todo:test:typescript:native
-```
-
-Run the Rust Axum implementation by itself:
-
-```bash
-pnpm example:todo:serve:rust
-```
-
-It serves the same API at:
-
-```text
-http://127.0.0.1:3102/todos
-```
-
-## Harness Run
-
-Run the full showcase: TypeScript contract/native tests, Rust contract/native tests, browser E2E against the TodoMVC client for both backends, and the showcase self-checks for reports, matrix output, spec coverage, and feature coverage. The command collects adapter events, writes `matrix.yaml`, merges results into `.harness/results.yaml`, and renders a Harness summary:
+## Run The Cucumber Example
 
 ```bash
 pnpm example:todo:test
 ```
 
-Run focused slices when iterating:
+or run the Rust test directly:
 
 ```bash
-pnpm example:todo:test:typescript
-pnpm example:todo:test:rust
-pnpm example:todo:test:browser:typescript
-pnpm example:todo:test:browser:rust
-pnpm example:todo:matrix
+cargo test -p todo-backend-rust-axum --test rust_axum_cucumber
 ```
 
-The showcase self-checks run inside the full `pnpm example:todo:test` command because they verify the active run's adapter events.
+The Cucumber runner loads both localized feature files and verifies the create, list, patch, and clear flow through the Rust Axum implementation.
 
-Render the latest Todo-Backend Harness report:
+`harness test` can invoke the configured runner, but Cucumber Example result normalization into `tests/harness.results.yaml` is still the next harness-runner step.
 
-```bash
-pnpm example:todo:report
-pnpm example:todo:report:full
-```
-
-The summary report is compact. The full report includes Given/When/Then, evidence references, and localized promise text.
-
-## Spec Coverage
-
-This example treats the official Todo-Backend JavaScript spec as the phase-one coverage baseline:
+## Harness Metadata
 
 ```text
-https://github.com/TodoBackend/todo-backend-js-spec/blob/master/js/specs.js
+tests/harness.locales.yaml
+tests/harness.packages.yaml
+tests/harness.modules.yaml
+tests/harness.behavior.yaml
+tests/harness.review-log.yaml
 ```
 
-The traceability map lives in:
+These files describe the example's review languages, package/module ownership, rule lifecycle, and review history. They are intentionally separate from the `.feature` files so human lifecycle state does not get mixed into Cucumber syntax.
 
-```text
-examples/todo-backend/tests/spec-map.yaml
-```
+## Current Rewrite Boundary
 
-Run the coverage check with:
-
-```bash
-pnpm example:todo-spec-map:check
-```
-
-The check confirms that every official spec case is listed, every case maps to at least one Harness promise, and every mapped promise id exists in the example promise files.
-
-## Harness Feature Coverage
-
-The Todo-Backend showcase is also used to exercise the full TestHarness feature set. The feature map lives in:
-
-```text
-examples/todo-backend/tests/harness-feature-map.yaml
-```
-
-Run both coverage checks with:
-
-```bash
-pnpm example:todo:check
-```
-
-This validates that every canonical Harness module and every promise owned by those modules has an explicit application path in the Todo-Backend showcase.
+The TypeScript implementation and TodoMVC client are still useful example application code, but their pre-rewrite Vitest and browser harnesses are no longer the canonical path. New example behavior should be added as Cucumber features first, then bound to executable Cucumber evidence.
 
 ## Attribution
 

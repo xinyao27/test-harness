@@ -6,18 +6,12 @@ test:
       - run
       - --quiet
       - -p
-      - harness-adapter-runtime
+      - harness-runner
       - --
       - run
       - --
-      # Development self-bootstrap command for this monorepo. Packaged users should
-      # invoke the installed Harness binary or adapter entrypoint instead of Cargo.
-      #
-      # Keep this scoped to the Harness repository's own evidence tests. Example
-      # projects have their own tests/harness.yaml files and should not leak their
-      # promise ids into the root self-bootstrap result file.
-      - vp
-      - test
-      - run
-      - packages/adapter-vitest/tests
-      - apps/web/src
+      - sh
+      - -c
+      - >-
+        cargo test -p harness-cucumber-rs --test rust_cucumber_bridge &&
+        pnpm --filter @test-harness/cucumber-js run test:cucumber

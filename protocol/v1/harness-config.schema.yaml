@@ -1,7 +1,7 @@
 $schema: https://json-schema.org/draft/2020-12/schema
 $id: https://test-harness.local/protocol/v1/harness-config.schema.yaml
 title: Harness Project Config v1
-description: Project-level Harness configuration. The seed v1 config pins the external test runner command used by `harness test`.
+description: Project-level Harness configuration. The seed v1 config pins the external test runner command used by `harness test` and may provide a default Harness behavior selection.
 type: object
 additionalProperties: false
 required:
@@ -30,3 +30,27 @@ properties:
             type: array
             items:
               type: string
+              minLength: 1
+          selection:
+            type: object
+            additionalProperties: false
+            minProperties: 1
+            properties:
+              package:
+                type: string
+                minLength: 1
+              module:
+                type: string
+                minLength: 1
+              feature:
+                type: string
+                minLength: 1
+              rule:
+                type: string
+                minLength: 1
+              example:
+                type: string
+                minLength: 1
+              locale:
+                type: string
+                minLength: 1

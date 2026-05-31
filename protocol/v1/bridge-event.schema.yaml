@@ -1,0 +1,41 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://test-harness.local/protocol/v1/bridge-event.schema.yaml
+title: Harness Bridge Event v1
+type: object
+additionalProperties: false
+required:
+  - apiVersion
+  - kind
+  - runId
+  - timestamp
+  - bridge
+  - payload
+properties:
+  apiVersion:
+    const: 1
+  kind:
+    const: cucumberExampleResult
+  runId:
+    type: string
+    minLength: 1
+  timestamp:
+    type: string
+    minLength: 1
+  bridge:
+    type: object
+    additionalProperties: false
+    required:
+      - name
+      - version
+    properties:
+      name:
+        type: string
+        minLength: 1
+      version:
+        type: string
+        minLength: 1
+      framework:
+        type: string
+        minLength: 1
+  payload:
+    $ref: https://test-harness.local/protocol/v1/results.schema.yaml#/$defs/exampleResult

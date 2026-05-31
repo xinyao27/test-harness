@@ -1,11 +1,11 @@
 [workspace]
 members = [
   "crates/harness-protocol",
-  "crates/harness-core",
+  "crates/harness-project",
+  "crates/harness-runner",
   "crates/harness-cli",
   "crates/harness-daemon",
-  "crates/harness-adapter-runtime",
-  "crates/harness-adapter-rust",
+  "bridges/rust/cucumber-rs",
   "examples/todo-backend/implementations/rust-axum",
 ]
 resolver = "2"
@@ -17,7 +17,8 @@ license = "MIT"
 version = "0.0.0"
 
 [workspace.dependencies]
-jsonschema = { version = "0.46.5", default-features = false }
+cucumber = "0.23.0"
+gherkin = "0.16.0"
 axum = { version = "0.8.9", default-features = false, features = [
   "form",
   "http1",

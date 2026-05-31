@@ -8,7 +8,7 @@ version.workspace = true
 [dependencies]
 axum.workspace = true
 harness-cli = { path = "../harness-cli" }
-harness-core = { path = "../harness-core" }
+harness-project = { path = "../harness-project" }
 harness-protocol = { path = "../harness-protocol" }
 portable-pty.workspace = true
 rand.workspace = true
@@ -18,8 +18,3 @@ serde_yaml.workspace = true
 sha2.workspace = true
 tokio.workspace = true
 tower-http.workspace = true
-
-[dev-dependencies]
-harness-adapter-rust = { path = "../harness-adapter-rust" }
-serde_json.workspace = true
-tempfile.workspace = true

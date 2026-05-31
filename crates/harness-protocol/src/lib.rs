@@ -9,6 +9,9 @@ use std::sync::LazyLock;
 static ID_PATTERN: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$").unwrap());
 
+static LOCALE_PATTERN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^[a-z]{2,3}(?:-[A-Z][A-Za-z0-9]*)?$").unwrap());
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct ProtocolVersion;
 
@@ -43,84 +46,79 @@ pub enum LocalizedText {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PackageRecord {
+    pub id: String,
+    pub title: LocalizedText,
+    pub path: String,
+    pub purpose: LocalizedText,
+    pub modules: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PackagesFile {
+    #[serde(rename = "apiVersion")]
+    pub api_version: ProtocolVersion,
+    pub packages: Vec<PackageRecord>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ModuleRecord {
+    pub id: String,
+    pub package: String,
+    pub title: LocalizedText,
+    pub purpose: LocalizedText,
+    pub covers: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ModulesFile {
+    #[serde(rename = "apiVersion")]
+    pub api_version: ProtocolVersion,
+    pub modules: Vec<ModuleRecord>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LocalesFile {
+    #[serde(rename = "apiVersion")]
+    pub api_version: ProtocolVersion,
+    #[serde(rename = "sourceLocale")]
+    pub source_locale: String,
+    #[serde(rename = "requiredLocales")]
+    pub required_locales: Vec<String>,
+    #[serde(rename = "executionLocale")]
+    pub execution_locale: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum PromiseLifecycle {
+pub enum BehaviorLifecycle {
+    Draft,
     Proposed,
     Accepted,
-    Implemented,
-    ChangedRequiresReview,
     Deprecated,
+    Superseded,
 }
 
-impl fmt::Display for PromiseLifecycle {
+impl fmt::Display for BehaviorLifecycle {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(match self {
+            Self::Draft => "draft",
             Self::Proposed => "proposed",
             Self::Accepted => "accepted",
-            Self::Implemented => "implemented",
-            Self::ChangedRequiresReview => "changed_requires_review",
             Self::Deprecated => "deprecated",
+            Self::Superseded => "superseded",
         })
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum PromiseRunStatus {
-    Unknown,
-    Passing,
-    Failing,
-    Skipped,
-    MissingEvidence,
-    EvidenceDrifted,
-}
-
-impl fmt::Display for PromiseRunStatus {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(match self {
-            Self::Unknown => "unknown",
-            Self::Passing => "passing",
-            Self::Failing => "failing",
-            Self::Skipped => "skipped",
-            Self::MissingEvidence => "missing_evidence",
-            Self::EvidenceDrifted => "evidence_drifted",
-        })
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum PromisePriority {
-    #[serde(rename = "P0")]
-    P0,
-    #[serde(rename = "P1")]
-    P1,
-    #[serde(rename = "P2")]
-    P2,
-}
-
-impl fmt::Display for PromisePriority {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(match self {
-            Self::P0 => "P0",
-            Self::P1 => "P1",
-            Self::P2 => "P2",
-        })
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum PromiseBoundary {
-    Unit,
-    Integration,
-    Browser,
-    E2e,
-    Adapter,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum PromiseReviewState {
+pub enum ReviewState {
     #[default]
     Pending,
     Approved,
@@ -128,7 +126,7 @@ pub enum PromiseReviewState {
     Rejected,
 }
 
-impl fmt::Display for PromiseReviewState {
+impl fmt::Display for ReviewState {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(match self {
             Self::Pending => "pending",
@@ -140,109 +138,107 @@ impl fmt::Display for PromiseReviewState {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct BehaviorReview {
+    pub state: ReviewState,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub by: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub note: Option<LocalizedText>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct BehaviorRuleRecord {
+    pub feature: String,
+    pub rule: String,
+    pub lifecycle: BehaviorLifecycle,
+    pub review: BehaviorReview,
+    pub owner: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct BehaviorFile {
+    #[serde(rename = "apiVersion")]
+    pub api_version: ProtocolVersion,
+    pub rules: Vec<BehaviorRuleRecord>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum PromiseReviewAction {
+pub enum ReviewLogAction {
+    Proposed,
     Approved,
     ChangesRequested,
     Rejected,
-}
-
-impl fmt::Display for PromiseReviewAction {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(match self {
-            Self::Approved => "approved",
-            Self::ChangesRequested => "changes_requested",
-            Self::Rejected => "rejected",
-        })
-    }
+    Deprecated,
+    Superseded,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-#[serde(rename_all = "camelCase")]
-pub struct PromiseReviewEvent {
-    pub action: PromiseReviewAction,
-    pub by: String,
+pub struct ReviewLogAcknowledgement {
+    pub state: ReviewState,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub by: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub note: Option<LocalizedText>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ReviewLogEvent {
+    pub id: String,
     pub at: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub note: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
-#[serde(deny_unknown_fields)]
-#[serde(rename_all = "camelCase")]
-pub struct PromiseReview {
-    pub state: PromiseReviewState,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub decided_by: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub decided_at: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub note: Option<String>,
-    /// Deterministic hash of the reviewable content (`title`, `purpose`,
-    /// `priority`, `boundary`, `given`, `when`, `then`, `observes`,
-    /// `failureMeaning`, `examples`) at the moment the review was approved.
-    /// Compared by `harness check` against the current content so an
-    /// `accepted` promise whose text drifted is flagged. Missing on promises
-    /// approved before this field existed; absent means "drift undetectable
-    /// for this promise" (no false positives).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub content_hash: Option<String>,
-    pub events: Vec<PromiseReviewEvent>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PromiseExampleRow {
-    pub name: String,
-    #[serde(flatten)]
-    pub values: BTreeMap<String, String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct PromiseRecord {
-    pub id: String,
-    pub feature: String,
-    pub title: LocalizedText,
-    pub purpose: LocalizedText,
-    pub priority: PromisePriority,
-    pub boundary: PromiseBoundary,
-    pub lifecycle: PromiseLifecycle,
-    pub given: Vec<LocalizedText>,
-    pub when: Vec<LocalizedText>,
-    #[serde(rename = "then")]
-    pub then_steps: Vec<LocalizedText>,
-    pub observes: Vec<String>,
-    #[serde(rename = "failureMeaning")]
-    pub failure_meaning: LocalizedText,
-    pub review: PromiseReview,
-    #[serde(rename = "supersedes", skip_serializing_if = "Option::is_none")]
-    pub supersedes: Option<Vec<String>>,
-    #[serde(rename = "deprecatedBy", skip_serializing_if = "Option::is_none")]
-    pub deprecated_by: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub examples: Option<Vec<PromiseExampleRow>>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct PromisesFile {
-    #[serde(rename = "apiVersion")]
-    pub api_version: ProtocolVersion,
-    pub promises: Vec<PromiseRecord>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct ModuleRecord {
-    #[serde(rename = "apiVersion")]
-    pub api_version: ProtocolVersion,
-    pub id: String,
-    pub title: LocalizedText,
+    pub by: String,
+    pub action: ReviewLogAction,
     pub summary: LocalizedText,
-    pub purpose: LocalizedText,
-    pub promises: Vec<String>,
-    pub covers: Vec<String>,
+    #[serde(rename = "affectedRules")]
+    pub affected_rules: Vec<String>,
+    pub acknowledgement: ReviewLogAcknowledgement,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ReviewLogFile {
+    #[serde(rename = "apiVersion")]
+    pub api_version: ProtocolVersion,
+    pub events: Vec<ReviewLogEvent>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HarnessRunnerSelection {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub package: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub module: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub feature: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rule: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub example: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub locale: Option<String>,
+}
+
+impl Default for HarnessRunnerSelection {
+    fn default() -> Self {
+        Self {
+            package: None,
+            module: None,
+            feature: None,
+            rule: None,
+            example: None,
+            locale: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -250,6 +246,8 @@ pub struct ModuleRecord {
 pub struct HarnessRunnerConfig {
     pub command: String,
     pub args: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub selection: Option<HarnessRunnerSelection>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -268,13 +266,13 @@ pub struct HarnessConfig {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum TestResultStatus {
+pub enum ExampleStatus {
     Passing,
     Failing,
     Skipped,
 }
 
-impl fmt::Display for TestResultStatus {
+impl fmt::Display for ExampleStatus {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(match self {
             Self::Passing => "passing",
@@ -286,13 +284,27 @@ impl fmt::Display for TestResultStatus {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct TestResult {
+pub struct StepResult {
+    pub keyword: String,
+    pub text: String,
+    pub status: ExampleStatus,
+    #[serde(rename = "failureMessage", skip_serializing_if = "Option::is_none")]
+    pub failure_message: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ExampleResult {
+    pub feature: String,
+    pub rule: String,
+    pub example: String,
+    pub locale: String,
+    pub name: String,
     pub file: String,
-    #[serde(rename = "promiseId")]
-    pub promise_id: String,
-    pub status: TestResultStatus,
-    #[serde(rename = "testName")]
-    pub test_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line: Option<u32>,
+    pub status: ExampleStatus,
+    pub steps: Vec<StepResult>,
     #[serde(rename = "failureMessage", skip_serializing_if = "Option::is_none")]
     pub failure_message: Option<String>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -301,17 +313,17 @@ pub struct TestResult {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct TestResultsFile {
+pub struct ResultsFile {
     #[serde(rename = "apiVersion")]
     pub api_version: ProtocolVersion,
     #[serde(rename = "generatedAt")]
     pub generated_at: String,
-    pub results: Vec<TestResult>,
+    pub results: Vec<ExampleResult>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct AdapterDescriptor {
+pub struct BridgeDescriptor {
     pub name: String,
     pub version: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -319,37 +331,22 @@ pub struct AdapterDescriptor {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum AdapterEventKind {
-    #[serde(rename = "testResult")]
-    TestResult,
+pub enum BridgeEventKind {
+    #[serde(rename = "cucumberExampleResult")]
+    CucumberExampleResult,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct AdapterTestResultPayload {
-    pub file: String,
-    #[serde(rename = "promiseId")]
-    pub promise_id: String,
-    pub status: TestResultStatus,
-    #[serde(rename = "testName")]
-    pub test_name: String,
-    #[serde(rename = "failureMessage", skip_serializing_if = "Option::is_none")]
-    pub failure_message: Option<String>,
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub labels: BTreeMap<String, String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct AdapterEvent {
+pub struct BridgeEvent {
     #[serde(rename = "apiVersion")]
     pub api_version: ProtocolVersion,
-    pub kind: AdapterEventKind,
+    pub kind: BridgeEventKind,
     #[serde(rename = "runId")]
     pub run_id: String,
     pub timestamp: String,
-    pub adapter: AdapterDescriptor,
-    pub payload: AdapterTestResultPayload,
+    pub bridge: BridgeDescriptor,
+    pub payload: ExampleResult,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -369,6 +366,26 @@ impl fmt::Display for ValidationSeverity {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ValidationSubjectKind {
+    Package,
+    Module,
+    Feature,
+    Rule,
+    Example,
+    Locale,
+    Result,
+    Config,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ValidationSubject {
+    pub kind: ValidationSubjectKind,
+    pub id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ValidationIssue {
     pub code: String,
@@ -376,54 +393,8 @@ pub struct ValidationIssue {
     pub severity: ValidationSeverity,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub path: Option<String>,
-    #[serde(rename = "promiseId", skip_serializing_if = "Option::is_none")]
-    pub promise_id: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct PromiseReportItem {
-    #[serde(rename = "promiseId")]
-    pub promise_id: String,
-    pub title: String,
-    pub purpose: String,
-    pub priority: PromisePriority,
-    pub lifecycle: PromiseLifecycle,
-    #[serde(rename = "runStatus")]
-    pub run_status: PromiseRunStatus,
-    pub given: Vec<String>,
-    pub when: Vec<String>,
-    #[serde(rename = "then")]
-    pub then_steps: Vec<String>,
-    pub evidence: Vec<String>,
-    #[serde(rename = "failureMeaning")]
-    pub failure_meaning: String,
-    pub warnings: Vec<ValidationIssue>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct FeatureReport {
-    pub feature: String,
-    pub promises: Vec<PromiseReportItem>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct ReportSummary {
-    pub promises: usize,
-    pub errors: usize,
-    pub warnings: usize,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct SeedReport {
-    #[serde(rename = "apiVersion")]
-    pub api_version: ProtocolVersion,
-    pub summary: ReportSummary,
-    pub features: Vec<FeatureReport>,
-    pub issues: Vec<ValidationIssue>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subject: Option<ValidationSubject>,
 }
 
 #[derive(Debug, Clone)]
@@ -483,157 +454,289 @@ fn validate_id(value: &str, field: &str) -> Result<(), ProtocolDecodeError> {
     )
 }
 
-pub fn validate_promise_record(record: &PromiseRecord) -> Result<(), ProtocolDecodeError> {
-    validate_id(&record.id, "promise id")?;
+fn validate_locale(value: &str, field: &str) -> Result<(), ProtocolDecodeError> {
     ensure_shape(
-        !record.given.is_empty(),
-        "given must contain at least one item",
-    )?;
+        LOCALE_PATTERN.is_match(value),
+        format!("{field} must be a BCP-47 style locale such as en or zh-CN"),
+    )
+}
+
+fn validate_tag(value: &str, prefix: &str, field: &str) -> Result<(), ProtocolDecodeError> {
+    let Some(id) = value.strip_prefix(prefix) else {
+        return Err(ProtocolDecodeError::Shape(format!(
+            "{field} must start with {prefix}"
+        )));
+    };
+    validate_id(id, field)
+}
+
+fn validate_id_or_tag(value: &str, prefix: &str, field: &str) -> Result<(), ProtocolDecodeError> {
+    let value = value.trim();
+    validate_non_empty(value, field)?;
+    if let Some(id) = value.strip_prefix(prefix) {
+        validate_id(id, field)
+    } else {
+        validate_id(value, field)
+    }
+}
+
+fn validate_locale_or_tag(value: &str, field: &str) -> Result<(), ProtocolDecodeError> {
+    let value = value.trim();
+    validate_non_empty(value, field)?;
+    if let Some(locale) = value.strip_prefix("@locale:") {
+        validate_locale(locale, field)
+    } else {
+        validate_locale(value, field)
+    }
+}
+
+fn validate_non_empty(value: &str, field: &str) -> Result<(), ProtocolDecodeError> {
     ensure_shape(
-        !record.when.is_empty(),
-        "when must contain at least one item",
-    )?;
-    ensure_shape(
-        !record.then_steps.is_empty(),
-        "then must contain at least one item",
-    )?;
-    ensure_shape(
-        !record.observes.is_empty(),
-        "observes must contain at least one item",
-    )?;
-    if let Some(examples) = &record.examples {
-        ensure_shape(
-            !examples.is_empty(),
-            "examples must contain at least one item",
-        )?;
+        !value.trim().is_empty(),
+        format!("{field} must not be empty"),
+    )
+}
+
+fn validate_localized_text(value: &LocalizedText, field: &str) -> Result<(), ProtocolDecodeError> {
+    match value {
+        LocalizedText::Text(text) => validate_non_empty(text, field),
+        LocalizedText::Localized(map) => {
+            ensure_shape(!map.is_empty(), format!("{field} must not be empty"))?;
+            for (locale, text) in map {
+                validate_locale(locale, field)?;
+                validate_non_empty(text, field)?;
+            }
+            Ok(())
+        }
+    }
+}
+
+fn validate_string_list(
+    values: &[String],
+    field: &str,
+    item: impl Fn(&str, &str) -> Result<(), ProtocolDecodeError>,
+) -> Result<(), ProtocolDecodeError> {
+    ensure_shape(!values.is_empty(), format!("{field} must not be empty"))?;
+    for value in values {
+        item(value, field)?;
     }
     Ok(())
 }
 
-pub fn validate_promises_file(file: &PromisesFile) -> Result<(), ProtocolDecodeError> {
-    ensure_shape(
-        !file.promises.is_empty(),
-        "promises must contain at least one item",
-    )?;
-    for record in &file.promises {
-        validate_promise_record(record)?;
+pub fn validate_package_record(record: &PackageRecord) -> Result<(), ProtocolDecodeError> {
+    validate_id(&record.id, "package id")?;
+    validate_localized_text(&record.title, "package title")?;
+    validate_non_empty(&record.path, "package path")?;
+    validate_localized_text(&record.purpose, "package purpose")?;
+    validate_string_list(&record.modules, "package modules", validate_id)
+}
+
+pub fn validate_packages_file(file: &PackagesFile) -> Result<(), ProtocolDecodeError> {
+    ensure_shape(!file.packages.is_empty(), "packages must not be empty")?;
+    for record in &file.packages {
+        validate_package_record(record)?;
     }
     Ok(())
 }
 
 pub fn validate_module_record(record: &ModuleRecord) -> Result<(), ProtocolDecodeError> {
     validate_id(&record.id, "module id")?;
+    validate_id(&record.package, "module package")?;
+    validate_localized_text(&record.title, "module title")?;
+    validate_localized_text(&record.purpose, "module purpose")?;
+    validate_string_list(&record.covers, "module covers", validate_non_empty)
+}
+
+pub fn validate_modules_file(file: &ModulesFile) -> Result<(), ProtocolDecodeError> {
+    ensure_shape(!file.modules.is_empty(), "modules must not be empty")?;
+    for record in &file.modules {
+        validate_module_record(record)?;
+    }
+    Ok(())
+}
+
+pub fn validate_locales_file(file: &LocalesFile) -> Result<(), ProtocolDecodeError> {
+    validate_locale(&file.source_locale, "sourceLocale")?;
+    validate_string_list(&file.required_locales, "requiredLocales", validate_locale)?;
+    validate_locale(&file.execution_locale, "executionLocale")?;
     ensure_shape(
-        !record.promises.is_empty(),
-        "promises must contain at least one item",
+        file.required_locales.contains(&file.source_locale),
+        "requiredLocales must include sourceLocale",
     )?;
     ensure_shape(
-        !record.covers.is_empty(),
-        "covers must contain at least one item",
+        file.required_locales.contains(&file.execution_locale),
+        "requiredLocales must include executionLocale",
+    )
+}
+
+pub fn validate_behavior_rule_record(
+    record: &BehaviorRuleRecord,
+) -> Result<(), ProtocolDecodeError> {
+    validate_tag(&record.feature, "@feature:", "behavior feature")?;
+    validate_tag(&record.rule, "@rule:", "behavior rule")?;
+    validate_id(&record.owner, "behavior owner")?;
+    if let Some(by) = &record.review.by {
+        validate_non_empty(by, "review.by")?;
+    }
+    if let Some(at) = &record.review.at {
+        validate_non_empty(at, "review.at")?;
+    }
+    if let Some(note) = &record.review.note {
+        validate_localized_text(note, "review.note")?;
+    }
+    Ok(())
+}
+
+pub fn validate_behavior_file(file: &BehaviorFile) -> Result<(), ProtocolDecodeError> {
+    ensure_shape(!file.rules.is_empty(), "rules must not be empty")?;
+    for record in &file.rules {
+        validate_behavior_rule_record(record)?;
+    }
+    Ok(())
+}
+
+pub fn validate_review_log_event(event: &ReviewLogEvent) -> Result<(), ProtocolDecodeError> {
+    validate_id(&event.id, "review log id")?;
+    validate_non_empty(&event.at, "review log at")?;
+    validate_non_empty(&event.by, "review log by")?;
+    validate_localized_text(&event.summary, "review log summary")?;
+    validate_string_list(&event.affected_rules, "affectedRules", |value, field| {
+        validate_tag(value, "@rule:", field)
+    })?;
+    if let Some(by) = &event.acknowledgement.by {
+        validate_non_empty(by, "acknowledgement.by")?;
+    }
+    if let Some(at) = &event.acknowledgement.at {
+        validate_non_empty(at, "acknowledgement.at")?;
+    }
+    if let Some(note) = &event.acknowledgement.note {
+        validate_localized_text(note, "acknowledgement.note")?;
+    }
+    Ok(())
+}
+
+pub fn validate_review_log_file(file: &ReviewLogFile) -> Result<(), ProtocolDecodeError> {
+    ensure_shape(!file.events.is_empty(), "events must not be empty")?;
+    for event in &file.events {
+        validate_review_log_event(event)?;
+    }
+    Ok(())
+}
+
+pub fn validate_runner_selection(
+    selection: &HarnessRunnerSelection,
+) -> Result<(), ProtocolDecodeError> {
+    ensure_shape(
+        selection.package.is_some()
+            || selection.module.is_some()
+            || selection.feature.is_some()
+            || selection.rule.is_some()
+            || selection.example.is_some()
+            || selection.locale.is_some(),
+        "test.runner.selection must not be empty",
     )?;
-    for promise_id in &record.promises {
-        validate_id(promise_id, "module promise id")?;
+    if let Some(value) = &selection.package {
+        validate_id_or_tag(value, "@package:", "test.runner.selection.package")?;
+    }
+    if let Some(value) = &selection.module {
+        validate_id_or_tag(value, "@module:", "test.runner.selection.module")?;
+    }
+    if let Some(value) = &selection.feature {
+        validate_id_or_tag(value, "@feature:", "test.runner.selection.feature")?;
+    }
+    if let Some(value) = &selection.rule {
+        validate_id_or_tag(value, "@rule:", "test.runner.selection.rule")?;
+    }
+    if let Some(value) = &selection.example {
+        validate_id_or_tag(value, "@example:", "test.runner.selection.example")?;
+    }
+    if let Some(value) = &selection.locale {
+        validate_locale_or_tag(value, "test.runner.selection.locale")?;
     }
     Ok(())
 }
 
 pub fn validate_harness_config(config: &HarnessConfig) -> Result<(), ProtocolDecodeError> {
-    ensure_shape(
-        !config.test.runner.command.trim().is_empty(),
-        "test.runner.command must not be empty",
-    )
-}
-
-pub fn validate_test_results_file(_file: &TestResultsFile) -> Result<(), ProtocolDecodeError> {
-    Ok(())
-}
-
-pub fn validate_adapter_event(event: &AdapterEvent) -> Result<(), ProtocolDecodeError> {
-    ensure_shape(!event.run_id.trim().is_empty(), "runId must not be empty")?;
-    ensure_shape(
-        !event.timestamp.trim().is_empty(),
-        "timestamp must not be empty",
-    )?;
-    ensure_shape(
-        !event.adapter.name.trim().is_empty(),
-        "adapter.name must not be empty",
-    )?;
-    ensure_shape(
-        !event.adapter.version.trim().is_empty(),
-        "adapter.version must not be empty",
-    )?;
-    if let Some(framework) = &event.adapter.framework {
-        ensure_shape(
-            !framework.trim().is_empty(),
-            "adapter.framework must not be empty",
-        )?;
+    validate_non_empty(&config.test.runner.command, "test.runner.command")?;
+    for arg in &config.test.runner.args {
+        validate_non_empty(arg, "test.runner.args item")?;
     }
-    ensure_shape(
-        !event.payload.file.trim().is_empty(),
-        "payload.file must not be empty",
-    )?;
-    ensure_shape(
-        !event.payload.promise_id.trim().is_empty(),
-        "payload.promiseId must not be empty",
-    )?;
-    ensure_shape(
-        !event.payload.test_name.trim().is_empty(),
-        "payload.testName must not be empty",
-    )?;
-    for (key, value) in &event.payload.labels {
-        ensure_shape(
-            !key.trim().is_empty(),
-            "payload.labels keys must not be empty",
-        )?;
-        ensure_shape(
-            !value.trim().is_empty(),
-            "payload.labels values must not be empty",
-        )?;
+    if let Some(selection) = &config.test.runner.selection {
+        validate_runner_selection(selection)?;
     }
     Ok(())
 }
 
-pub fn validate_seed_report(_report: &SeedReport) -> Result<(), ProtocolDecodeError> {
+pub fn validate_step_result(step: &StepResult) -> Result<(), ProtocolDecodeError> {
+    match step.keyword.as_str() {
+        "Given" | "When" | "Then" | "And" | "But" => {}
+        _ => {
+            return Err(ProtocolDecodeError::Shape(
+                "step keyword must be Given, When, Then, And, or But".to_string(),
+            ))
+        }
+    }
+    validate_non_empty(&step.text, "step text")?;
+    if let Some(message) = &step.failure_message {
+        validate_non_empty(message, "step failureMessage")?;
+    }
     Ok(())
 }
 
-pub fn decode_promise_record(raw: &str) -> Result<PromiseRecord, ProtocolDecodeError> {
+pub fn validate_example_result(result: &ExampleResult) -> Result<(), ProtocolDecodeError> {
+    validate_tag(&result.feature, "@feature:", "result feature")?;
+    validate_tag(&result.rule, "@rule:", "result rule")?;
+    validate_tag(&result.example, "@example:", "result example")?;
+    validate_locale(&result.locale, "result locale")?;
+    validate_non_empty(&result.name, "result name")?;
+    validate_non_empty(&result.file, "result file")?;
+    ensure_shape(!result.steps.is_empty(), "result steps must not be empty")?;
+    for step in &result.steps {
+        validate_step_result(step)?;
+    }
+    if let Some(message) = &result.failure_message {
+        validate_non_empty(message, "result failureMessage")?;
+    }
+    for (key, value) in &result.labels {
+        validate_non_empty(key, "result labels key")?;
+        validate_non_empty(value, "result labels value")?;
+    }
+    Ok(())
+}
+
+pub fn validate_results_file(file: &ResultsFile) -> Result<(), ProtocolDecodeError> {
+    ensure_shape(
+        !file.generated_at.trim().is_empty(),
+        "generatedAt must not be empty",
+    )?;
+    ensure_shape(!file.results.is_empty(), "results must not be empty")?;
+    for result in &file.results {
+        validate_example_result(result)?;
+    }
+    Ok(())
+}
+
+pub fn validate_bridge_event(event: &BridgeEvent) -> Result<(), ProtocolDecodeError> {
+    validate_non_empty(&event.run_id, "runId")?;
+    validate_non_empty(&event.timestamp, "timestamp")?;
+    validate_non_empty(&event.bridge.name, "bridge.name")?;
+    validate_non_empty(&event.bridge.version, "bridge.version")?;
+    if let Some(framework) = &event.bridge.framework {
+        validate_non_empty(framework, "bridge.framework")?;
+    }
+    validate_example_result(&event.payload)
+}
+
+pub fn decode_package_record(raw: &str) -> Result<PackageRecord, ProtocolDecodeError> {
     let record = decode_yaml(raw)?;
-    validate_promise_record(&record)?;
+    validate_package_record(&record)?;
     Ok(record)
 }
 
-pub fn decode_promises_file(raw: &str) -> Result<PromisesFile, ProtocolDecodeError> {
+pub fn decode_packages_file(raw: &str) -> Result<PackagesFile, ProtocolDecodeError> {
     let file = decode_yaml(raw)?;
-    validate_promises_file(&file)?;
+    validate_packages_file(&file)?;
     Ok(file)
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct RawPromisesFile {
-    #[serde(rename = "apiVersion")]
-    _api_version: ProtocolVersion,
-    promises: Vec<Value>,
-}
-
-pub fn decode_promises_file_items(
-    raw: &str,
-) -> Result<Vec<Result<PromiseRecord, ProtocolDecodeError>>, ProtocolDecodeError> {
-    let file: RawPromisesFile = decode_yaml(raw)?;
-    ensure_shape(
-        !file.promises.is_empty(),
-        "promises must contain at least one item",
-    )?;
-    Ok(file
-        .promises
-        .into_iter()
-        .map(|item| {
-            let record = decode_value(item)?;
-            validate_promise_record(&record)?;
-            Ok(record)
-        })
-        .collect())
 }
 
 pub fn decode_module_record(raw: &str) -> Result<ModuleRecord, ProtocolDecodeError> {
@@ -642,26 +745,44 @@ pub fn decode_module_record(raw: &str) -> Result<ModuleRecord, ProtocolDecodeErr
     Ok(record)
 }
 
+pub fn decode_modules_file(raw: &str) -> Result<ModulesFile, ProtocolDecodeError> {
+    let file = decode_yaml(raw)?;
+    validate_modules_file(&file)?;
+    Ok(file)
+}
+
+pub fn decode_locales_file(raw: &str) -> Result<LocalesFile, ProtocolDecodeError> {
+    let file = decode_yaml(raw)?;
+    validate_locales_file(&file)?;
+    Ok(file)
+}
+
+pub fn decode_behavior_file(raw: &str) -> Result<BehaviorFile, ProtocolDecodeError> {
+    let file = decode_yaml(raw)?;
+    validate_behavior_file(&file)?;
+    Ok(file)
+}
+
+pub fn decode_review_log_file(raw: &str) -> Result<ReviewLogFile, ProtocolDecodeError> {
+    let file = decode_yaml(raw)?;
+    validate_review_log_file(&file)?;
+    Ok(file)
+}
+
 pub fn decode_harness_config(raw: &str) -> Result<HarnessConfig, ProtocolDecodeError> {
     let config = decode_yaml(raw)?;
     validate_harness_config(&config)?;
     Ok(config)
 }
 
-pub fn decode_test_results_file(raw: &str) -> Result<TestResultsFile, ProtocolDecodeError> {
+pub fn decode_results_file(raw: &str) -> Result<ResultsFile, ProtocolDecodeError> {
     let file = decode_yaml(raw)?;
-    validate_test_results_file(&file)?;
+    validate_results_file(&file)?;
     Ok(file)
 }
 
-pub fn decode_adapter_event(raw: &str) -> Result<AdapterEvent, ProtocolDecodeError> {
+pub fn decode_bridge_event(raw: &str) -> Result<BridgeEvent, ProtocolDecodeError> {
     let event = decode_json(raw)?;
-    validate_adapter_event(&event)?;
+    validate_bridge_event(&event)?;
     Ok(event)
-}
-
-pub fn decode_seed_report(raw: &str) -> Result<SeedReport, ProtocolDecodeError> {
-    let report = decode_yaml(raw)?;
-    validate_seed_report(&report)?;
-    Ok(report)
 }

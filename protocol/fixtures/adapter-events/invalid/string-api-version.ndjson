@@ -1,1 +1,0 @@
-{"apiVersion":"1","kind":"testResult","runId":"fixture-run","timestamp":"2026-05-25T00:00:00.000Z","adapter":{"name":"fixture-adapter","version":"0.0.0"},"payload":{"file":"protocol/fixtures/adapter-events/invalid/string-api-version.ndjson","promiseId":"harness.fixture.valid_basic_promise","status":"passing","testName":"invalid fixture adapter event"}}

@@ -29,4 +29,5 @@ target
 
 # Harness runtime artifacts
 .harness/
+tests/harness.results.yaml
 examples/todo-backend/matrix.yaml

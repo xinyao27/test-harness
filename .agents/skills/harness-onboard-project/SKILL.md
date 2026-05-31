@@ -1,1 +1,0 @@
-../../../skills/harness-onboard-project/SKILL.md

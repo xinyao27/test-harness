@@ -1,1 +1,0 @@
-../../../skills/harness-add-feature/SKILL.md

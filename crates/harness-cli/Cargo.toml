@@ -6,12 +6,9 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
-harness-core = { path = "../harness-core" }
+harness-project = { path = "../harness-project" }
+harness-runner = { path = "../harness-runner" }
 harness-protocol = { path = "../harness-protocol" }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 ureq = { workspace = true }
-
-[dev-dependencies]
-harness-adapter-rust = { path = "../harness-adapter-rust" }
-tempfile.workspace = true

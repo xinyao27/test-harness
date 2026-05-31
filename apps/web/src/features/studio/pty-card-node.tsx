@@ -22,7 +22,7 @@ export type PtyCardNodeData = {
   cardId: string;
   kind: PtyCardKind;
   tool: AgentTool | null;
-  promiseId: string | null;
+  ruleTag: string | null;
   initialPrompt: string | null;
 };
 
@@ -33,7 +33,7 @@ export type PtyCardNodeData = {
  *     Cursor CLI). The daemon owns the actual binary mapping; we just pass
  *     the tool name in the WebSocket URL.
  *
- * Implements `harness.web_dashboard.canvas_hosts_terminal_and_agent_cards`.
+ * Implements the Studio PTY card behavior for terminal and agent sessions.
  *
  * The card body is an xterm.js terminal wired to
  * /api/agent/pty?kind=…&agent=…&token=… on the local daemon. Closing the
@@ -277,10 +277,8 @@ export function PtyCardNode({ data, selected }: NodeProps) {
           updateCardSize(cardData.cardId, { width: params.width, height: params.height })
         }
       />
-      {/* Target handle on the LEFT — the edge points FROM the originating
-          promise's right side INTO this card, so the line flows out of the
-          architecture column into the agent rather than cutting back across
-          the promise itself. */}
+      {/* Target handle on the LEFT — a Rule handoff edge can point from the
+          behavior column into the agent card. */}
       <Handle id="link" type="target" position={Position.Left} className="opacity-0" />
       <header className="studio-pty-card-header studio-pty-card-drag-handle">
         <div className="flex min-w-0 items-center gap-(--studio-panel-gap-sm)">

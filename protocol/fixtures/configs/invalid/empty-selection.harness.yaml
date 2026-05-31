@@ -1,0 +1,7 @@
+apiVersion: 1
+test:
+  runner:
+    command: harness-runner
+    args:
+      - run
+    selection: {}
