@@ -2,13 +2,19 @@
 
 import type { LocalizedText } from "@/lib/localized-text";
 
-export type BehaviorLifecycle = "draft" | "proposed" | "accepted" | "deprecated" | "superseded";
-export type ReviewState = "pending" | "approved" | "rejected" | "changes_requested";
+export type BehaviorState =
+  | "accepted"
+  | "changes_requested"
+  | "deprecated"
+  | "draft"
+  | "proposed"
+  | "rejected"
+  | "superseded";
 export type RunStatus = "unknown" | "passing" | "failing" | "skipped";
 export type EvidenceStatus = "passing" | "failing" | "skipped";
 export type SnapshotSource = "daemon" | "static" | "empty";
 export type ReviewLogAction =
-  | "approved"
+  | "accepted"
   | "changes_requested"
   | "deprecated"
   | "proposed"
@@ -59,8 +65,7 @@ export interface HarnessRule {
   tag: string;
   name: string;
   line: number;
-  lifecycle: BehaviorLifecycle;
-  reviewState: ReviewState;
+  state: BehaviorState;
   owner: string;
   reviewEvents: HarnessReviewEvent[];
   examples: HarnessExample[];
@@ -72,7 +77,7 @@ export interface HarnessReviewEvent {
   by: string;
   action: ReviewLogAction;
   summary: LocalizedText;
-  acknowledgementState: ReviewState;
+  note?: LocalizedText;
 }
 
 export interface HarnessExample {
@@ -94,7 +99,7 @@ export interface ReviewDraft {
   id: string;
   title: LocalizedText;
   moduleIds: string[];
-  state: ReviewState;
+  state: BehaviorState;
   reason: LocalizedText;
 }
 
@@ -108,13 +113,20 @@ export interface HarnessSnapshot {
   resultsGeneratedAt?: string;
 }
 
-const behaviorLifecycles = ["draft", "proposed", "accepted", "deprecated", "superseded"] as const;
+const behaviorStates = [
+  "accepted",
+  "changes_requested",
+  "deprecated",
+  "draft",
+  "proposed",
+  "rejected",
+  "superseded",
+] as const;
 const runStatuses = ["unknown", "passing", "failing", "skipped"] as const;
 const evidenceStatuses = ["passing", "failing", "skipped"] as const;
-const reviewStates = ["pending", "approved", "rejected", "changes_requested"] as const;
 const snapshotSources = ["daemon", "static", "empty"] as const;
 const reviewLogActions = [
-  "approved",
+  "accepted",
   "changes_requested",
   "deprecated",
   "proposed",
@@ -194,8 +206,7 @@ function isHarnessRule(value: unknown): value is HarnessRule {
     typeof value.tag === "string" &&
     typeof value.name === "string" &&
     typeof value.line === "number" &&
-    isOneOf(value.lifecycle, behaviorLifecycles) &&
-    isOneOf(value.reviewState, reviewStates) &&
+    isOneOf(value.state, behaviorStates) &&
     typeof value.owner === "string" &&
     isArrayOf(value.reviewEvents, isHarnessReviewEvent) &&
     isArrayOf(value.examples, isHarnessExample)
@@ -210,7 +221,7 @@ function isHarnessReviewEvent(value: unknown): value is HarnessReviewEvent {
     typeof value.by === "string" &&
     isOneOf(value.action, reviewLogActions) &&
     isLocalizedText(value.summary) &&
-    isOneOf(value.acknowledgementState, reviewStates)
+    optionalLocalizedText(value.note)
   );
 }
 
@@ -241,7 +252,7 @@ function isReviewDraft(value: unknown): value is ReviewDraft {
     typeof value.id === "string" &&
     isLocalizedText(value.title) &&
     isArrayOf(value.moduleIds, isString) &&
-    isOneOf(value.state, reviewStates) &&
+    isOneOf(value.state, behaviorStates) &&
     isLocalizedText(value.reason)
   );
 }
@@ -267,6 +278,10 @@ function isString(value: unknown): value is string {
 
 function optionalString(value: unknown): boolean {
   return value === undefined || typeof value === "string";
+}
+
+function optionalLocalizedText(value: unknown): boolean {
+  return value === undefined || isLocalizedText(value);
 }
 
 function isArrayOf<T>(value: unknown, guard: (item: unknown) => item is T): value is T[] {

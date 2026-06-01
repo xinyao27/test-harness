@@ -1,6 +1,6 @@
 $schema: https://json-schema.org/draft/2020-12/schema
 $id: https://test-harness.local/protocol/v1/behavior.schema.yaml
-title: Harness Behavior Lifecycle v1
+title: Harness Behavior State v1
 type: object
 additionalProperties: false
 required:
@@ -15,7 +15,7 @@ properties:
     items:
       type: object
       additionalProperties: false
-      required: [feature, rule, lifecycle, review, owner]
+      required: [feature, rule, state, owner]
       properties:
         feature:
           type: string
@@ -23,8 +23,8 @@ properties:
         rule:
           type: string
           pattern: "^@rule:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$"
-        lifecycle:
-          enum: [draft, proposed, accepted, deprecated, superseded]
+        state:
+          enum: [draft, proposed, accepted, changes_requested, rejected, deprecated, superseded]
         review:
           $ref: "#/$defs/review"
         owner:
@@ -34,10 +34,7 @@ $defs:
   review:
     type: object
     additionalProperties: false
-    required: [state]
     properties:
-      state:
-        enum: [pending, approved, changes_requested, rejected]
       by:
         type: string
         minLength: 1

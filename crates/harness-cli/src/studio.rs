@@ -3,7 +3,7 @@
 //! Every Studio operation exposed via daemon HTTP has a matching CLI subcommand
 //! here; writes route through the daemon so backup/rollback/checker run exactly
 //! once, in one place. The Cucumber rewrite keeps this surface read/run/open
-//! oriented until Feature/Rule lifecycle editing is redesigned.
+//! oriented until Feature/Rule state editing is redesigned.
 
 use std::collections::BTreeMap;
 use std::env;
@@ -375,16 +375,16 @@ fn render_snapshot_human(snapshot: &serde_json::Value, out: &mut dyn Write) {
     }
     let _ = writeln!(out);
 
-    let pending: Vec<&serde_json::Value> = snapshot
+    let reviewable: Vec<&serde_json::Value> = snapshot
         .get("reviewDrafts")
         .and_then(|value| value.as_array())
         .map(|array| array.iter().collect())
         .unwrap_or_default();
-    if pending.is_empty() {
-        let _ = writeln!(out, "Pending review: 0");
+    if reviewable.is_empty() {
+        let _ = writeln!(out, "Review queue: 0");
     } else {
-        let _ = writeln!(out, "Pending review ({}):", pending.len());
-        for draft in pending.iter().take(20) {
+        let _ = writeln!(out, "Review queue ({}):", reviewable.len());
+        for draft in reviewable.iter().take(20) {
             let id = draft
                 .get("id")
                 .and_then(|value| value.as_str())
@@ -395,8 +395,8 @@ fn render_snapshot_human(snapshot: &serde_json::Value, out: &mut dyn Write) {
                 .unwrap_or_else(|| "(no title)".to_string());
             let _ = writeln!(out, "  {id}\n       {title}");
         }
-        if pending.len() > 20 {
-            let _ = writeln!(out, "  ... and {} more", pending.len() - 20);
+        if reviewable.len() > 20 {
+            let _ = writeln!(out, "  ... and {} more", reviewable.len() - 20);
         }
     }
 }

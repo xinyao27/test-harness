@@ -52,7 +52,7 @@ Package
           Given / When / Then
 ```
 
-Cucumber owns the behavior-description layer from `Feature` down. Test Harness owns the organization, review, lifecycle, coverage, and reporting layer above and around Cucumber.
+Cucumber owns the behavior-description layer from `Feature` down. Test Harness owns the organization, review, Rule state, coverage, and reporting layer above and around Cucumber.
 
 ## Target Workspace Layout
 
@@ -82,7 +82,7 @@ bridges/
 Long-term responsibilities:
 
 - `harness-protocol` owns stable cross-language schemas, manifests, runner contracts, and normalized result types.
-- `harness-project` owns project loading, `.feature` scanning, package/module/locale manifests, lifecycle, review logs, validation, coverage, reporting snapshots, and Studio-facing project data.
+- `harness-project` owns project loading, `.feature` scanning, package/module/locale manifests, Rule state, review logs, validation, coverage, reporting snapshots, and Studio-facing project data.
 - `harness-runner` owns execution orchestration. It selects package/module/feature/rule/example/locale slices, generates Cucumber tag expressions, invokes language bridges, and merges normalized results.
 - `harness-cli` stays thin over `harness-project` and `harness-runner`.
 - `harness-daemon` stays thin over `harness-project` and `harness-runner` for Studio and local API workflows.
@@ -110,7 +110,7 @@ Rust execution should start from [`cucumber-rs`](https://cucumber-rs.github.io/c
 
 The balance for CLI design:
 
-- `harness` remains the governance CLI for `check`, `test`, `report`, lifecycle, locale, coverage, and evidence aggregation.
+- `harness` remains the governance CLI for `check`, `test`, `report`, Rule state, locale, coverage, and evidence aggregation.
 - `cucumber-rs` remains the Rust execution engine for running `.feature` examples, matching step definitions, handling tag/name/input filters, concurrency, retry, and terminal debugging output.
 - Harness should wrap, configure, or invoke cucumber-rs instead of reimplementing its terminal app.
 - Harness selection should stay in Harness terms (`package`, `module`, `feature`, `rule`, `example`, `locale`) and be rendered to Cucumber tag expressions only at the runner/bridge boundary, currently exposed as `HARNESS_CUCUMBER_TAG_EXPRESSION`.
@@ -118,13 +118,13 @@ The balance for CLI design:
 - Bridge entrypoints must apply the mapped filter before real Cucumber execution, such as cucumber-rs `World::run` or Cucumber.js `runCucumber`; a helper that only returns configuration is not sufficient evidence.
 - For machine evidence, prefer cucumber-rs writers such as JSON/JUnit or a small custom Writer that projects cucumber events into Harness result YAML.
 - For human terminal output, keep cucumber-rs terminal output available; if both human output and Harness evidence are needed, use a Tee-style writer pipeline.
-- Only add Harness-specific CLI options around execution when they express Harness concepts such as package/module/rule/locale/lifecycle slices.
+- Only add Harness-specific CLI options around execution when they express Harness concepts such as package/module/rule/locale/Rule state slices.
 
 Harness should add only the missing governance layer:
 
 - package and module manifests
 - stable feature/rule tag taxonomy
-- lifecycle and human review records
+- Rule state and human review records
 - review-log drift protection
 - behavior coverage across declared, described, automated, executed, and passing behavior
 - aggregation from Example results to Rule, Feature, Module, and Package
@@ -166,10 +166,10 @@ Localized feature files may repeat the same `@feature`, `@rule`, and `@example` 
 
 Before implementation starts, lock these small protocol rules:
 
-- lifecycle values: `draft`, `proposed`, `accepted`, `deprecated`, `superseded`
-- review states: `pending`, `approved`, `changes_requested`, `rejected`
-- run status stays separate from lifecycle: `accepted` and `failing` is valid
-- `.feature` behavior is an implementation gate: agents must not write step definitions, executable tests, or implementation logic until every touched Rule in the `.feature` is human-approved as `accepted` with review state `approved`
+- Rule state values: `draft`, `proposed`, `accepted`, `changes_requested`, `rejected`, `deprecated`, `superseded`
+- no duplicate state vocabulary: do not store `approved` or `pending`; human approval maps to `accepted`, and reviewable behavior is `proposed` or `changes_requested`
+- run status stays separate from Rule state: `accepted` and `failing` is valid
+- `.feature` behavior is an implementation gate: agents must not write step definitions, executable tests, or implementation logic until every touched Rule in the `.feature` is human-accepted as `accepted`
 - feature tags use `@feature:<stable-id>`
 - rule tags use `@rule:<stable-id>`
 - example tags use `@example:<stable-id>`
@@ -179,7 +179,7 @@ Before implementation starts, lock these small protocol rules:
 - `tests/harness.locales.yaml` stores `sourceLocale`, `requiredLocales`, and `executionLocale`
 - natural-language titles and step body text can differ across locales, while Gherkin keywords stay English and Feature/Rule/Example tag sets stay equivalent
 - Harness-owned YAML artifacts use `LocalizedText` for natural-language fields: a string means default English, and a language map such as `{ en, zh-CN }` carries translations
-- YAML machine fields such as ids, tags, package/module references, lifecycle values, review states, and result identifiers are never localized
+- YAML machine fields such as ids, tags, package/module references, Rule state values, and result identifiers are never localized
 
 Result records should include:
 
@@ -203,7 +203,7 @@ Result records should include:
 3. every reviewed Rule has a stable `@rule:*` tag
 4. manifest-declared features exist in `.feature` files
 5. `.feature` files do not introduce orphan package/module/feature tags
-6. lifecycle state is stored outside `.feature` files
+6. Rule state is stored outside `.feature` files
 7. accepted Rule changes require review-log coverage
 8. localized `.feature` files for the same Feature have matching Rule and Example tags
 9. required locales exist according to `tests/harness.locales.yaml`
@@ -221,7 +221,7 @@ Result records should include:
 `harness report` / `harness verify` should show:
 
 - package/module/feature hierarchy
-- Rule lifecycle and run status
+- Rule state and run status
 - Example execution status
 - undefined or pending steps
 - behavior coverage
@@ -248,7 +248,7 @@ Replace the old protocol schemas with the new canonical artifacts:
 - package manifest schema
 - module manifest schema
 - locale manifest schema
-- behavior lifecycle schema
+- behavior state schema
 - review-log event schema
 - Cucumber result schema
 - report schema
@@ -264,7 +264,7 @@ Replace `promise_registry` and old `module_registry` loading with:
 - locale registry
 - feature file scanner backed by the Rust `gherkin` crate
 - tag index
-- behavior lifecycle registry
+- behavior state registry
 - review-log loader
 
 The registry output should be a single project model shaped around `Package -> Module -> Feature -> Rule -> Example`.
@@ -273,7 +273,7 @@ The registry output should be a single project model shaped around `Package -> M
 
 Build `harness check` before the new UI.
 
-The first useful milestone is a command that can reject invalid organization and lifecycle state without running tests.
+The first useful milestone is a command that can reject invalid organization and Rule state without running tests.
 
 ### Phase 4: Harness Runner And Cucumber Bridges
 
@@ -331,7 +331,7 @@ Coverage should include:
 Rewrite this repository's own Harness artifacts into the new model:
 
 - start with one minimal self-feature that proves the new check/test/report loop
-- convert old self-promises into `.feature` files and Rule lifecycle records
+- convert old self-promises into `.feature` files and Rule state records
 - add localized `.feature` files for required review languages
 - replace old modules with new module manifests
 - convert manifest titles and descriptions to `LocalizedText`
@@ -351,11 +351,11 @@ The skill must teach Agents to:
 - write localized `.feature` files with matching stable tags and `@locale`
 - assign stable `@example` tags instead of using translated Example titles as identity
 - draft Rules as `draft` or `proposed`
-- mark Rules `accepted` only after explicit human approval
-- treat `.feature` approval as a hard gate before writing step definitions, executable tests, or implementation logic
+- mark Rules `accepted` only after explicit human acceptance
+- treat `.feature` acceptance as a hard gate before writing step definitions, executable tests, or implementation logic
 - append review-log events for accepted behavior changes
 - write real step definitions and avoid placeholder assertions
-- report lifecycle, run status, undefined steps, and behavior coverage
+- report Rule state, run status, undefined steps, and behavior coverage
 
 ### Phase 8: Studio Rewrite
 
@@ -382,7 +382,7 @@ The rewrite is done when:
 4. `harness check` validates package/module/feature/rule consistency
 5. `harness test` runs Cucumber and writes new result YAML
 6. `harness report --summary` shows behavior status by Package, Module, Feature, and Rule
-7. accepted Rule drift is detected through lifecycle/review-log checks
+7. accepted Rule drift is detected through Rule state and review-log checks
 8. localized `.feature` files can be checked for required locale coverage and structural parity
 9. the new Agent skill can drive a feature change end to end
 

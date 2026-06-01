@@ -15,7 +15,7 @@ properties:
     items:
       type: object
       additionalProperties: false
-      required: [id, at, by, action, summary, affectedRules, acknowledgement]
+      required: [id, at, by, action, summary, affectedRules]
       properties:
         id:
           type: string
@@ -27,7 +27,7 @@ properties:
           type: string
           minLength: 1
         action:
-          enum: [proposed, approved, changes_requested, rejected, deprecated, superseded]
+          enum: [proposed, accepted, changes_requested, rejected, deprecated, superseded]
         summary:
           $ref: "#/$defs/localizedText"
         affectedRules:
@@ -36,21 +36,8 @@ properties:
           items:
             type: string
             pattern: "^@rule:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$"
-        acknowledgement:
-          type: object
-          additionalProperties: false
-          required: [state]
-          properties:
-            state:
-              enum: [pending, approved, changes_requested, rejected]
-            by:
-              type: string
-              minLength: 1
-            at:
-              type: string
-              minLength: 1
-            note:
-              $ref: "#/$defs/localizedText"
+        note:
+          $ref: "#/$defs/localizedText"
 $defs:
   localizedText:
     anyOf:

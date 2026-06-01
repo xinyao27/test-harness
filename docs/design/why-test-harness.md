@@ -13,6 +13,12 @@ Test Harness should move review earlier and higher. Before implementation, a fea
 
 The point is not just to run more tests. The point is to let humans review the behavior model, while the Harness maps test evidence back to the feature behavior.
 
+## Terms
+
+- [BDD](https://cucumber.io/docs/bdd/) is a development practice that describes expected behavior in examples humans and implementation teams can review together.
+- [Cucumber](https://cucumber.io/docs/guides/overview/) is a tool family for running executable behavior specifications written in plain-language examples.
+- [Gherkin](https://cucumber.io/docs/gherkin/reference/) is the structured language Cucumber uses to write `Feature`, `Rule`, `Example`, `Given`, `When`, and `Then` behavior files.
+
 ## Organization Model
 
 For a large product like WeChat, code may be split across frontend, backend, mobile, and infrastructure packages. Test Harness can keep Cucumber's native structure below `Feature`, while adding a lightweight organization layer above it:
@@ -79,7 +85,7 @@ modules:
           zh-CN: 语音分片合并
 ```
 
-Harness-owned YAML files also support multiple languages, but they do not need one file per locale. Natural-language fields use `LocalizedText`: either a plain string treated as default English, or a language map such as `{ en, zh-CN }`. Stable machine fields such as `id`, `tag`, `package`, `module`, `lifecycle`, `review.state`, and result identifiers are never localized.
+Harness-owned YAML files also support multiple languages, but they do not need one file per locale. Natural-language fields use `LocalizedText`: either a plain string treated as default English, or a language map such as `{ en, zh-CN }`. Stable machine fields such as `id`, `tag`, `package`, `module`, `state`, and result identifiers are never localized.
 
 Then a Cucumber feature file can carry the same identity through tags:
 
@@ -143,7 +149,7 @@ The natural-language title and step body text can be translated. Gherkin structu
 - `@package`, `@module`, `@feature`, `@rule`, and `@example` are stable machine identity.
 - `@locale:<code>` tells Harness which localized description file is being read.
 - `Feature`, `Rule`, `Example`, `Given`, `When`, `Then`, `And`, and `But` remain English even in localized files.
-- Harness YAML text fields use `LocalizedText` maps, while YAML ids, tags, lifecycle, review state, and evidence identifiers remain language-neutral.
+- Harness YAML text fields use `LocalizedText` maps, while YAML ids, tags, Rule state values, and evidence identifiers remain language-neutral.
 - Example result identity is `featureTag + ruleTag + exampleTag`; file path, line number, and locale are metadata.
 - Locale configuration lives in a Harness-owned file such as `tests/harness.locales.yaml`, with `sourceLocale`, `requiredLocales`, and `executionLocale`.
 - `harness check` should verify that all required locales have the same Feature, Rule, Example, and step-shape structure.
@@ -182,23 +188,22 @@ If a step has no matching definition, the example is undefined. If a step defini
 
 For Harness-owned behavior, the executable proof should start from the matching Cucumber Example. Other tools can be used inside step definitions, but they should not become a separate test layer that proves Harness behavior without a `.feature` file.
 
-## Human Lifecycle
+## Human Rule State
 
-Lifecycle is human governance, not test status. A rule can be `accepted` and currently failing, or `draft` and already passing. The `.feature` file describes behavior; Test Harness stores review state and history in protocol files.
+Rule state is human governance, not test status. A rule can be `accepted` and currently failing, or `draft` and already passing. The `.feature` file describes behavior; Test Harness stores Rule state and review history in protocol files.
 
 ```yaml
 # harness.behavior.yaml
 apiVersion: 1
 rules:
-  - tag: "@rule:voice-message.progressive-upload"
-    feature: "@feature:voice-message.send"
-    lifecycle: accepted
-    priority: high
-    reviewed:
-      state: approved
+  - feature: "@feature:voice-message.send"
+    rule: "@rule:voice-message.progressive-upload"
+    state: accepted
+    review:
       by: xinyao
       at: "2026-05-30"
-      ref: "pr-42"
+      note: "Accepted progressive chunk transfer as a key part of instant voice-message sending."
+    owner: chat-composer
 ```
 
 ```yaml
@@ -217,15 +222,15 @@ events:
 
 The loop also needs a Harness-aware Agent skill. Its job is to teach Agents how to create and change Harness files without breaking the behavior model.
 
-When a new request arrives, the Agent should first update behavior artifacts and wait for human approval, then implementation:
+When a new request arrives, the Agent should first update behavior artifacts and wait for human acceptance, then implementation:
 
 ```text
 user request
   -> choose or create package/module
   -> draft Feature / Rule / Example
   -> update manifests and stable tags
-  -> write lifecycle and review-log entries
-  -> human reviews and approves the touched .feature behavior
+  -> write Rule state and review-log entries
+  -> human reviews and accepts the touched .feature behavior
   -> write step definitions with real assertions
   -> implement code
   -> run Cucumber and report behavior coverage
@@ -234,15 +239,15 @@ user request
 The skill should enforce a few rules:
 
 - Agents can create `draft` or `proposed` rules.
-- Agents can mark rules `accepted` only when the human explicitly approves them.
-- Agents must not write step definitions, executable tests, or implementation logic for a `.feature` until every touched Rule in that `.feature` is `accepted` and `approved`, or explicitly approved in the current review surface.
+- Agents can mark rules `accepted` only when the human explicitly accepts them.
+- Agents must not write step definitions, executable tests, or implementation logic for a `.feature` until every touched Rule in that `.feature` is `accepted`, or explicitly accepted in the current review surface.
 - Accepted rules cannot be weakened, moved, deprecated, or deleted without a review-log event.
 - Every Feature, Rule, and Example needs a stable tag such as `@feature:voice-message.send`, `@rule:voice-message.progressive-upload`, or `@example:chunks-upload-before-release`.
 - Localized `.feature` files reuse the same stable tags and differ only by `@locale` and human-readable names or step body text.
 - Gherkin structural keywords remain English across locales so parsing and review shape do not depend on dialect switching.
 - Harness-owned YAML manifests store translatable labels as `LocalizedText`, not as duplicated per-locale manifest files.
 - Every `Then` step should observe real system behavior, not pass with placeholder assertions.
-- Final output should summarize behavior changes, lifecycle state, run status, undefined steps, and items needing human review.
+- Final output should summarize behavior changes, Rule state, run status, undefined steps, and items needing human review.
 
 ## Closure Pieces
 
@@ -251,7 +256,7 @@ These capabilities turn a collection of BDD files into a Test Harness:
 1. Manifest and tag consistency checks between packages, modules, features, and `.feature` files.
 2. Stable Rule identity through tags such as `@rule:voice-message.progressive-upload`.
 3. Result aggregation from Cucumber examples up to Rule, Feature, Module, and Package.
-4. Lifecycle and review-log protection for accepted behavior changes.
+4. Rule state and review-log protection for accepted behavior changes.
 5. Behavior coverage reports: declared features, described rules, automated examples, executed examples, and passing behavior.
 6. Locale parity checks so English and Chinese descriptions stay equivalent instead of drifting into different behavior.
 7. Localized YAML metadata for packages, modules, features, and human-facing review notes.

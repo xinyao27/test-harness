@@ -18,7 +18,7 @@
   "settings_filesystem_label": "Filesystem",
   "settings_filesystem_value": "Daemon only",
   "settings_no_filesystem": "Harness Studio 不直接读写文件系统。",
-  "settings_daemon_boundary": "本机权限动作会交给 Harness Daemon，例如 approve、reject、generate 和 test。",
+  "settings_daemon_boundary": "本机权限动作会交给 Harness Daemon，例如 accept、reject、generate 和 test。",
   "settings_language_title": "语言",
   "settings_language_description": "选择 Harness Studio 的界面语言。",
   "settings_theme_title": "外观",

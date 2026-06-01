@@ -21,7 +21,7 @@ features/implementations/rust-axum/todo-api.zh-CN.feature
 @example:create-list-patch-clear
 ```
 
-英文和中文描述是给人 review 的文本。tags 才是 Harness 用来连接 Package、Module、Feature、Rule、Example、lifecycle 和执行证据的稳定身份。
+英文和中文描述是给人 review 的文本。tags 才是 Harness 用来连接 Package、Module、Feature、Rule、Example、Rule state 和执行证据的稳定身份。
 
 ## 运行 Cucumber 示例
 
@@ -49,7 +49,7 @@ tests/harness.behavior.yaml
 tests/harness.review-log.yaml
 ```
 
-这些文件描述 example 的 review 语言、package/module 归属、rule lifecycle 和 review 历史。它们故意和 `.feature` 文件分开，避免把人的 lifecycle 状态塞进 Cucumber 语法里。
+这些文件描述 example 的 review 语言、package/module 归属、Rule state 和 review 历史。它们故意和 `.feature` 文件分开，避免把人的 Rule state 塞进 Cucumber 语法里。
 
 ## 当前重写边界
 

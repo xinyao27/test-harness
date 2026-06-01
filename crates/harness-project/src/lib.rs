@@ -41,7 +41,7 @@ pub use validation::{
 };
 
 pub use harness_protocol::{
-    BehaviorFile, BehaviorLifecycle, BehaviorRuleRecord, ExampleResult, ExampleStatus,
-    HarnessConfig, LocalesFile, LocalizedText, ModuleRecord, PackageRecord, ProtocolVersion,
-    ResultsFile, ReviewLogFile, ReviewState, StepResult, ValidationIssue, ValidationSeverity,
+    BehaviorFile, BehaviorRuleRecord, BehaviorState, ExampleResult, ExampleStatus, HarnessConfig,
+    LocalesFile, LocalizedText, ModuleRecord, PackageRecord, ProtocolVersion, ResultsFile,
+    ReviewLogFile, StepResult, ValidationIssue, ValidationSeverity,
 };

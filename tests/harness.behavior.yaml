@@ -2,211 +2,257 @@ apiVersion: 1
 rules:
   - feature: "@feature:harness.feature-registry.scan-cucumber-features"
     rule: "@rule:harness.feature-registry.hierarchy-tags"
-    lifecycle: proposed
-    review:
-      state: pending
+    state: proposed
     owner: feature-registry
   - feature: "@feature:harness.feature-registry.multilingual-tag-constraints"
     rule: "@rule:harness.feature-registry.locale-and-example-tags"
-    lifecycle: proposed
-    review:
-      state: pending
+    state: proposed
     owner: feature-registry
   - feature: "@feature:harness.feature-registry.multilingual-tag-constraints"
     rule: "@rule:harness.feature-registry.localized-tags-share-identity"
-    lifecycle: proposed
-    review:
-      state: pending
+    state: proposed
     owner: feature-registry
   - feature: "@feature:harness.feature-registry.multilingual-tag-constraints"
     rule: "@rule:harness.feature-registry.localized-structure-parity"
-    lifecycle: proposed
-    review:
-      state: pending
+    state: proposed
     owner: feature-registry
   - feature: "@feature:harness.feature-registry.multilingual-tag-constraints"
     rule: "@rule:harness.feature-registry.english-gherkin-keywords"
-    lifecycle: proposed
-    review:
-      state: pending
+    state: proposed
     owner: feature-registry
   - feature: "@feature:harness.project-model.hierarchy"
-    rule: "@rule:harness.project-model.package-module-feature-rule-example"
-    lifecycle: proposed
-    review:
-      state: pending
+    rule: "@rule:harness.project-model.package-is-code-boundary"
+    state: proposed
     owner: project-model
   - feature: "@feature:harness.project-model.hierarchy"
-    rule: "@rule:harness.project-model.manifest-tags-match-feature-files"
-    lifecycle: proposed
-    review:
-      state: pending
+    rule: "@rule:harness.project-model.module-is-reviewable-capability-boundary"
+    state: proposed
     owner: project-model
   - feature: "@feature:harness.project-model.hierarchy"
-    rule: "@rule:harness.project-model.tags-are-language-neutral"
-    lifecycle: proposed
-    review:
-      state: pending
+    rule: "@rule:harness.project-model.module-contains-features"
+    state: proposed
     owner: project-model
-  - feature: "@feature:harness.lifecycle.reviewed-rules"
-    rule: "@rule:harness.lifecycle.stored-outside-feature-files"
-    lifecycle: proposed
-    review:
-      state: pending
-    owner: behavior-lifecycle
-  - feature: "@feature:harness.lifecycle.reviewed-rules"
-    rule: "@rule:harness.lifecycle.acceptance-requires-human-review"
-    lifecycle: proposed
-    review:
-      state: pending
-    owner: behavior-lifecycle
-  - feature: "@feature:harness.lifecycle.reviewed-rules"
-    rule: "@rule:harness.lifecycle.accepted-change-appends-review-log"
-    lifecycle: proposed
-    review:
-      state: pending
-    owner: behavior-lifecycle
+  - feature: "@feature:harness.project-model.hierarchy"
+    rule: "@rule:harness.project-model.feature-is-cucumber-gherkin-behavior"
+    state: proposed
+    owner: project-model
+  - feature: "@feature:harness.state.reviewed-rules"
+    rule: "@rule:harness.state.stored-outside-feature-files"
+    state: proposed
+    owner: behavior-state
+  - feature: "@feature:harness.state.reviewed-rules"
+    rule: "@rule:harness.state.acceptance-requires-human-review"
+    state: proposed
+    owner: behavior-state
+  - feature: "@feature:harness.state.reviewed-rules"
+    rule: "@rule:harness.state.accepted-change-appends-review-log"
+    state: proposed
+    owner: behavior-state
   - feature: "@feature:harness.results.cucumber-example-results"
     rule: "@rule:harness.results.identity-without-promise-id"
-    lifecycle: proposed
-    review:
-      state: pending
+    state: proposed
     owner: cucumber-results
   - feature: "@feature:harness.results.cucumber-example-results"
     rule: "@rule:harness.results.step-status-summary"
-    lifecycle: proposed
-    review:
-      state: pending
+    state: proposed
     owner: cucumber-results
   - feature: "@feature:harness.results.cucumber-example-results"
     rule: "@rule:harness.results.aggregate-through-hierarchy"
-    lifecycle: proposed
-    review:
-      state: pending
+    state: proposed
     owner: cucumber-results
+  - feature: "@feature:harness.project-orchestration.check-and-report"
+    rule: "@rule:harness.project-orchestration.loads-canonical-artifacts"
+    state: proposed
+    owner: project-orchestration
+  - feature: "@feature:harness.project-orchestration.check-and-report"
+    rule: "@rule:harness.project-orchestration.composes-validation-issues"
+    state: proposed
+    owner: project-orchestration
+  - feature: "@feature:harness.project-orchestration.check-and-report"
+    rule: "@rule:harness.project-orchestration.report-uses-check-model"
+    state: proposed
+    owner: project-orchestration
+  - feature: "@feature:harness.protocol.v1-artifact-contracts"
+    rule: "@rule:harness.protocol.api-version-one"
+    state: proposed
+    owner: protocol-contract
+  - feature: "@feature:harness.protocol.v1-artifact-contracts"
+    rule: "@rule:harness.protocol.localized-text-shape"
+    state: proposed
+    owner: protocol-contract
+  - feature: "@feature:harness.protocol.v1-artifact-contracts"
+    rule: "@rule:harness.protocol.strict-artifact-fields"
+    state: proposed
+    owner: protocol-contract
+  - feature: "@feature:harness.protocol.v1-artifact-contracts"
+    rule: "@rule:harness.protocol.cucumber-result-identity"
+    state: proposed
+    owner: protocol-contract
   - feature: "@feature:harness.runner.cucumber-filtering"
     rule: "@rule:harness.runner.filter-fields-to-tag-expression"
-    lifecycle: proposed
-    review:
-      state: pending
+    state: proposed
     owner: cucumber-filtering
   - feature: "@feature:harness.runner.cucumber-filtering"
     rule: "@rule:harness.runner.filter-expression-reaches-bridge-command"
-    lifecycle: proposed
-    review:
-      state: pending
+    state: proposed
     owner: cucumber-filtering
   - feature: "@feature:harness.results.rust-cucumber-bridge"
     rule: "@rule:harness.results.cucumber-rs-records-example-events"
-    lifecycle: proposed
-    review:
-      state: pending
+    state: proposed
     owner: rust-cucumber-bridge
   - feature: "@feature:harness.results.rust-cucumber-bridge"
     rule: "@rule:harness.results.runner-run-merges-cucumber-rs-evidence"
-    lifecycle: proposed
-    review:
-      state: pending
+    state: proposed
     owner: rust-cucumber-bridge
   - feature: "@feature:harness.results.rust-cucumber-bridge"
     rule: "@rule:harness.results.cucumber-rs-uses-harness-filter"
-    lifecycle: proposed
-    review:
-      state: pending
+    state: proposed
     owner: rust-cucumber-bridge
   - feature: "@feature:harness.results.typescript-cucumber-bridge"
     rule: "@rule:harness.results.cucumber-js-records-example-results"
-    lifecycle: proposed
-    review:
-      state: pending
+    state: proposed
     owner: typescript-cucumber-bridge
   - feature: "@feature:harness.results.typescript-cucumber-bridge"
     rule: "@rule:harness.results.cucumber-js-uses-harness-filter"
-    lifecycle: proposed
-    review:
-      state: pending
+    state: proposed
     owner: typescript-cucumber-bridge
   - feature: "@feature:harness.cli.cucumber-test-execution"
     rule: "@rule:harness.cli.test-selects-cucumber-identity"
-    lifecycle: proposed
-    review:
-      state: pending
+    state: proposed
     owner: cli-runner
   - feature: "@feature:harness.cli.cucumber-test-execution"
     rule: "@rule:harness.cli.test-collects-cucumber-evidence"
-    lifecycle: proposed
-    review:
-      state: pending
+    state: proposed
+    owner: cli-runner
+  - feature: "@feature:harness.cli.project-commands"
+    rule: "@rule:harness.cli.check-validates-project-model"
+    state: proposed
+    owner: cli-runner
+  - feature: "@feature:harness.cli.project-commands"
+    rule: "@rule:harness.cli.report-renders-behavior-model"
+    state: proposed
+    owner: cli-runner
+  - feature: "@feature:harness.cli.project-commands"
+    rule: "@rule:harness.cli.verify-aliases-report"
+    state: proposed
+    owner: cli-runner
+  - feature: "@feature:harness.cli.project-commands"
+    rule: "@rule:harness.cli.invalid-commands-show-usage"
+    state: proposed
     owner: cli-runner
   - feature: "@feature:harness.studio.review-workflow"
-    rule: "@rule:harness.studio.review-action-updates-lifecycle"
-    lifecycle: proposed
-    review:
-      state: pending
+    rule: "@rule:harness.studio.review-action-updates-rule-state"
+    state: proposed
     owner: daemon-studio-api
   - feature: "@feature:harness.studio.review-workflow"
     rule: "@rule:harness.studio.review-action-appends-history"
-    lifecycle: proposed
-    review:
-      state: pending
+    state: proposed
+    owner: daemon-studio-api
+  - feature: "@feature:harness.studio.snapshot-api"
+    rule: "@rule:harness.studio.snapshot-projects-check-model"
+    state: proposed
+    owner: daemon-studio-api
+  - feature: "@feature:harness.studio.snapshot-api"
+    rule: "@rule:harness.studio.snapshot-review-queue"
+    state: proposed
+    owner: daemon-studio-api
+  - feature: "@feature:harness.studio.snapshot-api"
+    rule: "@rule:harness.studio.snapshot-empty-project"
+    state: proposed
     owner: daemon-studio-api
   - feature: "@feature:harness.studio.review-workbench"
     rule: "@rule:harness.studio.review-actions-are-visible"
-    lifecycle: proposed
-    review:
-      state: pending
+    state: proposed
     owner: studio-web
   - feature: "@feature:harness.studio.review-workbench"
     rule: "@rule:harness.studio.review-history-is-visible"
-    lifecycle: proposed
-    review:
-      state: pending
+    state: proposed
     owner: studio-web
+  - feature: "@feature:harness.studio.behavior-workbench"
+    rule: "@rule:harness.studio.workbench-loads-project-snapshot"
+    state: proposed
+    owner: studio-web
+  - feature: "@feature:harness.studio.behavior-workbench"
+    rule: "@rule:harness.studio.workbench-prefers-current-locale"
+    state: proposed
+    owner: studio-web
+  - feature: "@feature:harness.studio.behavior-workbench"
+    rule: "@rule:harness.studio.workbench-opens-feature-files"
+    state: proposed
+    owner: studio-web
+  - feature: "@feature:harness.studio.behavior-workbench"
+    rule: "@rule:harness.studio.workbench-runs-tests-and-refreshes"
+    state: proposed
+    owner: studio-web
+  - feature: "@feature:harness.i18n.catalog-generation"
+    rule: "@rule:harness.i18n.supported-locales-are-explicit"
+    state: proposed
+    owner: i18n-catalog
+  - feature: "@feature:harness.i18n.catalog-generation"
+    rule: "@rule:harness.i18n.paraglide-config-is-canonical"
+    state: proposed
+    owner: i18n-catalog
+  - feature: "@feature:harness.i18n.catalog-generation"
+    rule: "@rule:harness.i18n.package-exports-runtime-and-messages"
+    state: proposed
+    owner: i18n-catalog
   - feature: "@feature:harness.report.behavior-coverage"
     rule: "@rule:harness.report.shows-package-module-feature-rule-example"
-    lifecycle: proposed
-    review:
-      state: pending
+    state: proposed
     owner: behavior-report
   - feature: "@feature:harness.report.behavior-coverage"
-    rule: "@rule:harness.report.separates-lifecycle-from-run-status"
-    lifecycle: proposed
-    review:
-      state: pending
+    rule: "@rule:harness.report.separates-rule-state-from-run-status"
+    state: proposed
     owner: behavior-report
   - feature: "@feature:harness.report.behavior-coverage"
     rule: "@rule:harness.report.highlights-coverage-gaps"
-    lifecycle: proposed
-    review:
-      state: pending
+    state: proposed
     owner: behavior-report
   - feature: "@feature:harness.agent-skill.author-bdd-harness"
     rule: "@rule:harness.agent-skill.behavior-before-code"
-    lifecycle: proposed
-    review:
-      state: pending
+    state: proposed
+    owner: agent-authoring
+  - feature: "@feature:harness.agent-skill.author-bdd-harness"
+    rule: "@rule:harness.agent-skill.interactive-feature-review"
+    state: proposed
+    owner: agent-authoring
+  - feature: "@feature:harness.agent-skill.author-bdd-harness"
+    rule: "@rule:harness.agent-skill.feature-intake-modes"
+    state: proposed
+    owner: agent-authoring
+  - feature: "@feature:harness.agent-skill.author-bdd-harness"
+    rule: "@rule:harness.agent-skill.background-captures-feature-purpose"
+    state: proposed
     owner: agent-authoring
   - feature: "@feature:harness.agent-skill.author-bdd-harness"
     rule: "@rule:harness.agent-skill.no-promise-workflow"
-    lifecycle: proposed
-    review:
-      state: pending
+    state: proposed
     owner: agent-authoring
   - feature: "@feature:harness.agent-skill.author-bdd-harness"
     rule: "@rule:harness.agent-skill.language-bridges-not-framework-adapters"
-    lifecycle: proposed
-    review:
-      state: pending
+    state: proposed
     owner: agent-authoring
   - feature: "@feature:harness.agent-skill.author-bdd-harness"
     rule: "@rule:harness.agent-skill.cucumber-examples-are-test-entrypoints"
-    lifecycle: proposed
-    review:
-      state: pending
+    state: proposed
     owner: agent-authoring
   - feature: "@feature:harness.agent-skill.author-bdd-harness"
     rule: "@rule:harness.agent-skill.handoff-at-behavior-level"
-    lifecycle: proposed
-    review:
-      state: pending
+    state: proposed
     owner: agent-authoring
+  - feature: "@feature:harness.studio-theme.skill-guidance"
+    rule: "@rule:harness.studio-theme.source-of-truth-files"
+    state: proposed
+    owner: studio-theme-skill
+  - feature: "@feature:harness.studio-theme.skill-guidance"
+    rule: "@rule:harness.studio-theme.semantic-token-styling"
+    state: proposed
+    owner: studio-theme-skill
+  - feature: "@feature:harness.studio-theme.skill-guidance"
+    rule: "@rule:harness.studio-theme.style-only-stays-style-only"
+    state: proposed
+    owner: studio-theme-skill
+  - feature: "@feature:harness.studio-theme.skill-guidance"
+    rule: "@rule:harness.studio-theme.verifies-theme-dimensions"
+    state: proposed
+    owner: studio-theme-skill

@@ -52,7 +52,7 @@ Package
           Given / When / Then
 ```
 
-Cucumber 负责 `Feature` 以下的行为描述层。Test Harness 负责 Cucumber 之上和周围的组织、review、lifecycle、coverage 和 reporting。
+Cucumber 负责 `Feature` 以下的行为描述层。Test Harness 负责 Cucumber 之上和周围的组织、review、Rule state、coverage 和 reporting。
 
 ## 目标 Workspace 结构
 
@@ -82,7 +82,7 @@ bridges/
 长期职责：
 
 - `harness-protocol` 负责稳定的跨语言 schemas、manifests、runner contracts 和归一化 result types。
-- `harness-project` 负责 project loading、`.feature` scanning、package/module/locale manifests、lifecycle、review logs、validation、coverage、reporting snapshots，以及 Studio 需要的 project data。
+- `harness-project` 负责 project loading、`.feature` scanning、package/module/locale manifests、Rule state、review logs、validation、coverage、reporting snapshots，以及 Studio 需要的 project data。
 - `harness-runner` 负责执行编排。它选择 package/module/feature/rule/example/locale slices，生成 Cucumber tag expressions，调用 language bridges，并合并归一化结果。
 - `harness-cli` 保持为 `harness-project` 和 `harness-runner` 之上的薄命令行入口。
 - `harness-daemon` 保持为 Studio 和本地 API workflow 之上的薄服务层。
@@ -110,7 +110,7 @@ Rust 执行层应该从 [`cucumber-rs`](https://cucumber-rs.github.io/cucumber/c
 
 CLI 设计上的平衡点：
 
-- `harness` 保持为治理 CLI，负责 `check`、`test`、`report`、lifecycle、locale、coverage 和 evidence aggregation。
+- `harness` 保持为治理 CLI，负责 `check`、`test`、`report`、Rule state、locale、coverage 和 evidence aggregation。
 - `cucumber-rs` 保持为 Rust 执行引擎，负责运行 `.feature` examples、匹配 step definitions、处理 tag/name/input filters、concurrency、retry 和 terminal debugging output。
 - Harness 应该 wrap、配置或调用 cucumber-rs，而不是重写它的 terminal app。
 - Harness selection 要保持为 Harness 概念（`package`、`module`、`feature`、`rule`、`example`、`locale`），只在 runner/bridge 边界渲染成 Cucumber tag expression，目前通过 `HARNESS_CUCUMBER_TAG_EXPRESSION` 暴露。
@@ -118,13 +118,13 @@ CLI 设计上的平衡点：
 - Bridge entrypoint 必须在真实 Cucumber execution 前应用映射后的 filter，例如 cucumber-rs `World::run` 或 Cucumber.js `runCucumber`；只返回配置的 helper 不能算充分证据。
 - 机器证据优先使用 cucumber-rs 的 JSON/JUnit writer，或者写一个很小的 custom Writer，把 cucumber events 投影成 Harness result YAML。
 - 人类 terminal output 应保留 cucumber-rs 的输出；如果同时需要人类输出和 Harness evidence，使用 Tee 风格 writer pipeline。
-- 只有当 CLI 参数表达 package/module/rule/locale/lifecycle 这类 Harness 概念时，才在执行层上增加 Harness-specific options。
+- 只有当 CLI 参数表达 package/module/rule/locale/Rule state 这类 Harness 概念时，才在执行层上增加 Harness-specific options。
 
 Harness 只补 Cucumber 缺少的治理层：
 
 - package 和 module manifests
 - 稳定 feature/rule tag taxonomy
-- lifecycle 和 human review records
+- Rule state 和 human review records
 - review-log drift protection
 - behavior coverage：declared、described、automated、executed、passing
 - 从 Example results 汇总到 Rule、Feature、Module 和 Package
@@ -166,10 +166,10 @@ Feature: 发送语音条
 
 实现开始前，先锁定这些小的 protocol 规则：
 
-- lifecycle values：`draft`、`proposed`、`accepted`、`deprecated`、`superseded`
-- review states：`pending`、`approved`、`changes_requested`、`rejected`
-- run status 和 lifecycle 分离：`accepted` 且 `failing` 是合法状态
-- `.feature` 行为是实现门禁：在 `.feature` 中所有被触及的 Rule 都经过人类 approve，变成 `accepted` 且 review state 为 `approved` 之前，Agent 不能写 step definitions、可执行测试或实现逻辑
+- Rule state values：`draft`、`proposed`、`accepted`、`changes_requested`、`rejected`、`deprecated`、`superseded`
+- 不保存重复状态词：不要把 `approved` 或 `pending` 存成状态；人类批准对应 `accepted`，等待 review 的行为是 `proposed` 或 `changes_requested`
+- run status 和 Rule state 分离：`accepted` 且 `failing` 是合法状态
+- `.feature` 行为是实现门禁：在 `.feature` 中所有被触及的 Rule 都经过人类 accept，变成 `accepted` 之前，Agent 不能写 step definitions、可执行测试或实现逻辑
 - feature tags 使用 `@feature:<stable-id>`
 - rule tags 使用 `@rule:<stable-id>`
 - example tags 使用 `@example:<stable-id>`
@@ -179,7 +179,7 @@ Feature: 发送语音条
 - `tests/harness.locales.yaml` 保存 `sourceLocale`、`requiredLocales` 和 `executionLocale`
 - 自然语言标题和 step body text 可以因语言不同而变化，但 Gherkin 关键词保持英文，Feature/Rule/Example tag 集合保持等价
 - Harness 自己定义的 YAML artifacts 用 `LocalizedText` 表达自然语言字段：字符串代表默认英文，`{ en, zh-CN }` 这样的语言 map 用来承载翻译
-- YAML 机器字段，例如 ids、tags、package/module references、lifecycle values、review states 和 result identifiers，永不本地化
+- YAML 机器字段，例如 ids、tags、package/module references、Rule state values 和 result identifiers，永不本地化
 
 Result records 应该包含：
 
@@ -203,7 +203,7 @@ Result records 应该包含：
 3. 每个被 review 的 Rule 都有稳定 `@rule:*` tag
 4. manifest 声明的 features 在 `.feature` 文件中真实存在
 5. `.feature` 文件不会引入孤儿 package/module/feature tags
-6. lifecycle state 存在 `.feature` 文件之外
+6. Rule state 存在 `.feature` 文件之外
 7. accepted Rule 的变更有 review-log 覆盖
 8. 同一 Feature 的多语言 `.feature` 文件拥有匹配的 Rule 和 Example tags
 9. 按照 `tests/harness.locales.yaml` 校验 required locales 是否齐全
@@ -221,7 +221,7 @@ Result records 应该包含：
 `harness report` / `harness verify` 应该展示：
 
 - package/module/feature hierarchy
-- Rule lifecycle 和 run status
+- Rule state 和 run status
 - Example execution status
 - undefined 或 pending steps
 - behavior coverage
@@ -248,7 +248,7 @@ Result records 应该包含：
 - package manifest schema
 - module manifest schema
 - locale manifest schema
-- behavior lifecycle schema
+- behavior state schema
 - review-log event schema
 - Cucumber result schema
 - report schema
@@ -264,7 +264,7 @@ Result records 应该包含：
 - locale registry
 - 基于 Rust `gherkin` crate 的 feature file scanner
 - tag index
-- behavior lifecycle registry
+- behavior state registry
 - review-log loader
 
 registry 输出应该是围绕 `Package -> Module -> Feature -> Rule -> Example` 的单一 project model。
@@ -273,7 +273,7 @@ registry 输出应该是围绕 `Package -> Module -> Feature -> Rule -> Example`
 
 先构建 `harness check`，不要先做新 UI。
 
-第一个有价值的里程碑，是一个不用跑测试也能拒绝无效组织结构和 lifecycle state 的命令。
+第一个有价值的里程碑，是一个不用跑测试也能拒绝无效组织结构和 Rule state 的命令。
 
 ### Phase 4：Harness Runner 和 Cucumber Bridges
 
@@ -331,7 +331,7 @@ Coverage 应该包含：
 把这个仓库自己的 Harness artifacts 改写成新模型：
 
 - 从一个最小 self-feature 开始，先证明新的 check/test/report loop
-- 将旧 self-promises 转成 `.feature` 文件和 Rule lifecycle records
+- 将旧 self-promises 转成 `.feature` 文件和 Rule state records
 - 为 required review languages 增加多语言 `.feature` 文件
 - 用新的 module manifests 替换旧 modules
 - 将 manifest titles 和 descriptions 转成 `LocalizedText`
@@ -351,11 +351,11 @@ Coverage 应该包含：
 - 编写带相同稳定 tags 和 `@locale` 的多语言 `.feature` 文件
 - 使用稳定 `@example` tags，不把翻译后的 Example 标题当成身份
 - 将 Rules 草拟为 `draft` 或 `proposed`
-- 只有在人类明确 approval 后才把 Rule 标成 `accepted`
-- 把 `.feature` approval 作为写 step definitions、可执行测试和实现逻辑之前的硬门禁
+- 只有在人类明确 acceptance 后才把 Rule 标成 `accepted`
+- 把 `.feature` acceptance 作为写 step definitions、可执行测试和实现逻辑之前的硬门禁
 - 为 accepted behavior changes 追加 review-log events
 - 编写真实 step definitions，避免占位断言
-- 报告 lifecycle、run status、undefined steps 和 behavior coverage
+- 报告 Rule state、run status、undefined steps 和 behavior coverage
 
 ### Phase 8：Studio Rewrite
 
@@ -382,7 +382,7 @@ Coverage 应该包含：
 4. `harness check` 能校验 package/module/feature/rule 一致性
 5. `harness test` 能运行 Cucumber 并写出新的 result YAML
 6. `harness report --summary` 能按 Package、Module、Feature、Rule 展示行为状态
-7. accepted Rule drift 会通过 lifecycle/review-log checks 被检测出来
+7. accepted Rule drift 会通过 Rule state 和 review-log checks 被检测出来
 8. 多语言 `.feature` 文件可以校验 required locale coverage 和结构等价
 9. 新 Agent skill 能端到端驱动一次 feature change
 

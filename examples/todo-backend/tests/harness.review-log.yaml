@@ -1,7 +1,7 @@
 apiVersion: 1
 events:
   - id: review-log.2026-05-30.todo-backend-rust-cucumber
-    at: "2026-05-30"
+    at: 2026-05-30
     by: codex
     action: proposed
     summary:
@@ -9,5 +9,3 @@ events:
       zh-CN: 用多语言 feature 文件把 Rust Axum Todo Backend 示例接入 cucumber-rs。
     affectedRules:
       - "@rule:todo-backend.rust-axum.todo-lifecycle"
-    acknowledgement:
-      state: pending

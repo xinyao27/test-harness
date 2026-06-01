@@ -4,6 +4,11 @@
 @locale:en
 Feature: Cucumber feature registry
 
+  Background:
+    Given humans review Harness behavior through Cucumber feature files
+    And every behavior record needs stable package, module, feature, rule, and example identity
+    And the project model depends on parsed feature files instead of handwritten duplicate indexes
+
   @rule:harness.feature-registry.hierarchy-tags
   Rule: Feature files declare Harness hierarchy tags
 

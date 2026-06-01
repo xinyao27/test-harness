@@ -2,7 +2,5 @@ apiVersion: 1
 rules:
   - feature: "@feature:todo-backend.rust-axum.todo-api"
     rule: "@rule:todo-backend.rust-axum.todo-lifecycle"
-    lifecycle: proposed
-    review:
-      state: pending
+    state: proposed
     owner: todo-api

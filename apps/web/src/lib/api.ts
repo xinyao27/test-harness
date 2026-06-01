@@ -43,19 +43,13 @@ export type WorkbenchOpenResult = {
   path: string;
 };
 
-export type RuleReviewAction =
-  | "approve"
-  | "requestChanges"
-  | "reject"
-  | "deprecate"
-  | "supersede";
+export type RuleReviewAction = "accept" | "requestChanges" | "reject" | "deprecate" | "supersede";
 
 export type RuleReviewResult = {
   eventId: string;
   feature: string;
-  lifecycle: string;
-  reviewState: string;
   rule: string;
+  state: string;
 };
 
 type DaemonPairingComplete = {
@@ -437,9 +431,8 @@ function isRuleReviewResult(value: unknown): value is RuleReviewResult {
   return (
     typeof body.eventId === "string" &&
     typeof body.feature === "string" &&
-    typeof body.lifecycle === "string" &&
-    typeof body.reviewState === "string" &&
-    typeof body.rule === "string"
+    typeof body.rule === "string" &&
+    typeof body.state === "string"
   );
 }
 

@@ -4,7 +4,7 @@
 
 This project is a foundation for a **Cucumber/Gherkin-based Test Harness**.
 
-Its goal is not simply to run tests or increase coverage. The goal is to make behavior descriptions, lifecycle metadata, and test evidence become a readable model of a software system, so humans can understand, review, and manage system behavior without reading every implementation detail.
+Its goal is not simply to run tests or increase coverage. The goal is to make behavior descriptions, Rule state metadata, and test evidence become a readable model of a software system, so humans can understand, review, and manage system behavior without reading every implementation detail.
 
 The latest Harness model uses Cucumber's `Feature / Rule / Example / Given / When / Then` vocabulary as the behavior-description layer, then adds Harness-owned governance around it:
 
@@ -17,7 +17,7 @@ Package
           Given / When / Then
 ```
 
-`Feature`, `Rule`, `Example`, and steps are written as `.feature` files and parsed with the Cucumber/Gherkin ecosystem. `Package`, `Module`, lifecycle, review state, review history, locale policy, result normalization, and coverage are Harness responsibilities.
+`Feature`, `Rule`, `Example`, and steps are written as `.feature` files and parsed with the Cucumber/Gherkin ecosystem. `Package`, `Module`, Rule state, review history, locale policy, result normalization, and coverage are Harness responsibilities.
 
 Feature files should follow the code tree so coverage spreads across packages, crates, skills, and other boundaries. The directory layout makes missing coverage easy to spot, while tags and YAML keep the identity and coverage counts trustworthy.
 
@@ -108,7 +108,7 @@ features/harness/crates/harness-project/feature-registry/cucumber-feature-regist
 
 Localized `.feature` files for the same behavior reuse the same `@package`, `@module`, `@feature`, `@rule`, and `@example` tags. They differ by `@locale` and human-readable names or step body text.
 
-Keep Gherkin structural keywords in English for every locale: `Feature`, `Rule`, `Example`, `Given`, `When`, `Then`, `And`, and `But`. Do not add `# language: zh-CN` just to switch keywords. Use `@locale:<code>` for language identity, and do not translate tags, ids, lifecycle values, review states, or result identifiers.
+Keep Gherkin structural keywords in English for every locale: `Feature`, `Rule`, `Example`, `Given`, `When`, `Then`, `And`, and `But`. Do not add `# language: zh-CN` just to switch keywords. Use `@locale:<code>` for language identity, and do not translate tags, ids, Rule state values, or result identifiers.
 
 Harness-owned YAML files do **not** get duplicated per locale. Human-facing YAML fields use `LocalizedText`:
 
@@ -125,7 +125,7 @@ modules:
     package: harness-project
 ```
 
-A plain string is treated as default English. A language map such as `{ en, zh-CN }` carries translations. Stable machine fields such as `id`, `tag`, `package`, `module`, `lifecycle`, `review.state`, result identifiers, and file paths are never localized.
+A plain string is treated as default English. A language map such as `{ en, zh-CN }` carries translations. Stable machine fields such as `id`, `tag`, `package`, `module`, `state`, result identifiers, and file paths are never localized.
 
 `tests/harness.locales.yaml` defines the locale policy:
 
@@ -140,34 +140,31 @@ executionLocale: zh-CN
 
 `harness check` should verify required locale coverage and structural parity: the same Feature, Rule, Example, and step order/intent must exist across required locales while Gherkin keywords remain English.
 
-## Lifecycle And Review
+## Rule State And Review
 
-Lifecycle is human governance, not run status.
+Rule state is human governance, not run status.
 
-A Rule can be `accepted` and currently failing, or `draft` and already passing. Persisted lifecycle and computed run status must stay separate.
+A Rule can be `accepted` and currently failing, or `draft` and already passing. Persisted Rule state and computed run status must stay separate.
 
-Allowed lifecycle values:
+Allowed Rule state values:
 
 - `draft`
 - `proposed`
 - `accepted`
+- `changes_requested`
+- `rejected`
 - `deprecated`
 - `superseded`
 
-Allowed review states:
+Do not introduce synonyms for the same Rule state. In particular, do not use `approved` as a stored state; human approval maps to `accepted`. Do not use `pending`; reviewable behavior is `proposed` or `changes_requested`.
 
-- `pending`
-- `approved`
-- `changes_requested`
-- `rejected`
+Store Rule state outside `.feature` files, in `tests/harness.behavior.yaml`. Store accepted behavior changes, weakening, split, merge, deprecation, or supersession in `tests/harness.review-log.yaml`.
 
-Store Rule lifecycle and review state outside `.feature` files, in `tests/harness.behavior.yaml`. Store accepted behavior changes, weakening, split, merge, deprecation, or supersession in `tests/harness.review-log.yaml`.
+Agents can create `draft` or `proposed` Rules. Agents can mark a Rule `accepted` only when the human explicitly accepts it in the current conversation or review surface.
 
-Agents can create `draft` or `proposed` Rules. Agents can mark a Rule `accepted` only when the human explicitly approves it in the current conversation or review surface.
+`.feature` acceptance is a hard gate. Do not write step definitions, executable tests, or implementation logic for a `.feature` until every touched Rule in that `.feature` is `accepted`, or until the current review surface gives explicit human acceptance.
 
-`.feature` approval is a hard gate. Do not write step definitions, executable tests, or implementation logic for a `.feature` until every touched Rule in that `.feature` is `accepted` and review state `approved`, or until the current review surface gives explicit human approval.
-
-Do not weaken, remove, or blur accepted high-priority behavior without explicit human approval and review-log history.
+Do not weaken, remove, or blur accepted high-priority behavior without explicit human acceptance and review-log history.
 
 ## Cucumber Ecosystem Policy
 
@@ -189,7 +186,7 @@ Do not fork Gherkin syntax, invent a parallel step runner, or build a custom par
 Rust execution policy:
 
 - Let cucumber-rs run `.feature` Examples and own its terminal/debugging output.
-- Let `harness` own governance commands such as `check`, `test`, `report`, lifecycle, locale, coverage, and evidence aggregation.
+- Let `harness` own governance commands such as `check`, `test`, `report`, Rule state, locale, coverage, and evidence aggregation.
 - Implement `harness test` as a thin orchestration layer over Cucumber execution, not as a replacement terminal runner.
 - Express Harness execution selection as package/module/feature/rule/example/locale fields, then render those fields into `HARNESS_CUCUMBER_TAG_EXPRESSION` for language bridges and Cucumber engines.
 - Rust bridges map `HARNESS_CUCUMBER_TAG_EXPRESSION` to cucumber-rs native `CUCUMBER_FILTER_TAGS`, `--tags`, or `TagOperation`.
@@ -226,7 +223,7 @@ bridges/
 The intended boundary is:
 
 - `harness-protocol` owns stable cross-language schemas and result contracts.
-- `harness-project` owns project loading, `.feature` scanning, manifests, lifecycle, review logs, validation, coverage, and Studio snapshots.
+- `harness-project` owns project loading, `.feature` scanning, manifests, Rule state, review logs, validation, coverage, and Studio snapshots.
 - `harness-runner` owns orchestration across packages, modules, features, rules, examples, locales, and language bridges.
 - `harness-cli` is a thin command-line surface over project and runner behavior.
 - `harness-daemon` is the Studio/local API surface over project and runner behavior.
@@ -242,15 +239,15 @@ The project should evolve into a small but structured toolkit with these parts:
 - **Feature Registry**: scans localized `.feature` files, extracts stable tags, and builds the behavior model.
 - **Package/Module Registry**: stores architecture grouping above Cucumber `Feature`.
 - **Locale Registry**: stores source locale, required locales, and execution locale.
-- **Behavior Lifecycle Registry**: stores Rule lifecycle and review state.
-- **Review Log**: stores append-only human approval and behavior drift history.
+- **Behavior State Registry**: stores canonical Rule state and review metadata.
+- **Review Log**: stores append-only human acceptance and behavior drift history.
 - **Protocol Schemas**: versioned YAML contracts for Harness-owned artifacts with `apiVersion: 1`.
 - **Harness Runner**: orchestrates Cucumber execution across package, module, feature, rule, example, and locale slices.
 - **Language Bridges**: convert language-specific Cucumber outputs into Harness results, such as cucumber-rs typed events or Cucumber.js Messages.
 - **Result Collector**: writes unified YAML such as `tests/harness.results.yaml`.
-- **Analyzer**: builds Package, Module, Feature, Rule, Example, lifecycle, locale, risk, and failure-impact summaries.
-- **Studio UX**: eventually exposes package overview, module detail, feature review, locale switching, rule lifecycle, example evidence, run history, failures, and behavior coverage.
-- **Agent Skill**: teaches Agents to author Harness-friendly Cucumber behavior, manifests, lifecycle records, review-log entries, and executable evidence.
+- **Analyzer**: builds Package, Module, Feature, Rule, Example, Rule state, locale, risk, and failure-impact summaries.
+- **Studio UX**: eventually exposes package overview, module detail, feature review, locale switching, Rule state, example evidence, run history, failures, and behavior coverage.
+- **Agent Skill**: teaches Agents to author Harness-friendly Cucumber behavior, manifests, Rule state records, review-log entries, and executable evidence.
 
 ## Documentation Rules
 
@@ -275,14 +272,14 @@ When updating documentation, keep the English and Chinese versions aligned.
 - Treat Modules as reviewable architecture boundaries, not loose tags, folder mirrors, or UI groupings.
 - Group Modules under Packages. A Package is organizational; Modules remain the reviewable architecture boundary inside it.
 - Treat `.feature` files as the canonical source of reviewed behavior description.
-- Treat `tests/harness.behavior.yaml` as the canonical source of lifecycle and review state.
+- Treat `tests/harness.behavior.yaml` as the canonical source of Rule state and review metadata.
 - Treat `tests/harness.review-log.yaml` as the canonical source of accepted behavior change history.
 - Treat `protocol/v1/` as the cross-language contract. TypeScript Effect Schemas should match the protocol; they should not become the only source of truth.
 - Prefer YAML for Harness-owned artifacts, including result files such as `tests/harness.results.yaml`. Use JSON only when an external tool or protocol makes it necessary.
 - Persist `apiVersion: 1` in Harness-owned protocol YAML artifacts.
 - Prefer self-bootstrapping steps. The first implementation should validate this Harness project itself before supporting external projects broadly.
-- When adding a Harness capability, write or update `.feature` behavior, manifest entries, lifecycle records, and review-log records first.
-- Wait for explicit human approval of the touched `.feature` Rules before writing step definitions, executable tests, or implementation logic.
+- When adding a Harness capability, write or update `.feature` behavior, manifest entries, Rule state records, and review-log records first.
+- Wait for explicit human acceptance of the touched `.feature` Rules before writing step definitions, executable tests, or implementation logic.
 - Do not assume a passing test still proves a Rule. Track example evidence and preserve evidence deltas when tests are generated or edited.
 - Prefer changes that improve human readability and reviewability.
 - Keep implementation details subordinate to the reviewed behavior commitments.

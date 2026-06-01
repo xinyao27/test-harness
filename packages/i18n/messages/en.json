@@ -18,7 +18,7 @@
   "settings_filesystem_label": "Filesystem",
   "settings_filesystem_value": "Daemon only",
   "settings_no_filesystem": "Harness Studio does not read or write the filesystem directly.",
-  "settings_daemon_boundary": "Local permission actions are delegated to the Harness Daemon, such as approve, reject, generate, and test.",
+  "settings_daemon_boundary": "Local permission actions are delegated to the Harness Daemon, such as accept, reject, generate, and test.",
   "settings_language_title": "Language",
   "settings_language_description": "Choose the interface language for Harness Studio.",
   "settings_theme_title": "Appearance",

@@ -21,7 +21,7 @@ Both locale files reuse the same stable tags:
 @example:create-list-patch-clear
 ```
 
-The English and Chinese descriptions are review text. The tags are the stable identity Harness uses to connect Package, Module, Feature, Rule, Example, lifecycle, and execution evidence.
+The English and Chinese descriptions are review text. The tags are the stable identity Harness uses to connect Package, Module, Feature, Rule, Example, Rule state, and execution evidence.
 
 ## Run The Cucumber Example
 
@@ -49,7 +49,7 @@ tests/harness.behavior.yaml
 tests/harness.review-log.yaml
 ```
 
-These files describe the example's review languages, package/module ownership, rule lifecycle, and review history. They are intentionally separate from the `.feature` files so human lifecycle state does not get mixed into Cucumber syntax.
+These files describe the example's review languages, package/module ownership, Rule state, and review history. They are intentionally separate from the `.feature` files so human Rule state does not get mixed into Cucumber syntax.
 
 ## Current Rewrite Boundary
 

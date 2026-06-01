@@ -4,14 +4,14 @@
 @locale:en
 Feature: Studio review workflow persistence
 
-  @rule:harness.studio.review-action-updates-lifecycle
-  Rule: Studio review actions update Rule lifecycle and review state
+  @rule:harness.studio.review-action-updates-rule-state
+  Rule: Studio review actions update Rule state
 
-    @example:approve-rule-from-studio
-    Example: A reviewer approves a proposed Rule from Studio
-      Given a Rule is proposed and pending review
-      When Studio submits an approve review action for that Rule
-      Then the daemon stores the Rule as accepted with approved review metadata
+    @example:accept-rule-from-studio
+    Example: A reviewer accepts a proposed Rule from Studio
+      Given a Rule is proposed
+      When Studio submits an accept review action for that Rule
+      Then the daemon stores the Rule state as accepted with review metadata
 
   @rule:harness.studio.review-action-appends-history
   Rule: Studio review actions append review-log history

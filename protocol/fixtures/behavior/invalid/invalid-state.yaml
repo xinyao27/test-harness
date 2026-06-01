@@ -2,7 +2,5 @@ apiVersion: 1
 rules:
   - feature: "@feature:harness.feature-registry.scan-cucumber-features"
     rule: "@rule:harness.feature-registry.hierarchy-tags"
-    lifecycle: implemented
-    review:
-      state: pending
+    state: implemented
     owner: feature-registry

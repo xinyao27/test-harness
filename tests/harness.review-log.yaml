@@ -1,7 +1,7 @@
 apiVersion: 1
 events:
   - id: review-log.2026-05-30.bootstrap-bdd-harness-spec
-    at: "2026-05-30"
+    at: 2026-05-30
     by: codex
     action: proposed
     summary:
@@ -13,25 +13,24 @@ events:
       - "@rule:harness.feature-registry.localized-tags-share-identity"
       - "@rule:harness.feature-registry.localized-structure-parity"
       - "@rule:harness.feature-registry.english-gherkin-keywords"
-      - "@rule:harness.project-model.package-module-feature-rule-example"
-      - "@rule:harness.project-model.manifest-tags-match-feature-files"
-      - "@rule:harness.project-model.tags-are-language-neutral"
-      - "@rule:harness.lifecycle.stored-outside-feature-files"
-      - "@rule:harness.lifecycle.acceptance-requires-human-review"
-      - "@rule:harness.lifecycle.accepted-change-appends-review-log"
+      - "@rule:harness.project-model.package-is-code-boundary"
+      - "@rule:harness.project-model.module-is-reviewable-capability-boundary"
+      - "@rule:harness.project-model.module-contains-features"
+      - "@rule:harness.project-model.feature-is-cucumber-gherkin-behavior"
+      - "@rule:harness.state.stored-outside-feature-files"
+      - "@rule:harness.state.acceptance-requires-human-review"
+      - "@rule:harness.state.accepted-change-appends-review-log"
       - "@rule:harness.results.identity-without-promise-id"
       - "@rule:harness.results.step-status-summary"
       - "@rule:harness.results.aggregate-through-hierarchy"
       - "@rule:harness.report.shows-package-module-feature-rule-example"
-      - "@rule:harness.report.separates-lifecycle-from-run-status"
+      - "@rule:harness.report.separates-rule-state-from-run-status"
       - "@rule:harness.report.highlights-coverage-gaps"
       - "@rule:harness.agent-skill.behavior-before-code"
       - "@rule:harness.agent-skill.no-promise-workflow"
       - "@rule:harness.agent-skill.handoff-at-behavior-level"
-    acknowledgement:
-      state: pending
   - id: review-log.2026-05-31.runtime-cucumber-rs-evidence
-    at: "2026-05-31"
+    at: 2026-05-31
     by: codex
     action: proposed
     summary:
@@ -40,26 +39,22 @@ events:
     affectedRules:
       - "@rule:harness.results.cucumber-rs-records-example-events"
       - "@rule:harness.results.runner-run-merges-cucumber-rs-evidence"
-    acknowledgement:
-      state: pending
   - id: review-log.2026-05-31.studio-review-and-cucumber-test
-    at: "2026-05-31"
+    at: 2026-05-31
     by: codex
     action: proposed
     summary:
       en: Proposed the full Studio review workflow and Cucumber-focused harness test execution path.
       zh-CN: 提议完整 Studio review 工作流和面向 Cucumber 的 harness test 执行路径。
     affectedRules:
-      - "@rule:harness.studio.review-action-updates-lifecycle"
+      - "@rule:harness.studio.review-action-updates-rule-state"
       - "@rule:harness.studio.review-action-appends-history"
       - "@rule:harness.studio.review-actions-are-visible"
       - "@rule:harness.studio.review-history-is-visible"
       - "@rule:harness.cli.test-selects-cucumber-identity"
       - "@rule:harness.cli.test-collects-cucumber-evidence"
-    acknowledgement:
-      state: pending
   - id: review-log.2026-05-31.core-crates-and-language-bridges
-    at: "2026-05-31"
+    at: 2026-05-31
     by: codex
     action: proposed
     summary:
@@ -67,10 +62,8 @@ events:
       zh-CN: 提议长期采用 Harness 项目 crates 与特定语言 Cucumber bridges 分离的结构。
     affectedRules:
       - "@rule:harness.agent-skill.language-bridges-not-framework-adapters"
-    acknowledgement:
-      state: pending
   - id: review-log.2026-05-31.cucumber-filtering
-    at: "2026-05-31"
+    at: 2026-05-31
     by: codex
     action: proposed
     summary:
@@ -79,10 +72,8 @@ events:
     affectedRules:
       - "@rule:harness.runner.filter-fields-to-tag-expression"
       - "@rule:harness.runner.filter-expression-reaches-bridge-command"
-    acknowledgement:
-      state: pending
   - id: review-log.2026-05-31.bridge-native-tag-filters
-    at: "2026-05-31"
+    at: 2026-05-31
     by: codex
     action: proposed
     summary:
@@ -91,10 +82,8 @@ events:
     affectedRules:
       - "@rule:harness.results.cucumber-rs-uses-harness-filter"
       - "@rule:harness.results.cucumber-js-uses-harness-filter"
-    acknowledgement:
-      state: pending
   - id: review-log.2026-05-31.bridge-executable-filter-entrypoints
-    at: "2026-05-31"
+    at: 2026-05-31
     by: codex
     action: proposed
     summary:
@@ -103,10 +92,8 @@ events:
     affectedRules:
       - "@rule:harness.results.cucumber-rs-uses-harness-filter"
       - "@rule:harness.results.cucumber-js-uses-harness-filter"
-    acknowledgement:
-      state: pending
   - id: review-log.2026-05-31.cucumber-js-message-results
-    at: "2026-05-31"
+    at: 2026-05-31
     by: codex
     action: proposed
     summary:
@@ -114,10 +101,8 @@ events:
       zh-CN: 提议将 Cucumber.js Messages 转换成由稳定 tags 标识的 Harness Example results。
     affectedRules:
       - "@rule:harness.results.cucumber-js-records-example-results"
-    acknowledgement:
-      state: pending
   - id: review-log.2026-05-31.cucumber-examples-as-test-entrypoints
-    at: "2026-05-31"
+    at: 2026-05-31
     by: codex
     action: proposed
     summary:
@@ -125,5 +110,87 @@ events:
       zh-CN: 提议新的 Harness 行为必须以对应的 Cucumber Example 作为外层测试入口。
     affectedRules:
       - "@rule:harness.agent-skill.cucumber-examples-are-test-entrypoints"
-    acknowledgement:
-      state: pending
+  - id: review-log.2026-05-31.interactive-feature-review
+    at: 2026-05-31
+    by: codex
+    action: proposed
+    summary:
+      en: Proposed that agents review Harness features one package, module, feature, or Rule at a time and ask humans for an explicit decision before continuing.
+      zh-CN: 提议 agent 按 package、module、feature 或 Rule 逐项 review Harness features，并在继续前询问人类的明确决定。
+    affectedRules:
+      - "@rule:harness.agent-skill.interactive-feature-review"
+  - id: review-log.2026-05-31.feature-intake-modes
+    at: 2026-05-31
+    by: codex
+    action: proposed
+    summary:
+      en: "Proposed the two normal feature intake modes: discussion-first drafting and code-discovery drafting, both returning to human review before implementation."
+      zh-CN: 提议两种常规 feature 生成入口：先讨论需求再起草，以及从既有代码反推；两者都必须在实现前回到人类 review。
+    affectedRules:
+      - "@rule:harness.agent-skill.feature-intake-modes"
+  - id: review-log.2026-05-31.code-discovery-feature-drafts
+    at: 2026-05-31
+    by: codex
+    action: proposed
+    summary:
+      en: Proposed new feature drafts derived from existing Harness project, protocol, i18n, and Studio theme skill code.
+      zh-CN: 从既有 Harness project、protocol、i18n 和 Studio theme skill 代码中反推出新的 feature 草案。
+    affectedRules:
+      - "@rule:harness.project-orchestration.loads-canonical-artifacts"
+      - "@rule:harness.project-orchestration.composes-validation-issues"
+      - "@rule:harness.project-orchestration.report-uses-check-model"
+      - "@rule:harness.protocol.api-version-one"
+      - "@rule:harness.protocol.localized-text-shape"
+      - "@rule:harness.protocol.strict-artifact-fields"
+      - "@rule:harness.protocol.cucumber-result-identity"
+      - "@rule:harness.i18n.supported-locales-are-explicit"
+      - "@rule:harness.i18n.paraglide-config-is-canonical"
+      - "@rule:harness.i18n.package-exports-runtime-and-messages"
+      - "@rule:harness.studio-theme.source-of-truth-files"
+      - "@rule:harness.studio-theme.semantic-token-styling"
+      - "@rule:harness.studio-theme.style-only-stays-style-only"
+      - "@rule:harness.studio-theme.verifies-theme-dimensions"
+  - id: review-log.2026-05-31.core-cli-and-studio-feature-drafts
+    at: 2026-05-31
+    by: codex
+    action: proposed
+    summary:
+      en: Proposed core feature drafts for CLI check/report/verify commands, Studio snapshot projection, and Studio behavior browsing derived from existing code.
+      zh-CN: 从既有代码中反推出 CLI check/report/verify、Studio snapshot 投影和 Studio behavior 浏览这些核心 feature 草案。
+    affectedRules:
+      - "@rule:harness.cli.check-validates-project-model"
+      - "@rule:harness.cli.report-renders-behavior-model"
+      - "@rule:harness.cli.verify-aliases-report"
+      - "@rule:harness.cli.invalid-commands-show-usage"
+      - "@rule:harness.studio.snapshot-projects-check-model"
+      - "@rule:harness.studio.snapshot-review-queue"
+      - "@rule:harness.studio.snapshot-empty-project"
+      - "@rule:harness.studio.workbench-loads-project-snapshot"
+      - "@rule:harness.studio.workbench-prefers-current-locale"
+      - "@rule:harness.studio.workbench-opens-feature-files"
+      - "@rule:harness.studio.workbench-runs-tests-and-refreshes"
+  - id: review-log.2026-05-31.feature-background-purpose
+    at: 2026-05-31
+    by: codex
+    action: proposed
+    summary:
+      en: Proposed requiring Harness-authored feature Background sections to explain why a feature exists before review.
+      zh-CN: 提议 Harness 编写的 feature 在 review 前必须用 Background 解释 feature 为什么存在。
+    affectedRules:
+      - "@rule:harness.agent-skill.background-captures-feature-purpose"
+      - "@rule:harness.project-model.package-is-code-boundary"
+      - "@rule:harness.project-model.module-is-reviewable-capability-boundary"
+      - "@rule:harness.project-model.module-contains-features"
+      - "@rule:harness.project-model.feature-is-cucumber-gherkin-behavior"
+  - id: review-log.2026-06-01.rewrite-project-model-boundaries
+    at: 2026-06-01
+    by: codex
+    action: proposed
+    summary:
+      en: Rewrote the project model feature around Package, Module, Feature, and Cucumber/Gherkin behavior boundaries for first human review.
+      zh-CN: 围绕 Package、Module、Feature 和 Cucumber/Gherkin 行为边界重写 project model feature，等待第一次人类 review。
+    affectedRules:
+      - "@rule:harness.project-model.package-is-code-boundary"
+      - "@rule:harness.project-model.module-is-reviewable-capability-boundary"
+      - "@rule:harness.project-model.module-contains-features"
+      - "@rule:harness.project-model.feature-is-cucumber-gherkin-behavior"

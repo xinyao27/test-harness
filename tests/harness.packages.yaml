@@ -6,12 +6,12 @@ packages:
       zh-CN: Harness 项目
     path: crates/harness-project
     purpose:
-      en: Owns project scanning, validation, reporting, lifecycle aggregation, and behavior coverage.
-      zh-CN: 负责项目扫描、校验、报告、生命周期聚合和行为覆盖率。
+      en: Owns project scanning, validation, reporting, Rule state aggregation, and behavior coverage.
+      zh-CN: 负责项目扫描、校验、报告、Rule state 聚合和行为覆盖率。
     modules:
       - feature-registry
       - project-model
-      - behavior-lifecycle
+      - behavior-state
       - behavior-report
       - project-orchestration
   - id: harness-protocol
@@ -101,8 +101,8 @@ packages:
       zh-CN: Harness Agent 技能
     path: skills
     purpose:
-      en: Owns agent workflows for authoring Harness behavior through the BDD lifecycle.
-      zh-CN: 负责让 agent 通过 BDD 生命周期编写 Harness 行为的工作流。
+      en: Owns agent workflows for authoring Harness behavior through the BDD review workflow.
+      zh-CN: 负责让 agent 通过 BDD review workflow 编写 Harness 行为的工作流。
     modules:
       - agent-authoring
       - studio-theme-skill

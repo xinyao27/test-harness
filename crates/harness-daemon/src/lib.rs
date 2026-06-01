@@ -4,9 +4,8 @@ use harness_project::{
     REVIEW_LOG_PATH,
 };
 use harness_protocol::{
-    BehaviorFile, BehaviorLifecycle, BehaviorReview, ExampleResult, LocalizedText, ModuleRecord,
-    PackageRecord, ResultsFile, ReviewLogAcknowledgement, ReviewLogAction, ReviewLogEvent,
-    ReviewState, ValidationSeverity,
+    BehaviorFile, BehaviorReview, BehaviorState, ExampleResult, LocalizedText, ModuleRecord,
+    PackageRecord, ResultsFile, ReviewLogAction, ReviewLogEvent, ValidationSeverity,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -68,8 +67,7 @@ pub struct StudioRule {
     pub tag: String,
     pub name: String,
     pub line: usize,
-    pub lifecycle: BehaviorLifecycle,
-    pub review_state: ReviewState,
+    pub state: BehaviorState,
     pub owner: String,
     pub review_events: Vec<StudioReviewEvent>,
     pub examples: Vec<StudioExample>,
@@ -83,7 +81,8 @@ pub struct StudioReviewEvent {
     pub by: String,
     pub action: ReviewLogAction,
     pub summary: LocalizedText,
-    pub acknowledgement_state: ReviewState,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub note: Option<LocalizedText>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -101,7 +100,7 @@ pub struct StudioRuleReviewInput {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum StudioRuleReviewAction {
-    Approve,
+    Accept,
     RequestChanges,
     Reject,
     Deprecate,
@@ -113,8 +112,7 @@ pub enum StudioRuleReviewAction {
 pub struct StudioRuleReviewOutcome {
     pub feature: String,
     pub rule: String,
-    pub lifecycle: BehaviorLifecycle,
-    pub review_state: ReviewState,
+    pub state: BehaviorState,
     pub event_id: String,
 }
 
@@ -388,12 +386,9 @@ fn to_studio_rule(
         tag: rule_tag.clone(),
         name: rule.name.clone(),
         line: rule.line,
-        lifecycle: behavior_record
-            .map(|record| record.lifecycle.clone())
-            .unwrap_or(BehaviorLifecycle::Draft),
-        review_state: behavior_record
-            .map(|record| record.review.state.clone())
-            .unwrap_or(ReviewState::Pending),
+        state: behavior_record
+            .map(|record| record.state.clone())
+            .unwrap_or(BehaviorState::Draft),
         owner: behavior_record
             .map(|record| record.owner.clone())
             .unwrap_or_default(),
@@ -427,7 +422,7 @@ pub fn review_rule(
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(|value| LocalizedText::Text(value.to_string()));
-    let (lifecycle, review_state, log_action) = review_transition(&input.action);
+    let (state, log_action) = review_transition(&input.action);
 
     let Some(record) = behavior
         .rules
@@ -440,13 +435,12 @@ pub fn review_rule(
         ));
     };
 
-    record.lifecycle = lifecycle.clone();
-    record.review = BehaviorReview {
+    record.state = state.clone();
+    record.review = Some(BehaviorReview {
         at: Some(timestamp.clone()),
         by: Some(reviewer.clone()),
         note: note.clone(),
-        state: review_state.clone(),
-    };
+    });
 
     let event_id = format!(
         "review-log.{}.{}",
@@ -454,17 +448,12 @@ pub fn review_rule(
         slug(&format!("{:?}-{}", input.action, input.rule))
     );
     review_log.events.push(ReviewLogEvent {
-        acknowledgement: ReviewLogAcknowledgement {
-            at: Some(timestamp.clone()),
-            by: Some(reviewer.clone()),
-            note,
-            state: review_state.clone(),
-        },
         action: log_action,
         affected_rules: vec![input.rule.clone()],
         at: timestamp,
         by: reviewer,
         id: event_id.clone(),
+        note,
         summary: review_summary(&input.action, &input.rule),
     });
 
@@ -474,9 +463,8 @@ pub fn review_rule(
     Ok(StudioRuleReviewOutcome {
         event_id,
         feature: input.feature,
-        lifecycle,
-        review_state,
         rule: input.rule,
+        state,
     })
 }
 
@@ -535,51 +523,36 @@ fn review_events_for_rule(events: &[ReviewLogEvent], rule_tag: &str) -> Vec<Stud
         .iter()
         .filter(|event| event.affected_rules.iter().any(|rule| rule == rule_tag))
         .map(|event| StudioReviewEvent {
-            acknowledgement_state: event.acknowledgement.state.clone(),
             action: event.action.clone(),
             at: event.at.clone(),
             by: event.by.clone(),
             id: event.id.clone(),
+            note: event.note.clone(),
             summary: event.summary.clone(),
         })
         .collect()
 }
 
-fn review_transition(
-    action: &StudioRuleReviewAction,
-) -> (BehaviorLifecycle, ReviewState, ReviewLogAction) {
+fn review_transition(action: &StudioRuleReviewAction) -> (BehaviorState, ReviewLogAction) {
     match action {
-        StudioRuleReviewAction::Approve => (
-            BehaviorLifecycle::Accepted,
-            ReviewState::Approved,
-            ReviewLogAction::Approved,
-        ),
+        StudioRuleReviewAction::Accept => (BehaviorState::Accepted, ReviewLogAction::Accepted),
         StudioRuleReviewAction::RequestChanges => (
-            BehaviorLifecycle::Proposed,
-            ReviewState::ChangesRequested,
+            BehaviorState::ChangesRequested,
             ReviewLogAction::ChangesRequested,
         ),
-        StudioRuleReviewAction::Reject => (
-            BehaviorLifecycle::Proposed,
-            ReviewState::Rejected,
-            ReviewLogAction::Rejected,
-        ),
-        StudioRuleReviewAction::Deprecate => (
-            BehaviorLifecycle::Deprecated,
-            ReviewState::Approved,
-            ReviewLogAction::Deprecated,
-        ),
-        StudioRuleReviewAction::Supersede => (
-            BehaviorLifecycle::Superseded,
-            ReviewState::Approved,
-            ReviewLogAction::Superseded,
-        ),
+        StudioRuleReviewAction::Reject => (BehaviorState::Rejected, ReviewLogAction::Rejected),
+        StudioRuleReviewAction::Deprecate => {
+            (BehaviorState::Deprecated, ReviewLogAction::Deprecated)
+        }
+        StudioRuleReviewAction::Supersede => {
+            (BehaviorState::Superseded, ReviewLogAction::Superseded)
+        }
     }
 }
 
 fn review_summary(action: &StudioRuleReviewAction, rule: &str) -> LocalizedText {
     let action_text = match action {
-        StudioRuleReviewAction::Approve => ("Approved", "批准"),
+        StudioRuleReviewAction::Accept => ("Accepted", "通过"),
         StudioRuleReviewAction::RequestChanges => ("Requested changes on", "请求修改"),
         StudioRuleReviewAction::Reject => ("Rejected", "拒绝"),
         StudioRuleReviewAction::Deprecate => ("Deprecated", "废弃"),
@@ -631,9 +604,10 @@ fn review_drafts(behavior: &BehaviorFile, modules: &[ModuleRecord]) -> Vec<Studi
         .rules
         .iter()
         .filter(|record| {
-            record.lifecycle == BehaviorLifecycle::Proposed
-                || record.review.state == ReviewState::Pending
-                || record.review.state == ReviewState::ChangesRequested
+            matches!(
+                record.state,
+                BehaviorState::Draft | BehaviorState::Proposed | BehaviorState::ChangesRequested
+            )
         })
         .map(|record| StudioReviewDraft {
             id: record.rule.clone(),
@@ -643,10 +617,10 @@ fn review_drafts(behavior: &BehaviorFile, modules: &[ModuleRecord]) -> Vec<Studi
             } else {
                 vec![record.owner.clone()]
             },
-            state: record.review.state.to_string(),
+            state: record.state.to_string(),
             reason: localized(
-                "Rule needs human lifecycle review.",
-                "Rule 需要人类进行生命周期 review。",
+                "Rule needs human state review.",
+                "Rule 需要人类进行状态 review。",
             ),
         })
         .collect()

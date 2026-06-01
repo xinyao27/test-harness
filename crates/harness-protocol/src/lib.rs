@@ -96,43 +96,26 @@ pub struct LocalesFile {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum BehaviorLifecycle {
+pub enum BehaviorState {
     Draft,
     Proposed,
     Accepted,
+    ChangesRequested,
+    Rejected,
     Deprecated,
     Superseded,
 }
 
-impl fmt::Display for BehaviorLifecycle {
+impl fmt::Display for BehaviorState {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(match self {
             Self::Draft => "draft",
             Self::Proposed => "proposed",
             Self::Accepted => "accepted",
-            Self::Deprecated => "deprecated",
-            Self::Superseded => "superseded",
-        })
-    }
-}
-
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ReviewState {
-    #[default]
-    Pending,
-    Approved,
-    ChangesRequested,
-    Rejected,
-}
-
-impl fmt::Display for ReviewState {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(match self {
-            Self::Pending => "pending",
-            Self::Approved => "approved",
             Self::ChangesRequested => "changes_requested",
             Self::Rejected => "rejected",
+            Self::Deprecated => "deprecated",
+            Self::Superseded => "superseded",
         })
     }
 }
@@ -140,7 +123,6 @@ impl fmt::Display for ReviewState {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct BehaviorReview {
-    pub state: ReviewState,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub by: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -154,8 +136,9 @@ pub struct BehaviorReview {
 pub struct BehaviorRuleRecord {
     pub feature: String,
     pub rule: String,
-    pub lifecycle: BehaviorLifecycle,
-    pub review: BehaviorReview,
+    pub state: BehaviorState,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub review: Option<BehaviorReview>,
     pub owner: String,
 }
 
@@ -171,23 +154,11 @@ pub struct BehaviorFile {
 #[serde(rename_all = "snake_case")]
 pub enum ReviewLogAction {
     Proposed,
-    Approved,
+    Accepted,
     ChangesRequested,
     Rejected,
     Deprecated,
     Superseded,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct ReviewLogAcknowledgement {
-    pub state: ReviewState,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub by: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub at: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub note: Option<LocalizedText>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -200,7 +171,8 @@ pub struct ReviewLogEvent {
     pub summary: LocalizedText,
     #[serde(rename = "affectedRules")]
     pub affected_rules: Vec<String>,
-    pub acknowledgement: ReviewLogAcknowledgement,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub note: Option<LocalizedText>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -575,14 +547,16 @@ pub fn validate_behavior_rule_record(
     validate_tag(&record.feature, "@feature:", "behavior feature")?;
     validate_tag(&record.rule, "@rule:", "behavior rule")?;
     validate_id(&record.owner, "behavior owner")?;
-    if let Some(by) = &record.review.by {
-        validate_non_empty(by, "review.by")?;
-    }
-    if let Some(at) = &record.review.at {
-        validate_non_empty(at, "review.at")?;
-    }
-    if let Some(note) = &record.review.note {
-        validate_localized_text(note, "review.note")?;
+    if let Some(review) = &record.review {
+        if let Some(by) = &review.by {
+            validate_non_empty(by, "review.by")?;
+        }
+        if let Some(at) = &review.at {
+            validate_non_empty(at, "review.at")?;
+        }
+        if let Some(note) = &review.note {
+            validate_localized_text(note, "review.note")?;
+        }
     }
     Ok(())
 }
@@ -603,14 +577,8 @@ pub fn validate_review_log_event(event: &ReviewLogEvent) -> Result<(), ProtocolD
     validate_string_list(&event.affected_rules, "affectedRules", |value, field| {
         validate_tag(value, "@rule:", field)
     })?;
-    if let Some(by) = &event.acknowledgement.by {
-        validate_non_empty(by, "acknowledgement.by")?;
-    }
-    if let Some(at) = &event.acknowledgement.at {
-        validate_non_empty(at, "acknowledgement.at")?;
-    }
-    if let Some(note) = &event.acknowledgement.note {
-        validate_localized_text(note, "acknowledgement.note")?;
+    if let Some(note) = &event.note {
+        validate_localized_text(note, "review log note")?;
     }
     Ok(())
 }

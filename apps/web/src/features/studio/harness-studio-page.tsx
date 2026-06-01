@@ -7,7 +7,7 @@ import type {
   HarnessPackage,
   HarnessRule,
   HarnessSnapshot,
-  ReviewState,
+  BehaviorState,
   RunStatus,
 } from "@/data/harness-snapshot";
 import {
@@ -412,7 +412,7 @@ function RulePanel({
   rule: HarnessRule;
 }) {
   async function review(action: RuleReviewAction) {
-    const needsNote = action !== "approve";
+    const needsNote = action !== "accept";
     const note = needsNote
       ? (globalThis.prompt?.(label(locale, "Review note", "Review 备注")) ?? undefined)
       : undefined;
@@ -429,15 +429,12 @@ function RulePanel({
           <div className="break-words text-xs text-muted-foreground">{rule.tag}</div>
           <h3 className="mt-1 text-base font-semibold">{rule.name}</h3>
         </div>
-        <span className={cn("rounded-full px-2 py-1 text-xs", lifecycleTone(rule.lifecycle))}>
-          {rule.lifecycle}
-        </span>
-        <span className={cn("rounded-full px-2 py-1 text-xs", reviewTone(rule.reviewState))}>
-          {reviewLabel(rule.reviewState, locale)}
+        <span className={cn("rounded-full px-2 py-1 text-xs", stateTone(rule.state))}>
+          {stateLabel(rule.state, locale)}
         </span>
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
-        <ReviewButton label={label(locale, "Approve", "批准")} onClick={() => review("approve")} />
+        <ReviewButton label={label(locale, "Accept", "通过")} onClick={() => review("accept")} />
         <ReviewButton
           label={label(locale, "Request changes", "请求修改")}
           onClick={() => review("requestChanges")}
@@ -594,12 +591,15 @@ function label(locale: AppLocale, en: string, zhCn: string) {
   return locale === "zh-CN" ? zhCn : en;
 }
 
-function reviewLabel(state: ReviewState, locale: AppLocale) {
-  const labels: Record<ReviewState, [string, string]> = {
-    approved: ["Approved", "已通过"],
+function stateLabel(state: BehaviorState, locale: AppLocale) {
+  const labels: Record<BehaviorState, [string, string]> = {
+    accepted: ["Accepted", "已通过"],
     changes_requested: ["Changes requested", "需要修改"],
-    pending: ["Pending", "待 review"],
+    deprecated: ["Deprecated", "已废弃"],
+    draft: ["Draft", "草稿"],
+    proposed: ["Proposed", "待 review"],
     rejected: ["Rejected", "已拒绝"],
+    superseded: ["Superseded", "已替换"],
   };
   const [en, zhCn] = labels[state];
   return label(locale, en, zhCn);
@@ -621,17 +621,11 @@ function connectionTone(state: DaemonConnectionState) {
     : "bg-warning/10 text-warning-foreground";
 }
 
-function lifecycleTone(lifecycle: HarnessRule["lifecycle"]) {
-  if (lifecycle === "accepted") return "bg-success/10 text-success-foreground";
-  if (lifecycle === "proposed" || lifecycle === "draft")
+function stateTone(state: BehaviorState) {
+  if (state === "accepted") return "bg-success/10 text-success-foreground";
+  if (state === "changes_requested" || state === "draft" || state === "proposed")
     return "bg-warning/10 text-warning-foreground";
-  return "bg-muted text-muted-foreground";
-}
-
-function reviewTone(state: ReviewState) {
-  if (state === "approved") return "bg-success/10 text-success-foreground";
-  if (state === "changes_requested" || state === "pending")
-    return "bg-warning/10 text-warning-foreground";
+  if (state === "deprecated" || state === "superseded") return "bg-muted text-muted-foreground";
   return "bg-destructive/10 text-destructive";
 }
 

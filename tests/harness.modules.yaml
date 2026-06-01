@@ -26,18 +26,20 @@ modules:
       - tests/harness.packages.yaml
       - tests/harness.modules.yaml
       - features/harness/crates/harness-project/project-model/project-model.feature
-  - id: behavior-lifecycle
+      - features/harness/crates/harness-project/project-model/project-model.zh-CN.feature
+  - id: behavior-state
     package: harness-project
     title:
-      en: Behavior Lifecycle
-      zh-CN: 行为生命周期
+      en: Behavior State
+      zh-CN: 行为状态
     purpose:
-      en: Store Rule lifecycle, human review state, and drift history outside Cucumber feature files.
-      zh-CN: 在 Cucumber feature 文件之外存储 Rule 生命周期、人类 review 状态和 drift 历史。
+      en: Store canonical Rule state, review metadata, and drift history outside Cucumber feature files.
+      zh-CN: 在 Cucumber feature 文件之外存储 canonical Rule state、review metadata 和 drift 历史。
     covers:
       - tests/harness.behavior.yaml
       - tests/harness.review-log.yaml
-      - features/harness/crates/harness-project/behavior-lifecycle/behavior-lifecycle.feature
+      - features/harness/crates/harness-project/behavior-state/behavior-state.feature
+      - features/harness/crates/harness-project/behavior-state/behavior-state.zh-CN.feature
   - id: behavior-report
     package: harness-project
     title:
@@ -49,6 +51,7 @@ modules:
     covers:
       - crates/harness-project/src/feature_report.rs
       - features/harness/crates/harness-project/behavior-reporting/behavior-reporting.feature
+      - features/harness/crates/harness-project/behavior-reporting/behavior-reporting.zh-CN.feature
   - id: project-orchestration
     package: harness-project
     title:
@@ -59,6 +62,8 @@ modules:
       zh-CN: 编排 Harness config、manifests、validation、results 和 program entrypoints。
     covers:
       - crates/harness-project
+      - features/harness/crates/harness-project/project-orchestration/project-orchestration.feature
+      - features/harness/crates/harness-project/project-orchestration/project-orchestration.zh-CN.feature
   - id: protocol-contract
     package: harness-protocol
     title:
@@ -70,6 +75,8 @@ modules:
     covers:
       - crates/harness-protocol
       - protocol
+      - features/harness/crates/harness-protocol/protocol-contract/protocol-contract.feature
+      - features/harness/crates/harness-protocol/protocol-contract/protocol-contract.zh-CN.feature
   - id: cucumber-results
     package: harness-runner
     title:
@@ -131,6 +138,8 @@ modules:
       - crates/harness-cli
       - features/harness/crates/harness-cli/cucumber-test-execution/cucumber-test-execution.feature
       - features/harness/crates/harness-cli/cucumber-test-execution/cucumber-test-execution.zh-CN.feature
+      - features/harness/crates/harness-cli/project-commands/project-commands.feature
+      - features/harness/crates/harness-cli/project-commands/project-commands.zh-CN.feature
   - id: daemon-studio-api
     package: harness-daemon
     title:
@@ -143,6 +152,8 @@ modules:
       - crates/harness-daemon
       - features/harness/crates/harness-daemon/studio-review-workflow/studio-review-workflow.feature
       - features/harness/crates/harness-daemon/studio-review-workflow/studio-review-workflow.zh-CN.feature
+      - features/harness/crates/harness-daemon/studio-snapshot-api/studio-snapshot-api.feature
+      - features/harness/crates/harness-daemon/studio-snapshot-api/studio-snapshot-api.zh-CN.feature
   - id: studio-web
     package: harness-studio-web
     title:
@@ -153,6 +164,8 @@ modules:
       zh-CN: 在浏览器中呈现 Harness behavior、results、agent cards、settings 和 project navigation。
     covers:
       - apps/web
+      - features/harness/apps/web/studio-behavior-workbench/studio-behavior-workbench.feature
+      - features/harness/apps/web/studio-behavior-workbench/studio-behavior-workbench.zh-CN.feature
       - features/harness/apps/web/studio-review-workbench/studio-review-workbench.feature
       - features/harness/apps/web/studio-review-workbench/studio-review-workbench.zh-CN.feature
   - id: i18n-catalog
@@ -165,6 +178,8 @@ modules:
       zh-CN: 为 Harness Studio 生成并提供本地化 UI messages。
     covers:
       - packages/i18n
+      - features/harness/packages/i18n/i18n-catalog/i18n-catalog.feature
+      - features/harness/packages/i18n/i18n-catalog/i18n-catalog.zh-CN.feature
   - id: agent-authoring
     package: harness-skills
     title:
@@ -177,6 +192,7 @@ modules:
       - skills/harness-author-bdd/SKILL.md
       - skills/harness-author-bdd/SKILL.zh-CN.md
       - features/harness/skills/harness-author-bdd/bdd-authoring-skill.feature
+      - features/harness/skills/harness-author-bdd/bdd-authoring-skill.zh-CN.feature
   - id: studio-theme-skill
     package: harness-skills
     title:
@@ -187,3 +203,5 @@ modules:
       zh-CN: 指导 agents 修改 Harness Studio theme 和 visual styling。
     covers:
       - skills/harness-studio-theme
+      - features/harness/skills/harness-studio-theme/theme-authoring-skill/theme-authoring-skill.feature
+      - features/harness/skills/harness-studio-theme/theme-authoring-skill/theme-authoring-skill.zh-CN.feature

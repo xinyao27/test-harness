@@ -3,9 +3,8 @@ use crate::localized_text::{
     has_default_language_text, is_blank, is_localized_text_blank, resolve_localized_text,
 };
 use harness_protocol::{
-    BehaviorFile, BehaviorLifecycle, LocalesFile, ModuleRecord, PackageRecord, ResultsFile,
-    ReviewLogFile, ReviewState, ValidationIssue, ValidationSeverity, ValidationSubject,
-    ValidationSubjectKind,
+    BehaviorFile, LocalesFile, ModuleRecord, PackageRecord, ResultsFile, ReviewLogFile,
+    ValidationIssue, ValidationSeverity, ValidationSubject, ValidationSubjectKind,
 };
 use regex::Regex;
 use std::collections::{HashMap, HashSet};
@@ -385,7 +384,7 @@ pub fn validate_behavior_records(
                 ValidationSeverity::Error,
                 "duplicate_behavior_rule",
                 format!(
-                    "Behavior lifecycle contains duplicate rule \"{}\" under \"{}\".",
+                    "Behavior state registry contains duplicate rule \"{}\" under \"{}\".",
                     record.rule, record.feature
                 ),
                 Some(subject(ValidationSubjectKind::Rule, record.rule.clone())),
@@ -397,22 +396,8 @@ pub fn validate_behavior_records(
                 ValidationSeverity::Error,
                 "behavior_unknown_rule",
                 format!(
-                    "Behavior lifecycle references \"{}\" under \"{}\", but no matching feature Rule exists.",
+                    "Behavior state registry references \"{}\" under \"{}\", but no matching feature Rule exists.",
                     record.rule, record.feature
-                ),
-                Some(subject(ValidationSubjectKind::Rule, record.rule.clone())),
-                None,
-            ));
-        }
-        if matches!(record.lifecycle, BehaviorLifecycle::Accepted)
-            && record.review.state != ReviewState::Approved
-        {
-            issues.push(issue(
-                ValidationSeverity::Warning,
-                "accepted_rule_without_approved_review",
-                format!(
-                    "Accepted Rule \"{}\" should have review.state approved.",
-                    record.rule
                 ),
                 Some(subject(ValidationSubjectKind::Rule, record.rule.clone())),
                 None,
@@ -424,7 +409,7 @@ pub fn validate_behavior_records(
         if !seen.contains(&(feature_id.clone(), rule_id.clone())) {
             issues.push(issue(
                 ValidationSeverity::Error,
-                "rule_missing_lifecycle",
+                "rule_missing_state",
                 format!(
                     "Rule \"{rule_id}\" under \"{feature_id}\" is missing from tests/harness.behavior.yaml."
                 ),
